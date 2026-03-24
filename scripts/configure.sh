@@ -86,12 +86,11 @@ sel_separator=""
 draw_header() {
   local step="$1" total="$2" title="$3"
   tput clear
-  echo -e "\033[1;36m╔══════════════════════════════════════════════════╗\033[0m"
-  echo -e "\033[1;36m║   CYBERPUNK STATUSLINE CONFIGURATOR             ║\033[0m"
-  echo -e "\033[1;36m╚══════════════════════════════════════════════════╝\033[0m"
-  echo ""
-  echo -e "\033[2mStep ${step}/${total}\033[0m — \033[1m${title}\033[0m"
-  echo ""
+  printf '\033[1;36m  CYBERPUNK STATUSLINE CONFIGURATOR\033[0m\n'
+  printf '\033[2m  ===================================\033[0m\n'
+  printf '\n'
+  printf '\033[2mStep %s/%s\033[0m — \033[1m%s\033[0m\n' "$step" "$total" "$title"
+  printf '\n'
 }
 
 # Draw footer with navigation hints
@@ -99,7 +98,7 @@ draw_footer() {
   local hints="$1"
   local row=$((TERM_LINES - 1))
   tput cup "$row" 0
-  echo -e "\033[2m${hints}\033[0m"
+  printf '\033[K\033[2m%s\033[0m' "$hints"
 }
 
 # Read a single keypress. Sets KEY to: "up", "down", "enter", "space", "b", "q", or the character
@@ -166,13 +165,11 @@ CONF
 draw_preview() {
   local preview_row=$((TERM_LINES - 4))
   tput cup "$preview_row" 0
-  # Clear the preview area (3 lines)
-  echo -e "\033[K"
-  echo -e "\033[K"
-  tput cup "$preview_row" 0
-  echo -e "\033[2mPreview:\033[0m"
+  printf '\033[K\033[2mPreview:\033[0m\n'
   tput cup $((preview_row + 1)) 0
+  printf '\033[K'
   render_preview "$@"
+  printf '\033[K'
 }
 
 # Single-select menu with arrow key navigation
@@ -187,12 +184,11 @@ menu_select() {
   while true; do
     # Draw options
     for i in "${!options[@]}"; do
-      tput cup $((6 + i)) 0
-      echo -e "\033[K"  # clear line
+      tput cup $((5 + i)) 0
       if [ "$i" -eq "$cursor" ]; then
-        echo -e " \033[1;36m❯\033[0m \033[1m${options[$i]}\033[0m"
+        printf '\033[K \033[1;36m❯\033[0m \033[1m%s\033[0m' "${options[$i]}"
       else
-        echo -e "   \033[2m${options[$i]}\033[0m"
+        printf '\033[K   \033[2m%s\033[0m' "${options[$i]}"
       fi
     done
 
@@ -320,14 +316,13 @@ step_theme() {
     # Draw options (only redraw if cursor moved)
     if [ "$cursor" != "$prev_cursor" ]; then
       for i in "${!all_labels[@]}"; do
-        tput cup $((6 + i)) 0
-        echo -e "\033[K"
+        tput cup $((5 + i)) 0
         if [ "${all_ids[$i]}" = "__header__" ]; then
-          echo -e " \033[2;33m${all_labels[$i]}\033[0m"
+          printf '\033[K \033[2;33m%s\033[0m' "${all_labels[$i]}"
         elif [ "$i" -eq "$cursor" ]; then
-          echo -e " \033[1;36m❯\033[0m \033[1m${all_labels[$i]}\033[0m"
+          printf '\033[K \033[1;36m❯\033[0m \033[1m%s\033[0m' "${all_labels[$i]}"
         else
-          echo -e "   \033[2m${all_labels[$i]}\033[0m"
+          printf '\033[K   \033[2m%s\033[0m' "${all_labels[$i]}"
         fi
       done
 
@@ -399,8 +394,7 @@ step_blocks() {
 
   while true; do
     for i in "${!block_descs[@]}"; do
-      tput cup $((6 + i)) 0
-      echo -e "\033[K"
+      tput cup $((5 + i)) 0
       local check_mark
       if [ "${states[$i]}" = "1" ]; then
         check_mark="\033[32m✔\033[0m"
@@ -408,9 +402,9 @@ step_blocks() {
         check_mark="\033[2m✗\033[0m"
       fi
       if [ "$i" -eq "$cursor" ]; then
-        echo -e " \033[1;36m❯\033[0m${check_mark} \033[1m${block_descs[$i]}\033[0m"
+        printf '\033[K \033[1;36m❯\033[0m'"${check_mark}"' \033[1m%s\033[0m' "${block_descs[$i]}"
       else
-        echo -e "  ${check_mark} \033[2m${block_descs[$i]}\033[0m"
+        printf '\033[K  '"${check_mark}"' \033[2m%s\033[0m' "${block_descs[$i]}"
       fi
     done
 
@@ -449,7 +443,7 @@ step_blocks() {
         done
         if ! $any_checked; then
           tput cup $((TERM_LINES - 1)) 0
-          echo -e "\033[K\033[31mAt least one block must be enabled!\033[0m"
+          printf '\033[K\033[31mAt least one block must be enabled!\033[0m'
           sleep 1
           draw_footer "↑↓ move · Space toggle · Enter confirm · b back · q quit"
           continue
@@ -507,12 +501,11 @@ step_spacing() {
   while true; do
     if [ "$cursor" != "$prev_cursor" ]; then
       for i in "${!options[@]}"; do
-        tput cup $((6 + i)) 0
-        echo -e "\033[K"
+        tput cup $((5 + i)) 0
         if [ "$i" -eq "$cursor" ]; then
-          echo -e " \033[1;36m❯\033[0m \033[1m${options[$i]}\033[0m"
+          printf '\033[K \033[1;36m❯\033[0m \033[1m%s\033[0m' "${options[$i]}"
         else
-          echo -e "   \033[2m${options[$i]}\033[0m"
+          printf '\033[K   \033[2m%s\033[0m' "${options[$i]}"
         fi
       done
       draw_preview "$theme" "$symbols" "${values[$cursor]}" "$separator" "$blocks_csv"
@@ -564,12 +557,11 @@ step_separator() {
   while true; do
     if [ "$cursor" != "$prev_cursor" ]; then
       for i in "${!options[@]}"; do
-        tput cup $((6 + i)) 0
-        echo -e "\033[K"
+        tput cup $((5 + i)) 0
         if [ "$i" -eq "$cursor" ]; then
-          echo -e " \033[1;36m❯\033[0m \033[1m${options[$i]}\033[0m"
+          printf '\033[K \033[1;36m❯\033[0m \033[1m%s\033[0m' "${options[$i]}"
         else
-          echo -e "   \033[2m${options[$i]}\033[0m"
+          printf '\033[K   \033[2m%s\033[0m' "${options[$i]}"
         fi
       done
       draw_preview "$theme" "$symbols" "$spacing" "${values[$cursor]}" "$blocks_csv"
@@ -617,9 +609,8 @@ CONF
 
   # Show completion screen
   tput clear
-  echo -e "\033[1;32m╔══════════════════════════════════════════════════╗\033[0m"
-  echo -e "\033[1;32m║   ✔ Configuration saved!                        ║\033[0m"
-  echo -e "\033[1;32m╚══════════════════════════════════════════════════╝\033[0m"
+  printf '\033[1;32m  ✔ Configuration saved!\033[0m\n'
+  printf '\033[2m  ===================================\033[0m\n'
   echo ""
   echo -e "\033[2mTheme:    \033[0m $sel_theme"
   echo -e "\033[2mSymbols:  \033[0m $sel_symbols"
