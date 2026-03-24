@@ -30,6 +30,13 @@ bash scripts/configure.sh
 - 顯示三組符號：Nerd Font / Unicode / ASCII
 - 使用者用 ↑↓ 鍵移動高亮，Enter 確認
 - 選擇後直接決定 `symbol_set` 值
+- 顯示名稱到 config 值的對應：
+
+| 顯示名稱 | config.json 值 |
+|----------|---------------|
+| Nerd Font | `nerd` |
+| Unicode | `unicode` |
+| ASCII | `ascii` |
 
 ```
 ╔══════════════════════════════════════════╗
@@ -47,7 +54,7 @@ Step 1/5 — Which symbols display correctly?
 
 ### Step 2 — 主題選擇（即時預覽）
 
-- 列出 12 個主題，分 Cyberpunk / Classic 兩組
+- 列出 12 個內建主題，分 Cyberpunk / Classic 兩組（排除 `custom-example` 等目錄型主題）
 - 移動游標時，底部呼叫 `statusline.sh` 即時渲染當前高亮主題的預覽
 - 預覽使用假資料（model=Opus 4.6, context=58%, 5h=76%, 7d=33% 等）
 
@@ -221,10 +228,55 @@ echo -e "$preview"
 
 ### 相依性
 
-- **jq**：用於產生臨時 config JSON。如果未安裝，fallback 到 sed 字串替換
-- **bash 4+**：需要 associative arrays
+- **jq**：statusline.sh 本身就需要 jq，所以 wizard 也必須有 jq。啟動時檢查，未安裝則顯示錯誤訊息並退出
+- **bash 3.2+**：不使用 associative arrays，確保 macOS 預設 bash 也能執行
 - **statusline.sh**：現有渲染引擎，透過 `CONFIG_OVERRIDE` 環境變數傳入臨時設定
 - **tput**：終端控制，所有 Unix 系統都有
+
+### 啟動檢查
+
+```bash
+# 1. 確認是互動式終端
+[ -t 0 ] || { echo "Error: configure requires an interactive terminal"; exit 1; }
+
+# 2. 確認 jq 已安裝
+command -v jq &>/dev/null || { echo "Error: jq is required. Install with: brew install jq"; exit 1; }
+
+# 3. 確認終端大小足夠（最小 60x20）
+cols=$(tput cols); lines=$(tput lines)
+(( cols >= 60 && lines >= 20 )) || { echo "Error: terminal too small (need 60x20, got ${cols}x${lines})"; exit 1; }
+```
+
+### 導航
+
+- ↑↓ 移動游標
+- Enter 確認
+- Space 切換（僅 Step 3 區塊勾選）
+- **b 返回上一步**（Step 1 不可返回）
+- q 退出
+
+### 既有設定預載
+
+啟動時讀取現有 config.json，將各步驟的游標預設到使用者目前的選擇。例如使用者目前是 `terminal-glitch` 主題，Step 2 的游標就預設停在 Terminal Glitch。
+
+### 最終設定寫入
+
+使用 heredoc 寫入，不依賴 jq：
+
+```bash
+cat > "$CONFIG_PATH" <<EOF
+{
+  "theme": "$selected_theme",
+  "symbol_set": "$selected_symbols",
+  "spacing": "$selected_spacing",
+  "separator": "$selected_separator",
+  "blocks": [$blocks_json],
+  "bar_width": 10
+}
+EOF
+```
+
+`$blocks_json` 由勾選的區塊產生，例如 `"model", "context", "rate_5h"`。
 
 ### 輸出
 
