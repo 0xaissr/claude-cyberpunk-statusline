@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
@@ -83,7 +83,11 @@ test_each_theme() {
     cat > "$config_tmp" <<EOF
 {
   "theme": "$theme_name",
-  "spacing_mode": "normal"
+  "symbol_set": "unicode",
+  "spacing": "normal",
+  "separator": "│",
+  "blocks": ["model", "context", "rate_5h", "rate_7d", "directory", "git", "time"],
+  "bar_width": 10
 }
 EOF
 
@@ -120,7 +124,12 @@ test_spacing_modes() {
 
     cat > "$config_tmp" <<EOF
 {
-  "spacing_mode": "$mode"
+  "theme": "terminal-glitch",
+  "symbol_set": "unicode",
+  "spacing": "$mode",
+  "separator": "│",
+  "blocks": ["model", "context", "rate_5h", "rate_7d"],
+  "bar_width": 10
 }
 EOF
 

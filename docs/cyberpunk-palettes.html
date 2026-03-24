@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>Cyberpunk Color Palettes</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0f; color: #ccc; font-family: 'SF Mono', 'Menlo', monospace; padding: 40px; }
+  h1 { text-align: center; color: #fff; margin-bottom: 40px; font-size: 24px; letter-spacing: 4px; text-transform: uppercase; }
+  .palette { margin-bottom: 50px; border: 1px solid #222; border-radius: 12px; padding: 30px; background: #111118; }
+  .palette h2 { font-size: 18px; color: #fff; margin-bottom: 6px; }
+  .palette .vibe { font-size: 13px; color: #888; margin-bottom: 20px; }
+  .strip { display: flex; height: 60px; border-radius: 8px; overflow: hidden; margin-bottom: 20px; }
+  .strip div { flex: 1; }
+  .swatches { display: flex; gap: 12px; flex-wrap: wrap; }
+  .swatch { width: 140px; border-radius: 8px; overflow: hidden; }
+  .swatch .color-block { height: 70px; display: flex; align-items: flex-end; padding: 6px 10px; }
+  .swatch .color-block span { font-size: 11px; color: rgba(255,255,255,0.9); text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+  .swatch .label { background: #1a1a24; padding: 8px 10px; font-size: 12px; color: #aaa; }
+  .demo-bar { margin-top: 20px; display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: bold; letter-spacing: 1px; }
+  .demo-bar .bar { display: flex; gap: 1px; }
+  .demo-bar .bar .filled { width: 14px; height: 16px; border-radius: 2px; }
+  .demo-bar .bar .empty { width: 14px; height: 16px; border-radius: 2px; background: rgba(255,255,255,0.08); }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 4px; font-size: 11px; margin-right: 6px; }
+</style>
+</head>
+<body>
+
+<h1>// Cyberpunk Palette Preview //</h1>
+
+<!-- Palette 1 -->
+<div class="palette">
+  <h2>1. Cyberpunk Neon Classic</h2>
+  <p class="vibe">Night City 霓虹 — 深藍底配青色 + 洋紅，經典賽博龐克</p>
+  <div class="strip">
+    <div style="background:#091833"></div>
+    <div style="background:#133E7C"></div>
+    <div style="background:#711C91"></div>
+    <div style="background:#EA00D9"></div>
+    <div style="background:#0ABDC6"></div>
+  </div>
+  <div class="swatches">
+    <div class="swatch"><div class="color-block" style="background:#091833"><span>#091833</span></div><div class="label">Navy Black</div></div>
+    <div class="swatch"><div class="color-block" style="background:#133E7C"><span>#133E7C</span></div><div class="label">Dark Blue</div></div>
+    <div class="swatch"><div class="color-block" style="background:#0ABDC6"><span>#0ABDC6</span></div><div class="label">Cyan</div></div>
+    <div class="swatch"><div class="color-block" style="background:#EA00D9"><span>#EA00D9</span></div><div class="label">Bright Magenta</div></div>
+    <div class="swatch"><div class="color-block" style="background:#711C91"><span>#711C91</span></div><div class="label">Deep Purple</div></div>
+  </div>
+  <div class="demo-bar" style="background:#091833; color:#0ABDC6;">
+    <span>⬡ Opus</span>
+    <span style="color:#555">│</span>
+    <span style="color:#EA00D9">◈ CTX</span>
+    <div class="bar">
+      <div class="filled" style="background:#EA00D9"></div><div class="filled" style="background:#EA00D9"></div><div class="filled" style="background:#EA00D9"></div>
+      <div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+    </div>
+    <span style="color:#EA00D9">3%</span>
+    <span style="color:#555">│</span>
+    <span style="color:#0ABDC6">⚡ 5H</span>
+    <div class="bar">
+      <div class="filled" style="background:#0ABDC6"></div><div class="filled" style="background:#0ABDC6"></div>
+      <div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+    </div>
+    <span style="color:#0ABDC6">16%</span>
+    <span style="color:#555">│</span>
+    <span style="color:#711C91">⟳ 7D</span>
+    <div class="bar">
+      <div class="filled" style="background:#711C91"></div><div class="filled" style="background:#711C91"></div><div class="filled" style="background:#711C91"></div>
+      <div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+    </div>
+    <span style="color:#711C91">33%</span>
+  </div>
+</div>
+
+<!-- Palette 2 -->
+<div class="palette">
+  <h2>2. Terminal Glitch</h2>
+  <p class="vibe">駭客終端 — 極暗底色配高對比霓虹，資料流風格</p>
+  <div class="strip">
+    <div style="background:#020312"></div>
+    <div style="background:#252A3F"></div>
+    <div style="background:#24F0FF"></div>
+    <div style="background:#FF5C8A"></div>
+    <div style="background:#FFE45E"></div>
+  </div>
+  <div class="swatches">
+    <div class="swatch"><div class="color-block" style="background:#020312"><span>#020312</span></div><div class="label">Void Black</div></div>
+    <div class="swatch"><div class="color-block" style="background:#252A3F"><span>#252A3F</span></div><div class="label">Dark Slate</div></div>
+    <div class="swatch"><div class="color-block" style="background:#24F0FF"><span>#24F0FF</span></div><div class="label">Electric Cyan</div></div>
+    <div class="swatch"><div class="color-block" style="background:#FF5C8A"><span>#FF5C8A</span></div><div class="label">Neon Pink</div></div>
+    <div class="swatch"><div class="color-block" style="background:#FFE45E"><span>#FFE45E</span></div><div class="label">Acid Yellow</div></div>
+  </div>
+  <div class="demo-bar" style="background:#020312; color:#24F0FF;">
+    <span>⬡ Opus</span>
+    <span style="color:#555">│</span>
+    <span style="color:#FF5C8A">◈ CTX</span>
+    <div class="bar">
+      <div class="filled" style="background:#FF5C8A"></div><div class="filled" style="background:#FF5C8A"></div><div class="filled" style="background:#FF5C8A"></div>
+      <div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+    </div>
+    <span style="color:#FF5C8A">3%</span>
+    <span style="color:#555">│</span>
+    <span style="color:#FFE45E">⚡ 5H</span>
+    <div class="bar">
+      <div class="filled" style="background:#FFE45E"></div><div class="filled" style="background:#FFE45E"></div>
+      <div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+    </div>
+    <span style="color:#FFE45E">16%</span>
+    <span style="color:#555">│</span>
+    <span style="color:#24F0FF">⟳ 7D</span>
+    <div class="bar">
+      <div class="filled" style="background:#24F0FF"></div><div class="filled" style="background:#24F0FF"></div><div class="filled" style="background:#24F0FF"></div>
+      <div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+    </div>
+    <span style="color:#24F0FF">33%</span>
+  </div>
+</div>
+
+<!-- Palette 3 -->
+<div class="palette">
+  <h2>3. Synthwave Sunset</h2>
+  <p class="vibe">復古合成波 — 80 年代暖色到冷色漸層，VHS 夕陽</p>
+  <div class="strip">
+    <div style="background:#241B30"></div>
+    <div style="background:#8C1EFF"></div>
+    <div style="background:#FF2975"></div>
+    <div style="background:#FF901F"></div>
+    <div style="background:#FFD319"></div>
+  </div>
+  <div class="swatches">
+    <div class="swatch"><div class="color-block" style="background:#241B30"><span>#241B30</span></div><div class="label">Deep Violet</div></div>
+    <div class="swatch"><div class="color-block" style="background:#FFD319"><span>#FFD319</span></div><div class="label">Neon Yellow</div></div>
+    <div class="swatch"><div class="color-block" style="background:#FF901F"><span>#FF901F</span></div><div class="label">Hot Orange</div></div>
+    <div class="swatch"><div class="color-block" style="background:#FF2975"><span>#FF2975</span></div><div class="label">Vivid Pink</div></div>
+    <div class="swatch"><div class="color-block" style="background:#8C1EFF"><span>#8C1EFF</span></div><div class="label">Electric Purple</div></div>
+  </div>
+  <div class="demo-bar" style="background:#241B30; color:#FFD319;">
+    <span>⬡ Opus</span>
+    <span style="color:#555">│</span>
+    <span style="color:#FF2975">◈ CTX</span>
+    <div class="bar">
+      <div class="filled" style="background:#FF2975"></div><div class="filled" style="background:#FF2975"></div><div class="filled" style="background:#FF2975"></div>
+      <div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+    </div>
+    <span style="color:#FF2975">3%</span>
+    <span style="color:#555">│</span>
+    <span style="color:#FFD319">⚡ 5H</span>
+    <div class="bar">
+      <div class="filled" style="background:#FFD319"></div><div class="filled" style="background:#FFD319"></div>
+      <div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+    </div>
+    <span style="color:#FFD319">16%</span>
+    <span style="color:#555">│</span>
+    <span style="color:#8C1EFF">⟳ 7D</span>
+    <div class="bar">
+      <div class="filled" style="background:#8C1EFF"></div><div class="filled" style="background:#8C1EFF"></div><div class="filled" style="background:#8C1EFF"></div>
+      <div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+    </div>
+    <span style="color:#8C1EFF">33%</span>
+  </div>
+</div>
+
+<!-- Palette 4 -->
+<div class="palette">
+  <h2>4. Blade Runner Signal</h2>
+  <p class="vibe">銀翼殺手控制室 — 功能性強、訊號層級清晰</p>
+  <div class="strip">
+    <div style="background:#0B0C10"></div>
+    <div style="background:#141726"></div>
+    <div style="background:#18E0FF"></div>
+    <div style="background:#FF3CF2"></div>
+    <div style="background:#F7FF4A"></div>
+  </div>
+  <div class="swatches">
+    <div class="swatch"><div class="color-block" style="background:#0B0C10"><span>#0B0C10</span></div><div class="label">Carbon Black</div></div>
+    <div class="swatch"><div class="color-block" style="background:#141726"><span>#141726</span></div><div class="label">Dark Navy</div></div>
+    <div class="swatch"><div class="color-block" style="background:#18E0FF"><span>#18E0FF</span></div><div class="label">Ice Cyan</div></div>
+    <div class="swatch"><div class="color-block" style="background:#FF3CF2"><span>#FF3CF2</span></div><div class="label">Hot Magenta</div></div>
+    <div class="swatch"><div class="color-block" style="background:#F7FF4A"><span>#F7FF4A</span></div><div class="label">Acid Lime</div></div>
+  </div>
+  <div class="demo-bar" style="background:#0B0C10; color:#18E0FF;">
+    <span>⬡ Opus</span>
+    <span style="color:#555">│</span>
+    <span style="color:#FF3CF2">◈ CTX</span>
+    <div class="bar">
+      <div class="filled" style="background:#FF3CF2"></div><div class="filled" style="background:#FF3CF2"></div><div class="filled" style="background:#FF3CF2"></div>
+      <div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+    </div>
+    <span style="color:#FF3CF2">3%</span>
+    <span style="color:#555">│</span>
+    <span style="color:#F7FF4A">⚡ 5H</span>
+    <div class="bar">
+      <div class="filled" style="background:#F7FF4A"></div><div class="filled" style="background:#F7FF4A"></div>
+      <div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+    </div>
+    <span style="color:#F7FF4A">16%</span>
+    <span style="color:#555">│</span>
+    <span style="color:#18E0FF">⟳ 7D</span>
+    <div class="bar">
+      <div class="filled" style="background:#18E0FF"></div><div class="filled" style="background:#18E0FF"></div><div class="filled" style="background:#18E0FF"></div>
+      <div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+    </div>
+    <span style="color:#18E0FF">33%</span>
+  </div>
+</div>
+
+<!-- Palette 5 -->
+<div class="palette">
+  <h2>5. Retrowave Chrome</h2>
+  <p class="vibe">Tron + 80 年代街機風 — 紫色底更溫暖復古</p>
+  <div class="strip">
+    <div style="background:#3C345C"></div>
+    <div style="background:#5C2C6D"></div>
+    <div style="background:#D30CB8"></div>
+    <div style="background:#6DF1D8"></div>
+    <div style="background:#B8AEC8"></div>
+  </div>
+  <div class="swatches">
+    <div class="swatch"><div class="color-block" style="background:#3C345C"><span>#3C345C</span></div><div class="label">Midnight Purple</div></div>
+    <div class="swatch"><div class="color-block" style="background:#5C2C6D"><span>#5C2C6D</span></div><div class="label">Dusky Violet</div></div>
+    <div class="swatch"><div class="color-block" style="background:#6DF1D8"><span>#6DF1D8</span></div><div class="label">Mint Cyan</div></div>
+    <div class="swatch"><div class="color-block" style="background:#D30CB8"><span>#D30CB8</span></div><div class="label">Vivid Magenta</div></div>
+    <div class="swatch"><div class="color-block" style="background:#B8AEC8"><span>#B8AEC8</span></div><div class="label">Lavender Gray</div></div>
+  </div>
+  <div class="demo-bar" style="background:#3C345C; color:#6DF1D8;">
+    <span>⬡ Opus</span>
+    <span style="color:#666">│</span>
+    <span style="color:#D30CB8">◈ CTX</span>
+    <div class="bar">
+      <div class="filled" style="background:#D30CB8"></div><div class="filled" style="background:#D30CB8"></div><div class="filled" style="background:#D30CB8"></div>
+      <div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+    </div>
+    <span style="color:#D30CB8">3%</span>
+    <span style="color:#666">│</span>
+    <span style="color:#6DF1D8">⚡ 5H</span>
+    <div class="bar">
+      <div class="filled" style="background:#6DF1D8"></div><div class="filled" style="background:#6DF1D8"></div>
+      <div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+    </div>
+    <span style="color:#6DF1D8">16%</span>
+    <span style="color:#666">│</span>
+    <span style="color:#B8AEC8">⟳ 7D</span>
+    <div class="bar">
+      <div class="filled" style="background:#B8AEC8"></div><div class="filled" style="background:#B8AEC8"></div><div class="filled" style="background:#B8AEC8"></div>
+      <div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+    </div>
+    <span style="color:#B8AEC8">33%</span>
+  </div>
+</div>
+
+</body>
+</html>
