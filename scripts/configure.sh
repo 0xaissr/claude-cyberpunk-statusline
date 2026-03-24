@@ -37,8 +37,9 @@ cleanup() {
   tput cnorm 2>/dev/null   # show cursor
   tput rmcup 2>/dev/null   # exit alternate screen
   stty echo 2>/dev/null    # restore echo
+  [ -n "${PREVIEW_TMP_CONFIG:-}" ] && rm -f "$PREVIEW_TMP_CONFIG" 2>/dev/null
 }
-trap cleanup EXIT
+trap cleanup EXIT INT TERM
 
 tput smcup    # enter alternate screen
 tput civis    # hide cursor
@@ -129,8 +130,8 @@ read_key() {
 render_preview() {
   local theme="$1" symbol_set="$2" spacing="$3" separator="$4" blocks_csv="$5"
 
-  local tmp_config
-  tmp_config=$(mktemp)
+  local tmp_config="${PREVIEW_TMP_CONFIG:-$(mktemp)}"
+  PREVIEW_TMP_CONFIG="$tmp_config"
 
   # Build blocks JSON array from CSV
   local blocks_json=""
@@ -158,8 +159,6 @@ CONF
 
   local output
   output=$(CONFIG_OVERRIDE="$tmp_config" bash "$STATUSLINE" <<< "$SAMPLE_DATA" 2>/dev/null) || true
-  rm -f "$tmp_config"
-
   echo -e "$output"
 }
 
@@ -342,17 +341,19 @@ step_theme() {
     read_key
     case "$KEY" in
       up)
+        local prev=$cursor
         (( cursor > 0 )) && (( cursor-- ))
-        # Skip headers
+        # Skip headers — restore if stuck
         while [ "$cursor" -ge 0 ] && [ "${all_ids[$cursor]}" = "__header__" ]; do
-          (( cursor > 0 )) && (( cursor-- )) || break
+          (( cursor > 0 )) && (( cursor-- )) || { cursor=$prev; break; }
         done
         ;;
       down)
+        local prev=$cursor
         (( cursor < count - 1 )) && (( cursor++ ))
-        # Skip headers
+        # Skip headers — restore if stuck
         while [ "$cursor" -lt "$count" ] && [ "${all_ids[$cursor]}" = "__header__" ]; do
-          (( cursor < count - 1 )) && (( cursor++ )) || break
+          (( cursor < count - 1 )) && (( cursor++ )) || { cursor=$prev; break; }
         done
         ;;
       enter)
