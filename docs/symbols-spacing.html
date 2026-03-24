@@ -1,0 +1,221 @@
+<h2>符號風格 & 間距調整預覽</h2>
+<p class="subtitle">以 Terminal Glitch 主題為例，展示不同符號集和間距模式</p>
+
+<style>
+  .theme-group { margin-bottom:14px; }
+  .theme-group .label { margin-bottom:6px; font-size:11px; letter-spacing:1.5px; }
+  .sl { display:flex; align-items:center; font-family:'SF Mono','Menlo','Consolas',monospace; font-size:12px; border-radius:5px; overflow:hidden; line-height:1; flex-wrap:nowrap; }
+  .sl .seg { padding:7px 10px; white-space:nowrap; font-weight:bold; }
+  .sl .bar-seg { padding:7px 8px; white-space:nowrap; display:flex; align-items:center; gap:3px; }
+  .sl .sep { color:#444; padding:0 4px; font-weight:normal; }
+  .section-title { color:#888; font-size:13px; font-weight:bold; margin:28px 0 14px; padding-bottom:8px; border-bottom:1px solid #333; letter-spacing:2px; text-transform:uppercase; }
+</style>
+
+<div class="section-title">符號風格（Symbol Set）</div>
+
+<!-- Nerd Font -->
+<div class="theme-group">
+  <div class="label">A. Nerd Font — 完整圖示（需安裝 Nerd Font）</div>
+  <div class="sl">
+    <div class="seg" style="background:#252A3F;color:#24F0FF;">󰚩 Opus 4.6</div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#252A3F;color:#FF5C8A;">󰍛 CTX</div>
+    <div class="bar-seg" style="background:#020312;"><span style="color:#FF5C8A;">██</span><span style="color:#FF5C8A33;">░░░░░░░░</span><span style="color:#FF5C8A;font-weight:bold;">3%</span></div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#252A3F;color:#FFE45E;"> 5H</div>
+    <div class="bar-seg" style="background:#020312;"><span style="color:#FFE45E;">██</span><span style="color:#FFE45E33;">░░░░░░░░</span><span style="color:#FFE45E;font-weight:bold;">16%</span></div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#252A3F;color:#24F0FF;">󰔟 7D</div>
+    <div class="bar-seg" style="background:#020312;"><span style="color:#24F0FF;">███</span><span style="color:#24F0FF33;">░░░░░░░</span><span style="color:#24F0FF;font-weight:bold;">33%</span></div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#252A3F;color:#FF5C8A;"> ~/project</div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#252A3F;color:#24F0FF;"> main</div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#020312;color:#24F0FF;font-weight:normal;"> 14:30</div>
+  </div>
+</div>
+
+<!-- Unicode -->
+<div class="theme-group">
+  <div class="label">B. Unicode — 通用符號（大多數終端支援）</div>
+  <div class="sl">
+    <div class="seg" style="background:#252A3F;color:#24F0FF;">⬡ Opus 4.6</div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#252A3F;color:#FF5C8A;">◈ CTX</div>
+    <div class="bar-seg" style="background:#020312;"><span style="color:#FF5C8A;">██</span><span style="color:#FF5C8A33;">░░░░░░░░</span><span style="color:#FF5C8A;font-weight:bold;">3%</span></div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#252A3F;color:#FFE45E;">⚡ 5H</div>
+    <div class="bar-seg" style="background:#020312;"><span style="color:#FFE45E;">██</span><span style="color:#FFE45E33;">░░░░░░░░</span><span style="color:#FFE45E;font-weight:bold;">16%</span></div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#252A3F;color:#24F0FF;">⟳ 7D</div>
+    <div class="bar-seg" style="background:#020312;"><span style="color:#24F0FF;">███</span><span style="color:#24F0FF33;">░░░░░░░</span><span style="color:#24F0FF;font-weight:bold;">33%</span></div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#252A3F;color:#FF5C8A;">⌁ ~/project</div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#252A3F;color:#24F0FF;">⎇ main</div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#020312;color:#24F0FF;font-weight:normal;">◷ 14:30</div>
+  </div>
+</div>
+
+<!-- ASCII -->
+<div class="theme-group">
+  <div class="label">C. ASCII — 純文字（任何終端都支援）</div>
+  <div class="sl">
+    <div class="seg" style="background:#252A3F;color:#24F0FF;">[M] Opus 4.6</div>
+    <div class="sep">|</div>
+    <div class="seg" style="background:#252A3F;color:#FF5C8A;">[C] CTX</div>
+    <div class="bar-seg" style="background:#020312;"><span style="color:#FF5C8A;">##</span><span style="color:#FF5C8A33;">........</span><span style="color:#FF5C8A;font-weight:bold;">3%</span></div>
+    <div class="sep">|</div>
+    <div class="seg" style="background:#252A3F;color:#FFE45E;">[!] 5H</div>
+    <div class="bar-seg" style="background:#020312;"><span style="color:#FFE45E;">##</span><span style="color:#FFE45E33;">........</span><span style="color:#FFE45E;font-weight:bold;">16%</span></div>
+    <div class="sep">|</div>
+    <div class="seg" style="background:#252A3F;color:#24F0FF;">[~] 7D</div>
+    <div class="bar-seg" style="background:#020312;"><span style="color:#24F0FF;">###</span><span style="color:#24F0FF33;">.......</span><span style="color:#24F0FF;font-weight:bold;">33%</span></div>
+    <div class="sep">|</div>
+    <div class="seg" style="background:#252A3F;color:#FF5C8A;">[D] ~/project</div>
+    <div class="sep">|</div>
+    <div class="seg" style="background:#252A3F;color:#24F0FF;">[G] main</div>
+    <div class="sep">|</div>
+    <div class="seg" style="background:#020312;color:#24F0FF;font-weight:normal;">[T] 14:30</div>
+  </div>
+</div>
+
+<div class="section-title">間距模式（Spacing）</div>
+
+<!-- Normal -->
+<div class="theme-group">
+  <div class="label">A. Normal — 標準間距（預設）</div>
+  <div class="sl">
+    <div class="seg" style="background:#252A3F;color:#24F0FF;">⬡ Opus 4.6</div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#252A3F;color:#FF5C8A;">◈ CTX</div>
+    <div class="bar-seg" style="background:#020312;"><span style="color:#FF5C8A;">██</span><span style="color:#FF5C8A33;">░░░░░░░░</span><span style="color:#FF5C8A;font-weight:bold;">3%</span></div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#252A3F;color:#FFE45E;">⚡ 5H</div>
+    <div class="bar-seg" style="background:#020312;"><span style="color:#FFE45E;">██</span><span style="color:#FFE45E33;">░░░░░░░░</span><span style="color:#FFE45E;font-weight:bold;">16%</span></div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#252A3F;color:#24F0FF;">⟳ 7D</div>
+    <div class="bar-seg" style="background:#020312;"><span style="color:#24F0FF;">███</span><span style="color:#24F0FF33;">░░░░░░░</span><span style="color:#24F0FF;font-weight:bold;">33%</span></div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#252A3F;color:#FF5C8A;">⌁ ~/project</div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#252A3F;color:#24F0FF;">⎇ main</div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#020312;color:#24F0FF;font-weight:normal;">◷ 14:30</div>
+  </div>
+</div>
+
+<!-- Compact -->
+<div class="theme-group">
+  <div class="label">B. Compact — 緊湊模式（省空間，隱藏標籤文字）</div>
+  <div class="sl">
+    <div class="seg" style="background:#252A3F;color:#24F0FF;padding:7px 8px;">⬡ Opus 4.6</div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#252A3F;color:#FF5C8A;padding:7px 6px;">◈</div>
+    <div class="bar-seg" style="background:#020312;padding:7px 5px;"><span style="color:#FF5C8A;">██</span><span style="color:#FF5C8A33;">░░░░░░░░</span><span style="color:#FF5C8A;font-weight:bold;">3%</span></div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#252A3F;color:#FFE45E;padding:7px 6px;">⚡</div>
+    <div class="bar-seg" style="background:#020312;padding:7px 5px;"><span style="color:#FFE45E;">██</span><span style="color:#FFE45E33;">░░░░░░░░</span><span style="color:#FFE45E;font-weight:bold;">16%</span></div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#252A3F;color:#24F0FF;padding:7px 6px;">⟳</div>
+    <div class="bar-seg" style="background:#020312;padding:7px 5px;"><span style="color:#24F0FF;">███</span><span style="color:#24F0FF33;">░░░░░░░</span><span style="color:#24F0FF;font-weight:bold;">33%</span></div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#252A3F;color:#FF5C8A;padding:7px 6px;">⌁ ~/project</div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#252A3F;color:#24F0FF;padding:7px 6px;">⎇ main</div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#020312;color:#24F0FF;font-weight:normal;padding:7px 6px;">◷ 14:30</div>
+  </div>
+</div>
+
+<!-- Ultra Compact -->
+<div class="theme-group">
+  <div class="label">C. Ultra Compact — 極簡模式（只保留數值，不要進度條）</div>
+  <div class="sl">
+    <div class="seg" style="background:#252A3F;color:#24F0FF;padding:7px 8px;">⬡ Opus 4.6</div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#020312;color:#FF5C8A;padding:7px 6px;">◈ 3%</div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#020312;color:#FFE45E;padding:7px 6px;">⚡ 16%</div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#020312;color:#24F0FF;padding:7px 6px;">⟳ 33%</div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#252A3F;color:#FF5C8A;padding:7px 6px;">⌁ ~/project</div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#252A3F;color:#24F0FF;padding:7px 6px;">⎇ main</div>
+    <div class="sep">│</div>
+    <div class="seg" style="background:#020312;color:#24F0FF;font-weight:normal;padding:7px 6px;">◷ 14:30</div>
+  </div>
+</div>
+
+<div class="section-title">分隔符樣式（Separator）</div>
+
+<div class="theme-group">
+  <div class="label">A. Pipe 細線（預設）</div>
+  <div class="sl">
+    <div class="seg" style="background:#252A3F;color:#24F0FF;">⬡ Opus 4.6</div>
+    <div style="color:#444;padding:0 4px;">│</div>
+    <div class="seg" style="background:#252A3F;color:#FF5C8A;">◈ 3%</div>
+    <div style="color:#444;padding:0 4px;">│</div>
+    <div class="seg" style="background:#252A3F;color:#FFE45E;">⚡ 16%</div>
+    <div style="color:#444;padding:0 4px;">│</div>
+    <div class="seg" style="background:#252A3F;color:#24F0FF;">⟳ 33%</div>
+  </div>
+</div>
+<div class="theme-group">
+  <div class="label">B. Slash 斜線</div>
+  <div class="sl">
+    <div class="seg" style="background:#252A3F;color:#24F0FF;">⬡ Opus 4.6</div>
+    <div style="color:#444;padding:0 5px;">/</div>
+    <div class="seg" style="background:#252A3F;color:#FF5C8A;">◈ 3%</div>
+    <div style="color:#444;padding:0 5px;">/</div>
+    <div class="seg" style="background:#252A3F;color:#FFE45E;">⚡ 16%</div>
+    <div style="color:#444;padding:0 5px;">/</div>
+    <div class="seg" style="background:#252A3F;color:#24F0FF;">⟳ 33%</div>
+  </div>
+</div>
+<div class="theme-group">
+  <div class="label">C. Dot 圓點</div>
+  <div class="sl">
+    <div class="seg" style="background:#252A3F;color:#24F0FF;">⬡ Opus 4.6</div>
+    <div style="color:#555;padding:0 6px;">·</div>
+    <div class="seg" style="background:#252A3F;color:#FF5C8A;">◈ 3%</div>
+    <div style="color:#555;padding:0 6px;">·</div>
+    <div class="seg" style="background:#252A3F;color:#FFE45E;">⚡ 16%</div>
+    <div style="color:#555;padding:0 6px;">·</div>
+    <div class="seg" style="background:#252A3F;color:#24F0FF;">⟳ 33%</div>
+  </div>
+</div>
+<div class="theme-group">
+  <div class="label">D. Space 空格（無分隔符）</div>
+  <div class="sl">
+    <div class="seg" style="background:#252A3F;color:#24F0FF;">⬡ Opus 4.6</div>
+    <div style="padding:0 3px;"></div>
+    <div class="seg" style="background:#252A3F;color:#FF5C8A;">◈ 3%</div>
+    <div style="padding:0 3px;"></div>
+    <div class="seg" style="background:#252A3F;color:#FFE45E;">⚡ 16%</div>
+    <div style="padding:0 3px;"></div>
+    <div class="seg" style="background:#252A3F;color:#24F0FF;">⟳ 33%</div>
+  </div>
+</div>
+<div class="theme-group">
+  <div class="label">E. Arrow 箭頭（Powerline 風格）</div>
+  <div class="sl">
+    <div class="seg" style="background:#252A3F;color:#24F0FF;">⬡ Opus 4.6</div>
+    <div style="color:#252A3F;background:#252A3F;padding:0;font-size:18px;line-height:1;"><span style="color:#252A3F;background:transparent;">❯</span></div>
+    <div style="color:#252A3F;padding:0 2px;font-size:16px;">›</div>
+    <div class="seg" style="background:#252A3F;color:#FF5C8A;">◈ 3%</div>
+    <div style="color:#252A3F;padding:0 2px;font-size:16px;">›</div>
+    <div class="seg" style="background:#252A3F;color:#FFE45E;">⚡ 16%</div>
+    <div style="color:#252A3F;padding:0 2px;font-size:16px;">›</div>
+    <div class="seg" style="background:#252A3F;color:#24F0FF;">⟳ 33%</div>
+  </div>
+</div>
+
+<div style="margin-top:28px; padding:16px; background:#1a1a2e; border-radius:8px; border-left:3px solid #24F0FF; font-size:13px; color:#888; line-height:1.8;">
+  <strong style="color:#24F0FF;">Wizard 流程更新：</strong><br>
+  Step 1: 符號測試 → Step 2: 主題風格 → Step 3: 配色微調 →<br>
+  Step 4: 區塊選擇 → <strong style="color:#FFE45E;">Step 5: 符號風格</strong> → <strong style="color:#FF5C8A;">Step 6: 間距模式</strong> → <strong style="color:#24F0FF;">Step 7: 分隔符</strong>
+</div>

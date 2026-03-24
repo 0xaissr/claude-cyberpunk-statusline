@@ -1,0 +1,78 @@
+<h2>主題系統架構方案</h2>
+<p class="subtitle">選一個你覺得最合理的架構方向</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Single Script + JSON Config</h3>
+      <p>一個 statusline.sh 腳本 + 每個主題一個 JSON 檔。腳本讀取 config.json 裡指定的主題，從 JSON 取得顏色和符號來渲染。</p>
+      <div style="margin-top:12px; padding:16px; background:#1a1a2e; border-radius:8px; font-family:monospace; font-size:13px; color:#8888aa; line-height:1.8;">
+        <div style="color:#666">cyberpunk-statusline/</div>
+        <div>&nbsp;&nbsp;statusline.sh <span style="color:#555">← 唯一腳本，讀 config 渲染</span></div>
+        <div>&nbsp;&nbsp;config.json <span style="color:#555">← wizard 產出（選了哪個主題、開關哪些區塊）</span></div>
+        <div>&nbsp;&nbsp;themes/</div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;terminal-glitch.json <span style="color:#555">← 配色 + 符號 + 佈局定義</span></div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;neon-classic.json</div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;synthwave-sunset.json</div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;blade-runner.json</div>
+      </div>
+      <div style="margin-top:12px;">
+        <span style="color:#4ade80">✓</span> 社群貢獻只要提交一個 JSON<br>
+        <span style="color:#4ade80">✓</span> 邏輯集中，維護簡單<br>
+        <span style="color:#f87171">✗</span> 所有主題共用同一個渲染邏輯，彈性有限
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Theme = Script + JSON</h3>
+      <p>每個主題是一個資料夾，包含自己的 shell script 和 JSON 設定。主題可以完全自訂渲染邏輯。</p>
+      <div style="margin-top:12px; padding:16px; background:#1a1a2e; border-radius:8px; font-family:monospace; font-size:13px; color:#8888aa; line-height:1.8;">
+        <div style="color:#666">cyberpunk-statusline/</div>
+        <div>&nbsp;&nbsp;config.json <span style="color:#555">← wizard 產出</span></div>
+        <div>&nbsp;&nbsp;core.sh <span style="color:#555">← 共用函式（make_bar, jq 解析等）</span></div>
+        <div>&nbsp;&nbsp;themes/</div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;terminal-glitch/</div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;theme.json <span style="color:#555">← 配色 + 符號</span></div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;render.sh <span style="color:#555">← 自訂渲染（可 override）</span></div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;neon-classic/</div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;theme.json</div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;render.sh</div>
+      </div>
+      <div style="margin-top:12px;">
+        <span style="color:#4ade80">✓</span> 主題可以有完全不同的渲染風格<br>
+        <span style="color:#4ade80">✓</span> 進階使用者可寫自己的 render.sh<br>
+        <span style="color:#f87171">✗</span> 社群貢獻門檻較高（要寫 shell）<br>
+        <span style="color:#f87171">✗</span> 維護多個腳本，相容性風險高
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Hybrid — JSON 優先 + 可選 Script Override</h3>
+      <p>預設用 JSON 驅動（方案 A），但主題可以「選擇性」提供 render.sh 來覆蓋預設邏輯。兼顧簡單和彈性。</p>
+      <div style="margin-top:12px; padding:16px; background:#1a1a2e; border-radius:8px; font-family:monospace; font-size:13px; color:#8888aa; line-height:1.8;">
+        <div style="color:#666">cyberpunk-statusline/</div>
+        <div>&nbsp;&nbsp;statusline.sh <span style="color:#555">← 預設渲染引擎</span></div>
+        <div>&nbsp;&nbsp;config.json <span style="color:#555">← wizard 產出</span></div>
+        <div>&nbsp;&nbsp;themes/</div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;terminal-glitch.json <span style="color:#555">← 純 JSON，用預設引擎</span></div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;neon-classic.json</div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;custom-crazy/</div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;theme.json <span style="color:#555">← 配色定義</span></div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;render.sh <span style="color:#555">← 有這個檔就用它，沒有就用預設</span></div>
+      </div>
+      <div style="margin-top:12px;">
+        <span style="color:#4ade80">✓</span> 簡單主題只要一個 JSON（低門檻）<br>
+        <span style="color:#4ade80">✓</span> 進階主題可完全自訂渲染<br>
+        <span style="color:#4ade80">✓</span> 向後相容，漸進式複雜度<br>
+        <span style="color:#f87171">✗</span> 稍微複雜一點的 statusline.sh（要判斷 render.sh 是否存在）
+      </div>
+    </div>
+  </div>
+</div>
