@@ -33,10 +33,59 @@ test_requires_tty() {
   fi
 }
 
+# ── Test: script contains all 5 step functions ────────────────────────────
+test_step_functions() {
+  echo "▸ test_step_functions"
+  local missing=0
+  for fn in step_symbols step_theme step_blocks step_spacing step_separator step_done; do
+    if grep -q "^${fn}()" "$CONFIGURE"; then
+      pass "$fn exists"
+    else
+      fail "$fn" "function not found"
+      missing=$((missing + 1))
+    fi
+  done
+}
+
+# ── Test: script contains TUI primitives ──────────────────────────────────
+test_tui_primitives() {
+  echo "▸ test_tui_primitives"
+  for fn in draw_header draw_footer read_key render_preview draw_preview menu_select; do
+    if grep -q "^${fn}()" "$CONFIGURE"; then
+      pass "$fn exists"
+    else
+      fail "$fn" "function not found"
+    fi
+  done
+}
+
+# ── Test: startup checks are present ──────────────────────────────────────
+test_startup_checks() {
+  echo "▸ test_startup_checks"
+  if grep -q '\-t 0' "$CONFIGURE"; then
+    pass "TTY check present"
+  else
+    fail "TTY check" "not found"
+  fi
+  if grep -q 'jq' "$CONFIGURE"; then
+    pass "jq check present"
+  else
+    fail "jq check" "not found"
+  fi
+  if grep -q 'tput cols' "$CONFIGURE"; then
+    pass "terminal size check present"
+  else
+    fail "terminal size" "not found"
+  fi
+}
+
 # ── Main ──────────────────────────────────────────────────────────────────
 echo "=== configure.sh tests ==="
 test_exists
 test_requires_tty
+test_step_functions
+test_tui_primitives
+test_startup_checks
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
