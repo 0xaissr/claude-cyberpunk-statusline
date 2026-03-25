@@ -123,8 +123,11 @@ read_key() {
       ;;
     '')    KEY="enter" ;;
     ' ')   KEY="space" ;;
+    k|K)   KEY="up" ;;
+    j|J)   KEY="down" ;;
     b)     KEY="b" ;;
-    q|Q)   KEY="q" ;;
+    q)     KEY="q" ;;
+    [0-9]) KEY="num_$c" ;;
     *)     KEY="$c" ;;
   esac
 }
@@ -190,10 +193,11 @@ menu_select() {
     # Draw options
     for i in "${!options[@]}"; do
       tput cup $((5 + i)) 0
+      local num=$((i + 1))
       if [ "$i" -eq "$cursor" ]; then
-        printf '\033[K \033[1;36m❯\033[0m \033[1m%s\033[0m' "${options[$i]}"
+        printf '\033[K \033[1;36m❯ %d)\033[0m \033[1m%s\033[0m' "$num" "${options[$i]}"
       else
-        printf '\033[K   \033[2m%s\033[0m' "${options[$i]}"
+        printf '\033[K   \033[2m%d) %s\033[0m' "$num" "${options[$i]}"
       fi
     done
 
@@ -201,6 +205,10 @@ menu_select() {
     case "$KEY" in
       up)    (( cursor > 0 )) && (( cursor-- )) ;;
       down)  (( cursor < count - 1 )) && (( cursor++ )) ;;
+      num_[0-9])
+        local n=${KEY#num_}
+        (( n >= 1 && n <= count )) && cursor=$((n - 1))
+        ;;
       enter) break ;;
       q)     cleanup; exit 0 ;;
       b)     MENU_RESULT=-1; return ;;
@@ -233,7 +241,7 @@ step_symbols() {
     fi
   done
 
-  draw_footer "↑↓ move · Enter select · q quit"
+  draw_footer "j/k move · 1-3 jump · Enter select · q quit"
   menu_select "$init" "${options[@]}"
 
   if [ "$MENU_RESULT" -eq -1 ]; then
@@ -314,7 +322,7 @@ step_theme() {
   local spacing="${sel_spacing:-$cur_spacing}"
   local separator="${sel_separator:-$cur_separator}"
 
-  draw_footer "↑↓ move · Enter select · b back · q quit"
+  draw_footer "j/k move · Enter select · b back · q quit"
 
   local prev_cursor=-1
   while true; do
@@ -392,7 +400,7 @@ step_blocks() {
     fi
   done
 
-  draw_footer "↑↓ move · Space toggle · Enter confirm · b back · q quit"
+  draw_footer "j/k move · Space toggle · Enter confirm · b back · q quit"
 
   local cursor=0
   local count=${#block_descs[@]}
@@ -450,7 +458,7 @@ step_blocks() {
           tput cup $((TERM_LINES - 1)) 0
           printf '\033[K\033[31mAt least one block must be enabled!\033[0m'
           sleep 1
-          draw_footer "↑↓ move · Space toggle · Enter confirm · b back · q quit"
+          draw_footer "j/k move · Space toggle · Enter confirm · b back · q quit"
           continue
         fi
         # Build result
@@ -497,7 +505,7 @@ step_spacing() {
   local symbols="${sel_symbols:-$cur_symbols}"
   local separator="${sel_separator:-$cur_separator}"
 
-  draw_footer "↑↓ move · Enter select · b back · q quit"
+  draw_footer "j/k move · Enter select · b back · q quit"
 
   local cursor=$init
   local count=${#options[@]}
@@ -507,10 +515,11 @@ step_spacing() {
     if [ "$cursor" != "$prev_cursor" ]; then
       for i in "${!options[@]}"; do
         tput cup $((5 + i)) 0
+        local num=$((i + 1))
         if [ "$i" -eq "$cursor" ]; then
-          printf '\033[K \033[1;36m❯\033[0m \033[1m%s\033[0m' "${options[$i]}"
+          printf '\033[K \033[1;36m❯ %d)\033[0m \033[1m%s\033[0m' "$num" "${options[$i]}"
         else
-          printf '\033[K   \033[2m%s\033[0m' "${options[$i]}"
+          printf '\033[K   \033[2m%d) %s\033[0m' "$num" "${options[$i]}"
         fi
       done
       draw_preview "$theme" "$symbols" "${values[$cursor]}" "$separator" "$blocks_csv"
@@ -521,6 +530,10 @@ step_spacing() {
     case "$KEY" in
       up)    (( cursor > 0 )) && (( cursor-- )) ;;
       down)  (( cursor < count - 1 )) && (( cursor++ )) ;;
+      num_[0-9])
+        local n=${KEY#num_}
+        (( n >= 1 && n <= count )) && cursor=$((n - 1))
+        ;;
       enter) sel_spacing="${values[$cursor]}"; return 0 ;;
       b)     return 1 ;;
       q)     cleanup; exit 0 ;;
@@ -553,7 +566,7 @@ step_separator() {
   local symbols="${sel_symbols:-$cur_symbols}"
   local spacing="${sel_spacing:-$cur_spacing}"
 
-  draw_footer "↑↓ move · Enter select · b back · q quit"
+  draw_footer "j/k move · Enter select · b back · q quit"
 
   local cursor=$init
   local count=${#options[@]}
@@ -563,10 +576,11 @@ step_separator() {
     if [ "$cursor" != "$prev_cursor" ]; then
       for i in "${!options[@]}"; do
         tput cup $((5 + i)) 0
+        local num=$((i + 1))
         if [ "$i" -eq "$cursor" ]; then
-          printf '\033[K \033[1;36m❯\033[0m \033[1m%s\033[0m' "${options[$i]}"
+          printf '\033[K \033[1;36m❯ %d)\033[0m \033[1m%s\033[0m' "$num" "${options[$i]}"
         else
-          printf '\033[K   \033[2m%s\033[0m' "${options[$i]}"
+          printf '\033[K   \033[2m%d) %s\033[0m' "$num" "${options[$i]}"
         fi
       done
       draw_preview "$theme" "$symbols" "$spacing" "${values[$cursor]}" "$blocks_csv"
@@ -577,6 +591,10 @@ step_separator() {
     case "$KEY" in
       up)    (( cursor > 0 )) && (( cursor-- )) ;;
       down)  (( cursor < count - 1 )) && (( cursor++ )) ;;
+      num_[0-9])
+        local n=${KEY#num_}
+        (( n >= 1 && n <= count )) && cursor=$((n - 1))
+        ;;
       enter) sel_separator="${values[$cursor]}"; return 0 ;;
       b)     return 1 ;;
       q)     cleanup; exit 0 ;;
