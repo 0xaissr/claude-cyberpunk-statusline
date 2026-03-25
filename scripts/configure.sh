@@ -108,13 +108,18 @@ read_key() {
   IFS= read -rsn1 c
   case "$c" in
     $'\x1b')
-      local seq
-      IFS= read -rsn2 -t 1 seq || true
-      case "$seq" in
-        '[A') KEY="up" ;;
-        '[B') KEY="down" ;;
-        *)    KEY="escape" ;;
-      esac
+      local c2 c3
+      IFS= read -rsn1 -t 1 c2 || true
+      if [ "$c2" = "[" ]; then
+        IFS= read -rsn1 -t 1 c3 || true
+        case "$c3" in
+          A) KEY="up" ;;
+          B) KEY="down" ;;
+          *) KEY="escape" ;;
+        esac
+      else
+        KEY="escape"
+      fi
       ;;
     '')    KEY="enter" ;;
     ' ')   KEY="space" ;;
