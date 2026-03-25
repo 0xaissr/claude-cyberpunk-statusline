@@ -123,7 +123,7 @@ read_key() {
       ;;
     '')    KEY="enter" ;;
     ' ')   KEY="space" ;;
-    b|B)   KEY="b" ;;
+    b)     KEY="b" ;;
     q|Q)   KEY="q" ;;
     *)     KEY="$c" ;;
   esac
@@ -244,7 +244,7 @@ step_symbols() {
 }
 
 step_theme() {
-  draw_header 2 5 "Choose your theme:"
+  draw_header 5 5 "Choose your theme:"
 
   # Build theme list from JSON files (exclude directories like custom-example)
   local theme_files=()
@@ -369,7 +369,7 @@ step_theme() {
 }
 
 step_blocks() {
-  draw_header 3 5 "Which blocks to show? (Space to toggle)"
+  draw_header 2 5 "Which blocks to show? (Space to toggle)"
 
   local block_ids=("model" "context" "rate_5h" "rate_7d" "directory" "git" "time")
   local block_descs=(
@@ -475,7 +475,7 @@ step_blocks() {
 }
 
 step_spacing() {
-  draw_header 4 5 "Spacing mode:"
+  draw_header 3 5 "Spacing mode:"
 
   local options=(
     "Normal        — symbol + label + bar + %"
@@ -529,7 +529,7 @@ step_spacing() {
 }
 
 step_separator() {
-  draw_header 5 5 "Separator style:"
+  draw_header 4 5 "Separator style:"
 
   local options=(
     "Pipe  │"
@@ -645,28 +645,28 @@ while true; do
       fi
       ;;
     2)
-      if step_theme; then
+      if step_blocks; then
         current_step=3
       else
         current_step=1
       fi
       ;;
     3)
-      if step_blocks; then
+      if step_spacing; then
         current_step=4
       else
         current_step=2
       fi
       ;;
     4)
-      if step_spacing; then
+      if step_separator; then
         current_step=5
       else
         current_step=3
       fi
       ;;
     5)
-      if step_separator; then
+      if step_theme; then
         current_step=6
       else
         current_step=4
