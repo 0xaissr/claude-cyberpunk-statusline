@@ -110,7 +110,7 @@ read_key() {
     $'\x1b')
       local c2 c3
       IFS= read -rsn1 -t 1 c2 || true
-      if [ "$c2" = "[" ]; then
+      if [ "$c2" = "[" ] || [ "$c2" = "O" ]; then
         IFS= read -rsn1 -t 1 c3 || true
         case "$c3" in
           A) KEY="up" ;;
