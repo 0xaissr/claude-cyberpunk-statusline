@@ -3,9 +3,8 @@
 # ║  cyberpunk-statusline TUI configurator  ║
 # ╚══════════════════════════════════════════╝
 
-set -uo pipefail
-# Note: do NOT use set -e — arithmetic expressions like (( x > 0 )) return
-# exit code 1 when false, which would kill the script under errexit.
+# Note: do NOT use set -euo pipefail in interactive TUI scripts.
+# set -e kills on arithmetic false, set -u kills on any empty variable.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PLUGIN_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
