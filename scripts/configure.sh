@@ -26,8 +26,8 @@ fi
 
 TERM_COLS=$(tput cols)
 TERM_LINES=$(tput lines)
-if (( TERM_COLS < 60 || TERM_LINES < 25 )); then
-  echo "Error: terminal too small (need 60x25, got ${TERM_COLS}x${TERM_LINES})" >&2
+if (( TERM_COLS < 60 || TERM_LINES < 20 )); then
+  echo "Error: terminal too small (need 60x20, got ${TERM_COLS}x${TERM_LINES})" >&2
   exit 1
 fi
 
