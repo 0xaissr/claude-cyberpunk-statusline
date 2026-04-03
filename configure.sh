@@ -67,6 +67,8 @@ if [ -f "$CONFIG" ]; then
   cur_head=$("$JQ" -r '.head // "sharp"' "$CONFIG")
   cur_tail=$("$JQ" -r '.tail // "sharp"' "$CONFIG")
   cur_bar_width=$("$JQ" -r '.bar_width // 10' "$CONFIG")
+  cur_bar_filled=$("$JQ" -r '.bar_filled // ""' "$CONFIG")
+  cur_bar_empty=$("$JQ" -r '.bar_empty // ""' "$CONFIG")
   cur_time_format=$("$JQ" -r '.time_format // "24h"' "$CONFIG")
   cur_blocks=$("$JQ" -r '.blocks // ["model","context","rate_5h","rate_7d","directory","git","time"] | .[]' "$CONFIG")
 else
@@ -78,6 +80,8 @@ else
   cur_head="sharp"
   cur_tail="sharp"
   cur_bar_width=10
+  cur_bar_filled=""
+  cur_bar_empty=""
   cur_time_format="24h"
   cur_blocks="model context rate_5h rate_7d directory git time"
 fi
@@ -92,6 +96,8 @@ sel_separator=""
 sel_head=""         # "flat", "sharp", "slanted", "rounded"
 sel_tail=""         # "flat", "sharp", "slanted", "rounded"
 sel_bar_width=""
+sel_bar_filled=""
+sel_bar_empty=""
 sel_time_format=""
 
 # ── Restart helper ───────────────────────────────────────────────────────
@@ -105,6 +111,8 @@ restart_wizard() {
   sel_head=""
   sel_tail=""
   sel_bar_width=""
+  sel_bar_filled=""
+  sel_bar_empty=""
   sel_time_format=""
   current_step=1
 }
@@ -260,11 +268,12 @@ ask_choice() {
 
 # ── Preview rendering ────────────────────────────────────────────────────
 # Render statusline preview with given config overrides
-# Usage: render_preview theme symbol_set spacing separator blocks_csv [bar_width] [time_format] [style] [head] [tail]
+# Usage: render_preview theme symbol_set spacing separator blocks_csv [bar_width] [time_format] [style] [head] [tail] [bar_filled] [bar_empty]
 render_preview() {
   local theme="$1" symbol_set="$2" spacing="$3" separator="$4" blocks_csv="$5"
   local bar_width="${6:-10}" time_format="${7:-24h}"
   local style="${8:-classic}" head="${9:-sharp}" tail="${10:-sharp}"
+  local bar_filled="${11:-}" bar_empty="${12:-}"
 
   local tmp_config="${PREVIEW_TMP_CONFIG:-$(mktemp)}"
   PREVIEW_TMP_CONFIG="$tmp_config"
@@ -282,6 +291,12 @@ render_preview() {
     fi
   done
 
+  # Build optional bar_filled/bar_empty JSON fields
+  local bar_fields=""
+  if [ -n "$bar_filled" ]; then
+    bar_fields="$(printf '\n  "bar_filled": "%s",\n  "bar_empty": "%s",' "$bar_filled" "$bar_empty")"
+  fi
+
   cat > "$tmp_config" <<CONF
 {
   "theme": "$theme",
@@ -292,7 +307,7 @@ render_preview() {
   "head": "$head",
   "tail": "$tail",
   "blocks": [$blocks_json],
-  "bar_width": $bar_width,
+  "bar_width": $bar_width,${bar_fields}
   "time_format": "$time_format"
 }
 CONF
@@ -325,7 +340,8 @@ get_preview_line() {
 
   render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" \
     "$spacing" "$separator" "$blocks_csv" "$bar_width" "$time_format" \
-    "$(_cur_style)" "$(_cur_head)" "$(_cur_tail)"
+    "$(_cur_style)" "$(_cur_head)" "$(_cur_tail)" \
+    "${sel_bar_filled:-${cur_bar_filled:-}}" "${sel_bar_empty:-${cur_bar_empty:-}}"
 }
 
 # Draw preview at a given row (default: content_row below content)
@@ -558,6 +574,51 @@ step_bar_width() {
 
   local values=(6 10 16)
   sel_bar_width="${values[$((CHOICE_RESULT - 1))]}"
+  return 0
+}
+
+# ── Step 3c: Bar style (conditional) ────────────────────────────────────
+step_bar_style() {
+  # Only show if spacing uses bars
+  if [ "$sel_spacing" = "ultra-compact" ]; then
+    sel_bar_filled="${cur_bar_filled:-}"
+    sel_bar_empty="${cur_bar_empty:-}"
+    return 0
+  fi
+
+  draw_header 3 $TOTAL_STEPS "Progress bar style:"
+
+  local blocks_csv="${sel_blocks:-$(echo "$cur_blocks" | tr ' ' '\n' | tr '\n' ',' | sed 's/,$//')}"
+  local separator="${sel_separator:-$cur_separator}"
+  local bw="${sel_bar_width:-$cur_bar_width}"
+  local tf="${sel_time_format:-$cur_time_format}"
+
+  # Each option: "label|preview" — preview uses specific bar chars
+  local styles_filled=("" "■" "◆" "★" "▰" "◼" "▮" "⬢")
+  local styles_empty=("" "□" "◇" "☆" "▱" "◻" "▯" "⬡")
+  local styles_label=("Default (█░)" "Square ■□" "Diamond ◆◇" "Star ★☆" "Parallelogram ▰▱" "Medium Square ◼◻" "Rectangle ▮▯" "Hexagon ⬢⬡")
+
+  local previews=()
+  for i in "${!styles_filled[@]}"; do
+    previews+=("$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" \
+      "$sel_spacing" "$separator" "$blocks_csv" "$bw" "$tf" \
+      "$(_cur_style)" "$(_cur_head)" "$(_cur_tail)" \
+      "${styles_filled[$i]}" "${styles_empty[$i]}")")
+  done
+
+  local args=()
+  for i in "${!styles_label[@]}"; do
+    args+=("${styles_label[$i]}|${previews[$i]}")
+  done
+
+  ask_choice "${args[@]}"
+
+  local rc=$?
+  if [ $rc -eq 1 ]; then return 2; fi
+
+  local idx=$((CHOICE_RESULT - 1))
+  sel_bar_filled="${styles_filled[$idx]}"
+  sel_bar_empty="${styles_empty[$idx]}"
   return 0
 }
 
@@ -853,6 +914,12 @@ step_done() {
   local time_format="${sel_time_format:-24h}"
 
   # Write config
+  local bar_filled_field="" bar_empty_field=""
+  if [ -n "$sel_bar_filled" ]; then
+    bar_filled_field="$(printf '\n  "bar_filled": "%s",' "$sel_bar_filled")"
+    bar_empty_field="$(printf '\n  "bar_empty": "%s",' "$sel_bar_empty")"
+  fi
+
   local config_content
   config_content=$(cat <<CONF
 {
@@ -864,7 +931,7 @@ step_done() {
   "head": "$sel_head",
   "tail": "$sel_tail",
   "blocks": [$blocks_json],
-  "bar_width": $bar_width,
+  "bar_width": $bar_width,${bar_filled_field}${bar_empty_field}
   "time_format": "$time_format"
 }
 CONF
@@ -887,11 +954,17 @@ CONF
   else
     echo -e "\033[2mSeparator:  \033[0m $sel_separator"
   fi
-  echo -e "\033[2mBar width:  \033[0m $bar_width"
+  if [ "$sel_spacing" != "ultra-compact" ]; then
+    echo -e "\033[2mBar width:  \033[0m $bar_width"
+    if [ -n "$sel_bar_filled" ]; then
+      echo -e "\033[2mBar style:  \033[0m ${sel_bar_filled}${sel_bar_empty}"
+    fi
+  fi
   echo -e "\033[2mTime format:\033[0m $time_format"
   echo ""
   render_preview "$sel_theme" "$sel_symbols" "$sel_spacing" "$sel_separator" \
-    "$sel_blocks" "$bar_width" "$time_format" "$sel_style" "$sel_head" "$sel_tail"
+    "$sel_blocks" "$bar_width" "$time_format" "$sel_style" "$sel_head" "$sel_tail" \
+    "$sel_bar_filled" "$sel_bar_empty"
   echo ""
   echo ""
   echo -e "\033[2mYour status line will update on the next refresh.\033[0m"
@@ -930,7 +1003,7 @@ while true; do
         current_step=1
       fi
       ;;
-    3) # Spacing + bar_width
+    3) # Spacing + bar_width + bar_style
       step_spacing
       rc=$?
       if [ $rc -eq 2 ]; then
@@ -941,7 +1014,13 @@ while true; do
         if [ $rc -eq 2 ]; then
           restart_wizard
         elif [ $rc -eq 0 ]; then
-          current_step=4
+          step_bar_style
+          rc=$?
+          if [ $rc -eq 2 ]; then
+            restart_wizard
+          elif [ $rc -eq 0 ]; then
+            current_step=4
+          fi
         fi
       fi
       ;;

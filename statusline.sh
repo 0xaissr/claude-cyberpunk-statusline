@@ -63,6 +63,8 @@ cfg_style=$("$JQ" -r '.style // "classic"' "$CONFIG")
 cfg_head=$("$JQ" -r '.head // "sharp"' "$CONFIG")
 cfg_tail=$("$JQ" -r '.tail // "sharp"' "$CONFIG")
 cfg_bar_width=$("$JQ" -r '.bar_width // 10' "$CONFIG")
+cfg_bar_filled=$("$JQ" -r '.bar_filled // ""' "$CONFIG")
+cfg_bar_empty=$("$JQ" -r '.bar_empty // ""' "$CONFIG")
 cfg_time_format=$("$JQ" -r '.time_format // "24h"' "$CONFIG")
 cfg_blocks=$("$JQ" -r '.blocks // ["model","context","rate_5h","rate_7d","directory","git","time"] | .[]' "$CONFIG")
 
@@ -215,30 +217,23 @@ block_text_pct() {
   local reset_str=""
   if [ -n "$countdown" ]; then reset_str=" ${countdown}"; fi
 
-  # Rainbow mode: 5 dots (●○), each = 20%, no bar_width dependency
-  local is_rainbow=false
-  if [ "$cfg_style" = "rainbow" ] || $PL_MODE 2>/dev/null; then
-    is_rainbow=true
+  # Determine bar chars: config overrides > theme defaults
+  local bar_f="${cfg_bar_filled:-$S_BAR_FILLED}"
+  local bar_e="${cfg_bar_empty:-$S_BAR_EMPTY}"
+  # Custom bar style (●○ etc.) uses fixed width of 5 (each = 20%)
+  local bw="$cfg_bar_width"
+  if [ -n "$cfg_bar_filled" ]; then
+    bw=5
   fi
 
   case "$cfg_spacing" in
     ultra-compact) echo -n " ${symbol} ${pct_int}%${reset_str} " ;;
     compact)
-      local bar
-      if $is_rainbow; then
-        bar=$(make_bar "$pct_int" 5 "●" "○")
-      else
-        bar=$(make_bar "$pct_int" "$cfg_bar_width" "$S_BAR_FILLED" "$S_BAR_EMPTY")
-      fi
+      local bar=$(make_bar "$pct_int" "$bw" "$bar_f" "$bar_e")
       echo -n " ${symbol} ${bar} ${pct_int}%${reset_str} "
       ;;
     *)
-      local bar
-      if $is_rainbow; then
-        bar=$(make_bar "$pct_int" 5 "●" "○")
-      else
-        bar=$(make_bar "$pct_int" "$cfg_bar_width" "$S_BAR_FILLED" "$S_BAR_EMPTY")
-      fi
+      local bar=$(make_bar "$pct_int" "$bw" "$bar_f" "$bar_e")
       echo -n " ${symbol} ${label} ${bar} ${pct_int}%${reset_str} "
       ;;
   esac
@@ -293,11 +288,15 @@ render_pct_block() {
       echo -n "${bar_bg}${col} ${symbol} ${BOLD}${pct_int}%${reset_str} ${RESET}"
       ;;
     compact)
-      local bar=$(make_bar "$pct_int" "$cfg_bar_width" "$S_BAR_FILLED" "$S_BAR_EMPTY")
+      local c_bar_f="${cfg_bar_filled:-$S_BAR_FILLED}" c_bar_e="${cfg_bar_empty:-$S_BAR_EMPTY}"
+      local c_bw="$cfg_bar_width"; [ -n "$cfg_bar_filled" ] && c_bw=5
+      local bar=$(make_bar "$pct_int" "$c_bw" "$c_bar_f" "$c_bar_e")
       echo -n "${bg}${fg}${BOLD} ${symbol} ${RESET}${bar_bg}${col} ${bar} ${BOLD}${pct_int}%${reset_str} ${RESET}"
       ;;
     *)
-      local bar=$(make_bar "$pct_int" "$cfg_bar_width" "$S_BAR_FILLED" "$S_BAR_EMPTY")
+      local c_bar_f="${cfg_bar_filled:-$S_BAR_FILLED}" c_bar_e="${cfg_bar_empty:-$S_BAR_EMPTY}"
+      local c_bw="$cfg_bar_width"; [ -n "$cfg_bar_filled" ] && c_bw=5
+      local bar=$(make_bar "$pct_int" "$c_bw" "$c_bar_f" "$c_bar_e")
       echo -n "${bg}${fg}${BOLD} ${symbol} ${label} ${RESET}${bar_bg}${col} ${bar} ${BOLD}${pct_int}%${reset_str} ${RESET}"
       ;;
   esac

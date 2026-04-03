@@ -2,10 +2,12 @@
 
 ## 2026-04-03
 
-### 改善：rainbow 模式 progress bar 改用實心/空心圓（●○）
-- rainbow 模式下 bar 改為 5 個圓點，每個代表 20%（`●●●○○` = 60%）
-- 解決 `░` 在彩色背景上的黑色夾層問題
-- classic 模式不受影響，維持原本的 `█░` bar
+### 新增：progress bar 樣式選擇步驟（Step 3c）
+- configure wizard 新增 bar style 步驟（非 ultra-compact 時顯示）
+- 8 種樣式：Default █░、Square ■□、Diamond ◆◇、Star ★☆、Parallelogram ▰▱、Medium Square ◼◻、Rectangle ▮▯、Hexagon ⬢⬡
+- 自訂樣式固定 5 個字元寬（每個 = 20%），Default 沿用 bar_width 設定
+- config.json 新增 `bar_filled`/`bar_empty` 欄位
+- statusline.sh 支援讀取自訂 bar 字元，classic/rainbow 模式皆適用
 - configure.sh: 預設 spacing 改為 ultra-compact
 
 ### 改善：configure wizard 預設 preview 改為 compact + rainbow
