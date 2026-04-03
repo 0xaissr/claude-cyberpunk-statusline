@@ -641,16 +641,16 @@ step_prompt_style() {
   p_rainbow=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw" "24h" "rainbow" "sharp" "sharp")
 
   ask_choice \
-    "Classic|$p_classic" \
-    "Rainbow|$p_rainbow"
+    "Rainbow|$p_rainbow" \
+    "Classic|$p_classic"
 
   local rc=$?
   if [ $rc -eq 1 ]; then return 2; fi
 
   if [ "$CHOICE_RESULT" -eq 1 ]; then
-    sel_style="classic"
-  else
     sel_style="rainbow"
+  else
+    sel_style="classic"
   fi
   return 0
 }
