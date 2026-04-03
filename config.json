@@ -1,8 +1,12 @@
 {
-  "theme": "midnight-phantom",
-  "symbol_set": "unicode",
+  "theme": "terminal-glitch",
+  "symbol_set": "nerd",
   "spacing": "ultra-compact",
-  "separator": "│",
-  "blocks": ["model", "context", "rate_5h", "rate_7d"],
-  "bar_width": 10
+  "style": "rainbow",
+  "separator": "",
+  "head": "rounded",
+  "tail": "rounded",
+  "blocks": ["model", "context", "rate_5h", "rate_7d", "directory", "git", "time"],
+  "bar_width": 10,
+  "time_format": "24h"
 }
