@@ -63,32 +63,77 @@ preview_all() {
   done
   wait
 
+  # Current theme
+  local current_theme=$("$JQ" -r '.theme // ""' "$CONFIG")
+
+  # Build numbered list with theme IDs
+  local all_ids=()
+  local all_names=()
+  local num=1
+
+  _print_theme() {
+    local t="$1" idx="$2"
+    local name=$("$JQ" -r '.name // "'"$t"'"' "$THEMES_DIR/$t.json" 2>/dev/null)
+    all_ids+=("$t")
+    all_names+=("$name")
+
+    local marker="  "
+    if [ "$t" = "$current_theme" ]; then
+      marker="\033[32m▸ \033[0m"
+    fi
+
+    local label="($num)"
+    local display_width=$(echo -n "$name" | wc -m)
+    local pad=$((22 - display_width))
+    [ "$pad" -lt 0 ] && pad=0
+    printf "  ${marker}\033[2m%-4s\033[0m\033[1m%s%*s\033[0m " "$label" "$name" "$pad" ""
+    echo -e "$(cat "$_pd/$idx")"
+    num=$((num + 1))
+  }
+
   echo -e "  \033[2;33m── Cyberpunk ──\033[0m"
   local idx=0
   for t in "${cyberpunk[@]}"; do
-    local name=$("$JQ" -r '.name // "'"$t"'"' "$THEMES_DIR/$t.json" 2>/dev/null)
-    local display_width=$(echo -n "$name" | wc -m)
-    local pad=$((24 - display_width))
-    [ "$pad" -lt 0 ] && pad=0
-    printf "  \033[1m%s%*s\033[0m " "$name" "$pad" ""
-    echo -e "$(cat "$_pd/$idx")"
+    _print_theme "$t" "$idx"
     idx=$((idx + 1))
   done
 
   echo ""
   echo -e "  \033[2;33m── Classic ──\033[0m"
   for t in "${classic[@]}"; do
-    local name=$("$JQ" -r '.name // "'"$t"'"' "$THEMES_DIR/$t.json" 2>/dev/null)
-    local display_width=$(echo -n "$name" | wc -m)
-    local pad=$((24 - display_width))
-    [ "$pad" -lt 0 ] && pad=0
-    printf "  \033[1m%s%*s\033[0m " "$name" "$pad" ""
-    echo -e "$(cat "$_pd/$idx")"
+    _print_theme "$t" "$idx"
     idx=$((idx + 1))
   done
 
   rm -rf "$_pd"
   echo ""
+  echo -e "  \033[2mCurrent: \033[1;36m${current_theme}\033[0m"
+  echo ""
+
+  # Prompt for selection
+  printf "  Select theme [1-%d / e <name> to edit / q to quit]: " "${#all_ids[@]}"
+  read -r choice
+
+  case "$choice" in
+    q|quit) return ;;
+    e\ *)
+      local edit_name="${choice#e }"
+      edit_theme "$edit_name"
+      ;;
+    [0-9]*)
+      local sel=$((choice - 1))
+      if [ "$sel" -ge 0 ] && [ "$sel" -lt "${#all_ids[@]}" ]; then
+        local selected="${all_ids[$sel]}"
+        "$JQ" --arg t "$selected" '.theme = $t' "$CONFIG" > /tmp/_cfg_preview.json \
+          && mv /tmp/_cfg_preview.json "$CONFIG"
+        echo -e "  \033[32m✔ Theme set to ${all_names[$sel]} ($selected). Restart Claude Code to apply.\033[0m"
+      else
+        echo -e "  \033[31mInvalid selection.\033[0m"
+      fi
+      ;;
+    "") return ;;
+    *) echo -e "  \033[31mUnknown command: $choice\033[0m" ;;
+  esac
 }
 
 # ══════════════════════════════════════════════════════════════════════════
