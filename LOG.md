@@ -2,6 +2,11 @@
 
 ## 2026-04-03
 
+### 新增：preview.sh — 主題預覽與編輯工具
+- `./preview.sh` — 列出所有主題的彩色預覽（並行生成）
+- `./preview.sh tokyo-night` — 進入互動編輯模式：顯示色票 + 預覽 + 即時修改色彩
+- 支援指令：`e <color> <#hex>` 編輯色彩、`a` 套用為當前主題、`q` 離開
+
 ### 新增：show_icons 設定 + cost block 移除 icon
 - cost block 不再顯示 icon，直接顯示 $XX.XX
 - 新增 show_icons 設定（true/false），控制所有 block 是否顯示 icon
