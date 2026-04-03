@@ -137,9 +137,12 @@ format_countdown() {
   local now_ts=$(date +%s)
   local diff=$(( resets_at - now_ts ))
   if [ "$diff" -le 0 ]; then return; fi
-  local hours=$(( diff / 3600 ))
+  local days=$(( diff / 86400 ))
+  local hours=$(( (diff % 86400) / 3600 ))
   local mins=$(( (diff % 3600) / 60 ))
-  if [ "$hours" -gt 0 ]; then
+  if [ "$days" -gt 0 ]; then
+    printf '↻%dd%dh' "$days" "$hours"
+  elif [ "$hours" -gt 0 ]; then
     printf '↻%dh%02dm' "$hours" "$mins"
   else
     printf '↻%dm' "$mins"
@@ -243,4 +246,6 @@ for block in $cfg_blocks; do
   esac
 done
 
+# Ensure output ends with newline so subsequent prompts start on a new line
 echo -e "$output"
+echo ""
