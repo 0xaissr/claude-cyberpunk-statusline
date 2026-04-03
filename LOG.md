@@ -2,6 +2,10 @@
 
 ## 2026-04-03
 
+### 修正：所有 theme 的 nerd icons 缺失 + icon spacing 測試不完整
+- **問題：** 所有 theme JSON 中 `rate_5h`、`directory`、`git`、`time` 的 nerd icon 為空字串，導致 font detection icon spacing 測試只顯示 3 個 icon（應有 7 個）
+- **修正：** 補齊 14 個 theme 的 nerd icons（󰕐 timer-sand、󰉋 folder、󰊢 source-branch、󰅐 clock-outline），並重建 configure.sh 的 icon spacing 測試行
+
 ### 修正：configure wizard Step 2 blocks 預設改為全選（全開）
 - 修正先前誤解：使用者要的是預設全選，讓使用者取消不要的 blocks
 

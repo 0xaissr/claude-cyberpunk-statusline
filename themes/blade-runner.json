@@ -16,28 +16,67 @@
   },
   "symbols": {
     "nerd": {
-      "model": "󰚩", "context": "󰍛", "rate_5h": "", "rate_7d": "󰔟",
-      "directory": "", "git": "", "time": "",
-      "bar_filled": "█", "bar_empty": "░"
+      "model": "󰚩",
+      "context": "󰍛",
+      "rate_5h": "󰕐",
+      "rate_7d": "󰔟",
+      "directory": "󰉋",
+      "git": "󰊢",
+      "time": "󰅐",
+      "bar_filled": "█",
+      "bar_empty": "░"
     },
     "unicode": {
-      "model": "⬡", "context": "◈", "rate_5h": "⚡", "rate_7d": "⟳",
-      "directory": "⌁", "git": "⎇", "time": "◷",
-      "bar_filled": "█", "bar_empty": "░"
+      "model": "⬡",
+      "context": "◈",
+      "rate_5h": "⚡",
+      "rate_7d": "⟳",
+      "directory": "⌁",
+      "git": "⎇",
+      "time": "◷",
+      "bar_filled": "█",
+      "bar_empty": "░"
     },
     "ascii": {
-      "model": "[M]", "context": "[C]", "rate_5h": "[!]", "rate_7d": "[~]",
-      "directory": "[D]", "git": "[G]", "time": "[T]",
-      "bar_filled": "#", "bar_empty": "."
+      "model": "[M]",
+      "context": "[C]",
+      "rate_5h": "[!]",
+      "rate_7d": "[~]",
+      "directory": "[D]",
+      "git": "[G]",
+      "time": "[T]",
+      "bar_filled": "#",
+      "bar_empty": "."
     }
   },
   "blocks": {
-    "model":     { "color": "accent_1", "bg": "bg_panel" },
-    "context":   { "color": "accent_2", "bg": "bg_panel" },
-    "rate_5h":   { "color": "accent_3", "bg": "bg_panel" },
-    "rate_7d":   { "color": "accent_1", "bg": "bg_panel" },
-    "directory": { "color": "accent_2", "bg": "bg_panel" },
-    "git":       { "color": "accent_1", "bg": "bg_panel" },
-    "time":      { "color": "accent_1", "bg": "bg_primary" }
+    "model": {
+      "color": "accent_1",
+      "bg": "bg_panel"
+    },
+    "context": {
+      "color": "accent_2",
+      "bg": "bg_panel"
+    },
+    "rate_5h": {
+      "color": "accent_3",
+      "bg": "bg_panel"
+    },
+    "rate_7d": {
+      "color": "accent_1",
+      "bg": "bg_panel"
+    },
+    "directory": {
+      "color": "accent_2",
+      "bg": "bg_panel"
+    },
+    "git": {
+      "color": "accent_1",
+      "bg": "bg_panel"
+    },
+    "time": {
+      "color": "accent_1",
+      "bg": "bg_primary"
+    }
   }
 }
