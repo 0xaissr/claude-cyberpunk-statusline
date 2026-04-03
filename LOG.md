@@ -2,6 +2,12 @@
 
 ## 2026-04-03
 
+### 新增：show_icons 設定 + cost block 移除 icon
+- cost block 不再顯示 icon，直接顯示 $XX.XX
+- 新增 show_icons 設定（true/false），控制所有 block 是否顯示 icon
+- configure wizard Step 1 新增 icon 選擇子步驟（Yes/No + preview）
+- config.json 新增 show_icons 欄位
+
 ### 文件：README 更新 — 新增 cost block、bar style、time format 說明
 - 英文/繁中 README 同步更新
 - 新增 Available Blocks 表格（含 cost 說明）

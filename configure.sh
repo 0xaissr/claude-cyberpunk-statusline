@@ -70,6 +70,7 @@ if [ -f "$CONFIG" ]; then
   cur_bar_width=$("$JQ" -r '.bar_width // 10' "$CONFIG")
   cur_bar_filled=$("$JQ" -r '.bar_filled // ""' "$CONFIG")
   cur_bar_empty=$("$JQ" -r '.bar_empty // ""' "$CONFIG")
+  cur_show_icons=$("$JQ" -r '.show_icons // true' "$CONFIG")
   cur_time_format=$("$JQ" -r '.time_format // "24h"' "$CONFIG")
   cur_blocks=$("$JQ" -r '.blocks // ["model","context","rate_5h","rate_7d","directory","git","time"] | .[]' "$CONFIG")
 else
@@ -83,6 +84,7 @@ else
   cur_bar_width=10
   cur_bar_filled="■"
   cur_bar_empty="□"
+  cur_show_icons="true"
   cur_time_format="24h"
   cur_blocks="model context rate_5h rate_7d directory git time"
 fi
@@ -99,6 +101,7 @@ sel_tail=""         # "flat", "sharp", "slanted", "rounded"
 sel_bar_width=""
 sel_bar_filled=""
 sel_bar_empty=""
+sel_show_icons=""
 sel_time_format=""
 
 # ── Restart helper ───────────────────────────────────────────────────────
@@ -114,6 +117,7 @@ restart_wizard() {
   sel_bar_width=""
   sel_bar_filled=""
   sel_bar_empty=""
+  sel_show_icons=""
   sel_time_format=""
   current_step=1
 }
@@ -277,6 +281,7 @@ render_preview() {
   local style="${8:-classic}" head="${9:-sharp}" tail="${10:-sharp}"
   local bar_filled="${11:-${sel_bar_filled:-${cur_bar_filled:-}}}"
   local bar_empty="${12:-${sel_bar_empty:-${cur_bar_empty:-}}}"
+  local show_icons="${13:-${sel_show_icons:-${cur_show_icons:-true}}}"
 
   local tmp_config=$(mktemp)
   PREVIEW_TMP_CONFIG="$tmp_config"
@@ -311,6 +316,7 @@ render_preview() {
   "tail": "$tail",
   "blocks": [$blocks_json],
   "bar_width": $bar_width,${bar_fields}
+  "show_icons": $show_icons,
   "time_format": "$time_format"
 }
 CONF
@@ -414,6 +420,40 @@ step_font_detect() {
     sel_symbols="unicode"
   else
     sel_symbols="ascii"
+  fi
+  return 0
+}
+
+# ── Step 1b: Show icons ──────────────────────────────────────────────────
+step_show_icons() {
+  draw_header 1 $TOTAL_STEPS "Show icons in blocks?"
+
+  local blocks_csv="${sel_blocks:-$(echo "$cur_blocks" | tr ' ' '\n' | tr '\n' ',' | sed 's/,$//')}"
+  local _pd=$(mktemp -d)
+  ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" \
+      "${sel_spacing:-$cur_spacing}" "${sel_separator:-$cur_separator}" \
+      "$blocks_csv" "${sel_bar_width:-$cur_bar_width}" "${sel_time_format:-$cur_time_format}" \
+      "$(_cur_style)" "$(_cur_head)" "$(_cur_tail)" \
+      "${sel_bar_filled:-${cur_bar_filled:-}}" "${sel_bar_empty:-${cur_bar_empty:-}}" "true" > "$_pd/0" ) &
+  ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" \
+      "${sel_spacing:-$cur_spacing}" "${sel_separator:-$cur_separator}" \
+      "$blocks_csv" "${sel_bar_width:-$cur_bar_width}" "${sel_time_format:-$cur_time_format}" \
+      "$(_cur_style)" "$(_cur_head)" "$(_cur_tail)" \
+      "${sel_bar_filled:-${cur_bar_filled:-}}" "${sel_bar_empty:-${cur_bar_empty:-}}" "false" > "$_pd/1" ) &
+  wait
+  local p_yes=$(cat "$_pd/0") p_no=$(cat "$_pd/1"); rm -rf "$_pd"
+
+  ask_choice \
+    "Yes — show icons|$p_yes" \
+    "No  — text only|$p_no"
+
+  local rc=$?
+  if [ $rc -eq 1 ]; then return 2; fi
+
+  if [ "$CHOICE_RESULT" -eq 1 ]; then
+    sel_show_icons="true"
+  else
+    sel_show_icons="false"
   fi
   return 0
 }
@@ -987,6 +1027,7 @@ step_done() {
   "tail": "$sel_tail",
   "blocks": [$blocks_json],
   "bar_width": $bar_width,${bar_filled_field}${bar_empty_field}
+  "show_icons": $sel_show_icons,
   "time_format": "$time_format"
 }
 CONF
@@ -1000,7 +1041,8 @@ CONF
   echo ""
   echo -e "\033[2mTheme:      \033[0m $sel_theme"
   echo -e "\033[2mSymbols:    \033[0m $sel_symbols"
-  echo -e "\033[2mBlocks:     \033[0m ${block_count}/7 enabled"
+  echo -e "\033[2mIcons:      \033[0m $sel_show_icons"
+  echo -e "\033[2mBlocks:     \033[0m ${block_count}/8 enabled"
   echo -e "\033[2mSpacing:    \033[0m $sel_spacing"
   echo -e "\033[2mStyle:      \033[0m $sel_style"
   if [ "$sel_style" = "rainbow" ]; then
@@ -1019,7 +1061,7 @@ CONF
   echo ""
   render_preview "$sel_theme" "$sel_symbols" "$sel_spacing" "$sel_separator" \
     "$sel_blocks" "$bar_width" "$time_format" "$sel_style" "$sel_head" "$sel_tail" \
-    "$sel_bar_filled" "$sel_bar_empty"
+    "$sel_bar_filled" "$sel_bar_empty" "$sel_show_icons"
   echo ""
   echo ""
   echo -e "\033[2mYour status line will update on the next refresh.\033[0m"
@@ -1038,13 +1080,19 @@ rc=0
 
 while true; do
   case $current_step in
-    1) # Font detection
+    1) # Font detection + show icons
       step_font_detect
       rc=$?
       if [ $rc -eq 2 ]; then
         restart_wizard
       elif [ $rc -eq 0 ] && [ -n "$sel_symbols" ]; then
-        current_step=2
+        step_show_icons
+        rc=$?
+        if [ $rc -eq 2 ]; then
+          restart_wizard
+        elif [ $rc -eq 0 ]; then
+          current_step=2
+        fi
       fi
       ;;
     2) # Blocks

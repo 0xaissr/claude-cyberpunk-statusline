@@ -65,6 +65,7 @@ cfg_tail=$("$JQ" -r '.tail // "sharp"' "$CONFIG")
 cfg_bar_width=$("$JQ" -r '.bar_width // 10' "$CONFIG")
 cfg_bar_filled=$("$JQ" -r '.bar_filled // ""' "$CONFIG")
 cfg_bar_empty=$("$JQ" -r '.bar_empty // ""' "$CONFIG")
+cfg_show_icons=$("$JQ" -r '.show_icons // true' "$CONFIG")
 cfg_time_format=$("$JQ" -r '.time_format // "24h"' "$CONFIG")
 cfg_blocks=$("$JQ" -r '.blocks // ["model","context","rate_5h","rate_7d","directory","git","time"] | .[]' "$CONFIG")
 
@@ -109,6 +110,11 @@ S_TIME=$(sym time)
 S_BAR_FILLED=$(sym bar_filled)
 S_BAR_EMPTY=$(sym bar_empty)
 S_COST=$(sym cost)
+
+# Clear icons if show_icons is disabled
+if [ "$cfg_show_icons" = "false" ]; then
+  S_MODEL="" S_CTX="" S_5H="" S_7D="" S_DIR="" S_GIT="" S_TIME="" S_COST=""
+fi
 
 # ── Read block color mappings ─────────────────────────────────────────────
 block_color() {
@@ -308,9 +314,9 @@ block_text_time() { echo -n " ${S_TIME} ${now} "; }
 
 block_text_cost() {
   if [ -n "$daily_cost" ]; then
-    echo -n " ${S_COST} \$${daily_cost} "
+    echo -n " \$${daily_cost} "
   else
-    echo -n " ${S_COST} -- "
+    echo -n " \$-- "
   fi
 }
 
@@ -395,10 +401,10 @@ render_block_cost() {
   local fg=$(hex_to_fg "$(block_color cost)")
   local bg=$(hex_to_bg "$(block_bg cost)")
   if [ -n "$daily_cost" ]; then
-    echo -n "${bg}${fg}${BOLD} ${S_COST} \$${daily_cost} ${RESET}"
+    echo -n "${bg}${fg}${BOLD} \$${daily_cost} ${RESET}"
   else
     local dim_fg=$(hex_to_fg "$C_DIM")
-    echo -n "${bg}${dim_fg} ${S_COST} -- ${RESET}"
+    echo -n "${bg}${dim_fg} \$-- ${RESET}"
   fi
 }
 
