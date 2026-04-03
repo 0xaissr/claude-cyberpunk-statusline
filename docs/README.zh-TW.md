@@ -65,6 +65,16 @@ cd ~/claude-cyberpunk-statusline && ./configure.sh
 
 **cost 區塊**會顯示今日所有 Claude 模型與 session 的總花費。若有安裝 [ccusage](https://github.com/ryoppippi/ccusage) 會使用其精確統計，否則自動以內建 JSONL 計算。資料每 5 分鐘在背景更新快取。
 
+### 預覽與編輯主題
+
+```bash
+# 預覽所有主題
+cd ~/claude-cyberpunk-statusline && ./preview.sh
+
+# 編輯特定主題（互動式色彩編輯器 + 即時預覽）
+cd ~/claude-cyberpunk-statusline && ./preview.sh tokyo-night
+```
+
 ### 更新
 
 ```bash

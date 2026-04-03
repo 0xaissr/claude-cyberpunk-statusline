@@ -67,6 +67,16 @@ The setup wizard will guide you through:
 
 The **cost** block shows today's total spending across all Claude models and sessions. It uses [ccusage](https://github.com/ryoppippi/ccusage) for accurate tracking if installed, otherwise falls back to built-in JSONL calculation. Data is cached and refreshed every 5 minutes in the background.
 
+### Preview & Edit Themes
+
+```bash
+# Preview all themes
+cd ~/claude-cyberpunk-statusline && ./preview.sh
+
+# Edit a specific theme (interactive color editor with live preview)
+cd ~/claude-cyberpunk-statusline && ./preview.sh tokyo-night
+```
+
 ### Update
 
 ```bash
