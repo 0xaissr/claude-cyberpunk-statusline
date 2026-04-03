@@ -288,7 +288,7 @@ block_text_pct() {
 }
 
 block_text_directory() {
-  local short_dir=$(echo "$cwd" | sed "s|$HOME|~|")
+  local short_dir=$(basename "$cwd")
   echo -n " ${S_DIR} ${short_dir} "
 }
 
@@ -365,7 +365,7 @@ render_block_rate_7d()  { render_pct_block "rate_7d" "$S_7D"  "7D"  "$week_pct" 
 render_block_directory() {
   local fg=$(hex_to_fg "$(block_color directory)")
   local bg=$(hex_to_bg "$(block_bg directory)")
-  local short_dir=$(echo "$cwd" | sed "s|$HOME|~|")
+  local short_dir=$(basename "$cwd")
   echo -n "${bg}${fg}${BOLD} ${S_DIR} ${short_dir} ${RESET}"
 }
 
