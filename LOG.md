@@ -2,6 +2,15 @@
 
 ## 2026-04-03
 
+### 重構：捨棄 Claude plugin，改為 p10k 風格安裝
+- **安裝方式：** `git clone` → `./install.sh`（自動設定 claude statusLine + 啟動 configure wizard）
+- **目錄結構：** flatten `cyberpunk-statusline/` 子目錄到 repo root
+- **新增：** `install.sh`（安裝）、`uninstall.sh`（反安裝）
+- **移除：** `.claude-plugin/`、`hooks/`、`skills/`（Claude plugin 機制全部刪除）
+- **路徑修正：** 所有腳本 `PLUGIN_DIR` → `SCRIPT_DIR`
+- **configure.sh：** 刪除 plugin cache 同步邏輯
+- **README：** 改為 git clone + install.sh 安裝說明
+
 ### 修正：Rainbow colored bg 相容性 + 移除多餘描述
 - 加回 legacy separator (/) 的 rainbow 偵測，舊 config 不用改也能繼續 work
 - Step 4 選項移除描述文字，只留 Classic / Rainbow 名稱（preview 已足夠說明）

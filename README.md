@@ -12,34 +12,31 @@ Displays model, context usage, rate limits, directory, git branch, and time — 
 
 ## Installation
 
-### 1. Add the marketplace
+### 1. Clone
 
-In Claude Code, run:
-
-```
-/plugin marketplace add 0xaissr/cyberpunk-statusline-marketplace
+```bash
+git clone https://github.com/0xaissr/cyberpunk-statusline.git ~/cyberpunk-statusline
 ```
 
-### 2. Install the plugin
+### 2. Install
 
-```
-/plugin install cyberpunk-statusline@cyberpunk-statusline-marketplace
-```
-
-Or use the interactive plugin manager (`/plugin` → **Discover** tab).
-
-### 3. Activate
-
-```
-/reload-plugins
+```bash
+cd ~/cyberpunk-statusline && ./install.sh
 ```
 
-Or restart your Claude Code session.
+This will:
+- Check prerequisites (jq)
+- Configure Claude Code's statusLine setting
+- Launch the setup wizard (if first time)
 
-### 4. Configure
+### 3. Restart
 
-```
-/cyberpunk-statusline configure
+Restart your Claude Code session to see the status line.
+
+### Reconfigure
+
+```bash
+cd ~/cyberpunk-statusline && ./configure.sh
 ```
 
 The setup wizard will guide you through:
@@ -51,6 +48,12 @@ The setup wizard will guide you through:
 5. **Separator / Head & Tail shapes** — customize segment appearance
 6. **Bar width** — progress bar size for context/rate blocks
 7. **Theme** — pick from 13 built-in themes with live preview
+
+### Update
+
+```bash
+cd ~/cyberpunk-statusline && git pull
+```
 
 ## Themes
 
@@ -68,21 +71,9 @@ You can also create custom themes — see `themes/custom-example/` for reference
 
 ## Uninstall
 
-Use the plugin manager:
-
+```bash
+cd ~/cyberpunk-statusline && ./uninstall.sh
 ```
-/plugin
-```
-
-Navigate to the **Installed** tab, select cyberpunk-statusline, and remove it.
-
-## Reinstall / Update
-
-```
-/cyberpunk-statusline reinstall
-```
-
-This clears the local cache. Restart Claude Code to re-fetch the latest version from GitHub.
 
 ## License
 
