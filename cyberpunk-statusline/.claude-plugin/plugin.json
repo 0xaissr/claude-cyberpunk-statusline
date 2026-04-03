@@ -1,8 +1,0 @@
-{
-  "name": "cyberpunk-statusline",
-  "description": "Themeable cyberpunk status line with p10k-style setup wizard",
-  "version": "1.0.0",
-  "author": { "name": "0xaissr", "email": "0xaissr@gmail.com" },
-  "license": "MIT",
-  "keywords": ["statusline", "cyberpunk", "themes", "terminal"]
-}
