@@ -215,21 +215,29 @@ block_text_pct() {
   local reset_str=""
   if [ -n "$countdown" ]; then reset_str=" ${countdown}"; fi
 
-  # Rainbow mode: force ultra-compact (bars look broken with colored bg)
-  local effective_spacing="$cfg_spacing"
+  # Rainbow mode: skip bar (█░ chars look broken on colored bg), keep label logic
+  local is_rainbow=false
   if [ "$cfg_style" = "rainbow" ] || $PL_MODE 2>/dev/null; then
-    effective_spacing="ultra-compact"
+    is_rainbow=true
   fi
 
-  case "$effective_spacing" in
+  case "$cfg_spacing" in
     ultra-compact) echo -n " ${symbol} ${pct_int}%${reset_str} " ;;
     compact)
-      local bar=$(make_bar "$pct_int" "$cfg_bar_width" "$S_BAR_FILLED" "$S_BAR_EMPTY")
-      echo -n " ${symbol} ${bar} ${pct_int}%${reset_str} "
+      if $is_rainbow; then
+        echo -n " ${symbol} ${pct_int}%${reset_str} "
+      else
+        local bar=$(make_bar "$pct_int" "$cfg_bar_width" "$S_BAR_FILLED" "$S_BAR_EMPTY")
+        echo -n " ${symbol} ${bar} ${pct_int}%${reset_str} "
+      fi
       ;;
     *)
-      local bar=$(make_bar "$pct_int" "$cfg_bar_width" "$S_BAR_FILLED" "$S_BAR_EMPTY")
-      echo -n " ${symbol} ${label} ${bar} ${pct_int}%${reset_str} "
+      if $is_rainbow; then
+        echo -n " ${symbol} ${label} ${pct_int}%${reset_str} "
+      else
+        local bar=$(make_bar "$pct_int" "$cfg_bar_width" "$S_BAR_FILLED" "$S_BAR_EMPTY")
+        echo -n " ${symbol} ${label} ${bar} ${pct_int}%${reset_str} "
+      fi
       ;;
   esac
 }
