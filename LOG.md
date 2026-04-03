@@ -2,6 +2,11 @@
 
 ## 2026-04-03
 
+### 修正：Rainbow colored bg 相容性 + 移除多餘描述
+- 加回 legacy separator (/) 的 rainbow 偵測，舊 config 不用改也能繼續 work
+- Step 4 選項移除描述文字，只留 Classic / Rainbow 名稱（preview 已足夠說明）
+- 程式碼註解 Powerline → Rainbow
+
 ### 重構：Powerline → Rainbow 風格 + Head/Tail 設定
 - **重命名：** Powerline → Rainbow（參照 p10k prompt style 命名）
 - **新增 `style` 設定：** `"classic"` 或 `"rainbow"`，取代用 separator 字元偵測

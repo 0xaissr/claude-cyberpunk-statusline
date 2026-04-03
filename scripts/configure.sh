@@ -561,8 +561,8 @@ step_prompt_style() {
   p_rainbow=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw" "24h" "rainbow" "sharp" "sharp")
 
   ask_choice \
-    "Classic   — colored text on dark bg|$p_classic" \
-    "Rainbow   — colored bg segments with arrows|$p_rainbow"
+    "Classic|$p_classic" \
+    "Rainbow|$p_rainbow"
 
   local rc=$?
   if [ $rc -eq 1 ]; then return 2; fi

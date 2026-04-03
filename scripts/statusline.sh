@@ -116,7 +116,7 @@ block_bg() {
   local ref=$("$JQ" -r ".blocks.$1.bg // \"bg_panel\"" "$THEME_FILE")
   color "$ref"
 }
-# Powerline: use accent color as bg, dark text as fg
+# Rainbow: use accent color as bg, dark text as fg
 pl_block_bg() {
   local ref=$("$JQ" -r ".blocks.$1.pl_bg // .blocks.$1.color // \"accent_1\"" "$THEME_FILE")
   color "$ref"
@@ -126,9 +126,9 @@ pl_block_fg() {
   color "$ref"
 }
 
-# Detect rainbow mode
+# Detect rainbow mode (also support legacy separator-based detection)
 PL_MODE=false
-if [ "$cfg_style" = "rainbow" ]; then
+if [ "$cfg_style" = "rainbow" ] || [ "$cfg_separator" = "" ] || [ "$cfg_separator" = "" ]; then
   PL_MODE=true
   # Head = left opening of first segment; Tail = right separator / closing glyph
   # Nerd Font Powerline glyphs:
@@ -316,7 +316,7 @@ render_block_time() {
   echo -n "${bg}${fg} ${S_TIME} ${now} ${RESET}"
 }
 
-# ── Get block's powerline bg hex ─────────────────────────────────────────
+# ── Get block's rainbow bg hex ────────────────────────────────────────────
 get_block_bg_hex() {
   local block="$1"
   if $PL_MODE; then
