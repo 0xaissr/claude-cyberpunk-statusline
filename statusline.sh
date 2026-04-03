@@ -220,11 +220,7 @@ block_text_pct() {
   # Determine bar chars: config overrides > theme defaults
   local bar_f="${cfg_bar_filled:-$S_BAR_FILLED}"
   local bar_e="${cfg_bar_empty:-$S_BAR_EMPTY}"
-  # Custom bar style (●○ etc.) uses fixed width of 5 (each = 20%)
   local bw="$cfg_bar_width"
-  if [ -n "$cfg_bar_filled" ]; then
-    bw=5
-  fi
 
   case "$cfg_spacing" in
     ultra-compact) echo -n " ${symbol} ${pct_int}%${reset_str} " ;;
@@ -289,13 +285,13 @@ render_pct_block() {
       ;;
     compact)
       local c_bar_f="${cfg_bar_filled:-$S_BAR_FILLED}" c_bar_e="${cfg_bar_empty:-$S_BAR_EMPTY}"
-      local c_bw="$cfg_bar_width"; [ -n "$cfg_bar_filled" ] && c_bw=5
+      local c_bw="$cfg_bar_width"
       local bar=$(make_bar "$pct_int" "$c_bw" "$c_bar_f" "$c_bar_e")
       echo -n "${bg}${fg}${BOLD} ${symbol} ${RESET}${bar_bg}${col} ${bar} ${BOLD}${pct_int}%${reset_str} ${RESET}"
       ;;
     *)
       local c_bar_f="${cfg_bar_filled:-$S_BAR_FILLED}" c_bar_e="${cfg_bar_empty:-$S_BAR_EMPTY}"
-      local c_bw="$cfg_bar_width"; [ -n "$cfg_bar_filled" ] && c_bw=5
+      local c_bw="$cfg_bar_width"
       local bar=$(make_bar "$pct_int" "$c_bw" "$c_bar_f" "$c_bar_e")
       echo -n "${bg}${fg}${BOLD} ${symbol} ${label} ${RESET}${bar_bg}${col} ${bar} ${BOLD}${pct_int}%${reset_str} ${RESET}"
       ;;
