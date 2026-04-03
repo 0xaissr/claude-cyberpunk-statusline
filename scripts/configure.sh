@@ -385,14 +385,10 @@ step_blocks() {
     "time        — Current time"
   )
 
-  # Build initial states from existing config
+  # All blocks start unchecked — user opts in
   local states=()
   for bid in "${block_ids[@]}"; do
-    if echo " $cur_blocks " | grep -q " $bid "; then
-      states+=("1")
-    else
-      states+=("0")
-    fi
+    states+=("0")
   done
 
   draw_footer "j/k move · Space toggle · Enter confirm · r restart · q quit"

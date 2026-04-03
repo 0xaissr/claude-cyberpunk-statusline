@@ -2,6 +2,10 @@
 
 ## 2026-04-03
 
+### 修正：configure wizard Step 2 blocks 預設應為全關
+- **問題：** Step 2 checkbox 初始狀態從現有 config 讀取，預設全開，但使用者期望全關（opt-in）
+- **修正：** 初始 states 全部設為 `0`，讓使用者自己勾選要顯示的 blocks
+
 ### 修正：configure wizard Step 1 問題文字被選項蓋掉
 - **問題：** `ask_yn()` 的 prompt/visual 參數傳空字串，問題文字手動印在 row 5 後被 `ask_yn` 從同一行覆蓋，導致只看到 (y)/(n) 卻不知道在問什麼
 - **修正：** 將三個 font detection 問題的文字和圖示改由 `ask_yn()` 的參數傳入，`ask_yn()` 內部依序排版 prompt → visual → 選項，不再互相覆蓋
