@@ -2,6 +2,10 @@
 
 ## 2026-04-03
 
+### 文件：新增繁體中文版 README
+- 新增 `docs/README.zh-TW.md` — 完整繁體中文版安裝與使用說明
+- 主 README 加上語言切換連結（English / 繁體中文）
+
 ### 重構：捨棄 Claude plugin，改為 p10k 風格安裝
 - **安裝方式：** `git clone` → `./install.sh`（自動設定 claude statusLine + 啟動 configure wizard）
 - **目錄結構：** flatten `cyberpunk-statusline/` 子目錄到 repo root

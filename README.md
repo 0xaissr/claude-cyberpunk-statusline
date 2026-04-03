@@ -1,5 +1,7 @@
 # cyberpunk-statusline
 
+[English](README.md) | [繁體中文](docs/README.zh-TW.md)
+
 Themeable cyberpunk status line for Claude Code, with a p10k-style setup wizard.
 
 Displays model, context usage, rate limits, directory, git branch, and time — all rendered in your terminal with true-color themes.
