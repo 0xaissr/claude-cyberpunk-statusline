@@ -442,6 +442,7 @@ step_blocks() {
 
   local cursor=0
   local count=${#block_descs[@]}
+  local preview_dirty=true
 
   while true; do
     for i in "${!block_descs[@]}"; do
@@ -459,23 +460,26 @@ step_blocks() {
       fi
     done
 
-    # Build current blocks CSV for preview
-    local blocks_csv=""
-    local first=true
-    for i in "${!block_ids[@]}"; do
-      if [ "${states[$i]}" = "1" ]; then
-        if $first; then
-          blocks_csv="${block_ids[$i]}"
-          first=false
-        else
-          blocks_csv="$blocks_csv,${block_ids[$i]}"
+    # Only refresh preview when blocks changed
+    if $preview_dirty; then
+      local blocks_csv=""
+      local first=true
+      for i in "${!block_ids[@]}"; do
+        if [ "${states[$i]}" = "1" ]; then
+          if $first; then
+            blocks_csv="${block_ids[$i]}"
+            first=false
+          else
+            blocks_csv="$blocks_csv,${block_ids[$i]}"
+          fi
         fi
-      fi
-    done
+      done
 
-    draw_preview --row $((5 + count + 1)) "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" \
-      "${sel_spacing:-$cur_spacing}" "${sel_separator:-$cur_separator}" \
-      "$blocks_csv" "${sel_bar_width:-$cur_bar_width}" "${sel_time_format:-$cur_time_format}"
+      draw_preview --row $((5 + count + 1)) "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" \
+        "${sel_spacing:-$cur_spacing}" "${sel_separator:-$cur_separator}" \
+        "$blocks_csv" "${sel_bar_width:-$cur_bar_width}" "${sel_time_format:-$cur_time_format}"
+      preview_dirty=false
+    fi
 
     read_key
     case "$KEY" in
@@ -487,6 +491,7 @@ step_blocks() {
         else
           states[$cursor]="1"
         fi
+        preview_dirty=true
         ;;
       enter)
         local any_checked=false
