@@ -421,12 +421,13 @@ step_font_detect() {
 step_blocks() {
   draw_header 2 $TOTAL_STEPS "Which blocks to show? (Space to toggle)"
 
-  local block_ids=("model" "context" "rate_5h" "rate_7d" "directory" "git" "time")
+  local block_ids=("model" "context" "rate_5h" "rate_7d" "cost" "directory" "git" "time")
   local block_descs=(
     "model       — Model name (e.g., Opus 4.6)"
     "context     — Context window usage %"
     "rate_5h     — 5-hour rate limit %"
     "rate_7d     — 7-day rate limit %"
+    "cost        — Daily cost via ccusage"
     "directory   — Working directory"
     "git         — Git branch"
     "time        — Current time"

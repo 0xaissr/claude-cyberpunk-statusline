@@ -24,7 +24,8 @@
       "git": "󰊢",
       "time": "󰅐",
       "bar_filled": "█",
-      "bar_empty": "░"
+      "bar_empty": "░",
+      "cost": "󰄉"
     },
     "unicode": {
       "model": "⬡",
@@ -35,7 +36,8 @@
       "git": "⎇",
       "time": "◷",
       "bar_filled": "█",
-      "bar_empty": "░"
+      "bar_empty": "░",
+      "cost": "$"
     },
     "ascii": {
       "model": "[M]",
@@ -46,7 +48,8 @@
       "git": "[G]",
       "time": "[T]",
       "bar_filled": "#",
-      "bar_empty": "."
+      "bar_empty": ".",
+      "cost": "[$]"
     }
   },
   "blocks": {
@@ -90,6 +93,12 @@
       "color": "accent_1",
       "bg": "bg_primary",
       "pl_bg": "accent_1",
+      "pl_fg": "bg_primary"
+    },
+    "cost": {
+      "color": "accent_3",
+      "bg": "bg_panel",
+      "pl_bg": "accent_3",
       "pl_fg": "bg_primary"
     }
   }

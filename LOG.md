@@ -2,6 +2,14 @@
 
 ## 2026-04-03
 
+### 新增：daily cost block — 透過 ccusage 顯示今日花費
+- 新增 `cost` block，顯示今日所有 model 的 token 花費（美元）
+- 透過 ccusage (`npx ccusage daily --jq`) 取得資料
+- 使用背景快取機制（~/.cache/cyberpunk-statusline/daily-cost），每 5 分鐘更新
+- 不阻塞 statusline 渲染，首次顯示 `--` 直到快取生成
+- 所有 14 個主題 + custom-example 新增 cost symbol（nerd: 󰄉、unicode: $、ascii: [$]）
+- configure wizard Step 2 新增 cost block 選項
+
 ### 優化：所有步驟的 preview 改為並行生成
 - 所有 render_preview 呼叫改為背景 job 並行執行 + wait
 - Step 3 spacing (3)、bar width (3)、bar style (6)

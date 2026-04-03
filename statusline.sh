@@ -108,6 +108,7 @@ S_GIT=$(sym git)
 S_TIME=$(sym time)
 S_BAR_FILLED=$(sym bar_filled)
 S_BAR_EMPTY=$(sym bar_empty)
+S_COST=$(sym cost)
 
 # ── Read block color mappings ─────────────────────────────────────────────
 block_color() {
@@ -167,6 +168,30 @@ case "$cfg_time_format" in
   *)          now=$(date +"%H:%M:%S") ;;
 esac
 git_branch=$(GIT_OPTIONAL_LOCKS=0 git -C "$cwd" symbolic-ref --short HEAD 2>/dev/null || true)
+
+# ── Daily cost (ccusage cache) ────────────────────────────────────────────
+COST_CACHE_DIR="$HOME/.cache/cyberpunk-statusline"
+COST_CACHE="$COST_CACHE_DIR/daily-cost"
+COST_CACHE_MAX_AGE=300  # 5 minutes
+daily_cost=""
+
+# Read cached value
+if [ -f "$COST_CACHE" ]; then
+  daily_cost=$(cat "$COST_CACHE" 2>/dev/null)
+fi
+
+# Background refresh if stale or missing
+_refresh_cost() {
+  mkdir -p "$COST_CACHE_DIR"
+  local val
+  val=$(npx ccusage@latest daily --jq '.totals.totalCost' --since "$(date +%Y%m%d)" --offline 2>/dev/null)
+  if [ -n "$val" ]; then
+    printf '%.2f' "$val" > "$COST_CACHE" 2>/dev/null
+  fi
+}
+if [ ! -f "$COST_CACHE" ] || [ $(($(date +%s) - $(stat -f%m "$COST_CACHE" 2>/dev/null || echo 0))) -gt "$COST_CACHE_MAX_AGE" ]; then
+  _refresh_cost &
+fi
 
 # ── Custom renderer check ─────────────────────────────────────────────────
 if [ -d "$THEME_DIR/$cfg_theme" ] && [ -f "$THEME_DIR/$cfg_theme/render.sh" ]; then
@@ -250,6 +275,14 @@ block_text_git() {
 
 block_text_time() { echo -n " ${S_TIME} ${now} "; }
 
+block_text_cost() {
+  if [ -n "$daily_cost" ]; then
+    echo -n " ${S_COST} \$${daily_cost} "
+  else
+    echo -n " ${S_COST} -- "
+  fi
+}
+
 # ── Classic block renderers ───────────────────────────────────────────────
 render_block_model() {
   local fg=$(hex_to_fg "$(block_color model)")
@@ -327,6 +360,17 @@ render_block_time() {
   echo -n "${bg}${fg} ${S_TIME} ${now} ${RESET}"
 }
 
+render_block_cost() {
+  local fg=$(hex_to_fg "$(block_color cost)")
+  local bg=$(hex_to_bg "$(block_bg cost)")
+  if [ -n "$daily_cost" ]; then
+    echo -n "${bg}${fg}${BOLD} ${S_COST} \$${daily_cost} ${RESET}"
+  else
+    local dim_fg=$(hex_to_fg "$C_DIM")
+    echo -n "${bg}${dim_fg} ${S_COST} -- ${RESET}"
+  fi
+}
+
 # ── Get block's rainbow bg hex ────────────────────────────────────────────
 get_block_bg_hex() {
   local block="$1"
@@ -377,6 +421,7 @@ if $PL_MODE; then
       directory) text=$(block_text_directory) ;;
       git)       text=$(block_text_git) ;;
       time)      text=$(block_text_time) ;;
+      cost)      text=$(block_text_cost) ;;
     esac
     output+="${cur_bg}${cur_fg}${BOLD}${text}${RESET}"
 
@@ -405,6 +450,7 @@ else
       directory) output+=$(render_block_directory) ;;
       git)       output+=$(render_block_git) ;;
       time)      output+=$(render_block_time) ;;
+      cost)      output+=$(render_block_cost) ;;
     esac
   done
 fi
