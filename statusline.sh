@@ -169,38 +169,53 @@ case "$cfg_time_format" in
 esac
 git_branch=$(GIT_OPTIONAL_LOCKS=0 git -C "$cwd" symbolic-ref --short HEAD 2>/dev/null || true)
 
-# ── Daily cost (ccusage cache, optional) ──────────────────────────────────
+# ── Daily cost (cached, background refresh) ──────────────────────────────
 COST_CACHE_DIR="$HOME/.cache/cyberpunk-statusline"
 COST_CACHE="$COST_CACHE_DIR/daily-cost"
 COST_CACHE_MAX_AGE=300  # 5 minutes
 daily_cost=""
-CCUSAGE_CMD=""
 
-# Detect ccusage availability
-if command -v ccusage >/dev/null 2>&1; then
-  CCUSAGE_CMD="ccusage"
-elif command -v npx >/dev/null 2>&1; then
-  CCUSAGE_CMD="npx ccusage@latest"
+# Read cached value
+if [ -f "$COST_CACHE" ]; then
+  daily_cost=$(cat "$COST_CACHE" 2>/dev/null)
 fi
 
-if [ -n "$CCUSAGE_CMD" ]; then
-  # Read cached value
-  if [ -f "$COST_CACHE" ]; then
-    daily_cost=$(cat "$COST_CACHE" 2>/dev/null)
+# Background refresh if stale or missing
+_refresh_cost() {
+  mkdir -p "$COST_CACHE_DIR"
+  local val=""
+
+  # Prefer ccusage if available (most accurate)
+  if command -v ccusage >/dev/null 2>&1; then
+    val=$(ccusage daily --jq '.totals.totalCost' --since "$(date +%Y%m%d)" --offline 2>/dev/null)
+  elif command -v npx >/dev/null 2>&1; then
+    val=$(npx ccusage@latest daily --jq '.totals.totalCost' --since "$(date +%Y%m%d)" --offline 2>/dev/null)
   fi
 
-  # Background refresh if stale or missing
-  _refresh_cost() {
-    mkdir -p "$COST_CACHE_DIR"
-    local val
-    val=$($CCUSAGE_CMD daily --jq '.totals.totalCost' --since "$(date +%Y%m%d)" --offline 2>/dev/null)
-    if [ -n "$val" ]; then
-      printf '%.2f' "$val" > "$COST_CACHE" 2>/dev/null
-    fi
-  }
-  if [ ! -f "$COST_CACHE" ] || [ $(($(date +%s) - $(stat -f%m "$COST_CACHE" 2>/dev/null || echo 0))) -gt "$COST_CACHE_MAX_AGE" ]; then
-    _refresh_cost &
+  # Fallback: calculate from local JSONL files with jq
+  if [ -z "$val" ] || [ "$val" = "null" ]; then
+    local today=$(date +%Y-%m-%d)
+    val=$(find "$HOME/.claude/projects" -name "*.jsonl" -maxdepth 2 2>/dev/null \
+      | xargs grep -h '"type":"assistant"' 2>/dev/null \
+      | "$JQ" -s --arg today "$today" '
+        def price($m):
+          if ($m | startswith("claude-opus")) then {i: 15, o: 75}
+          elif ($m | startswith("claude-sonnet")) then {i: 3, o: 15}
+          elif ($m | startswith("claude-haiku")) then {i: 0.80, o: 4}
+          else {i: 15, o: 75} end;
+        [ .[] | select(.timestamp | startswith($today)) |
+          .message as $msg | $msg.usage as $u | price($msg.model) as $p |
+          (($u.input_tokens // 0) * $p.i + ($u.output_tokens // 0) * $p.o) / 1000000
+        ] | add // 0
+      ' 2>/dev/null)
   fi
+
+  if [ -n "$val" ] && [ "$val" != "null" ]; then
+    printf '%.2f' "$val" > "$COST_CACHE" 2>/dev/null
+  fi
+}
+if [ ! -f "$COST_CACHE" ] || [ $(($(date +%s) - $(stat -f%m "$COST_CACHE" 2>/dev/null || echo 0))) -gt "$COST_CACHE_MAX_AGE" ]; then
+  _refresh_cost &
 fi
 
 # ── Custom renderer check ─────────────────────────────────────────────────
