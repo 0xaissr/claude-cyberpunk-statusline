@@ -52,31 +52,45 @@
   "blocks": {
     "model": {
       "color": "accent_1",
-      "bg": "bg_panel"
+      "bg": "bg_panel",
+      "pl_bg": "accent_1",
+      "pl_fg": "bg_primary"
     },
     "context": {
       "color": "accent_2",
-      "bg": "bg_panel"
+      "bg": "bg_panel",
+      "pl_bg": "accent_2",
+      "pl_fg": "bg_primary"
     },
     "rate_5h": {
       "color": "accent_3",
-      "bg": "bg_panel"
+      "bg": "bg_panel",
+      "pl_bg": "accent_3",
+      "pl_fg": "bg_primary"
     },
     "rate_7d": {
       "color": "accent_1",
-      "bg": "bg_panel"
+      "bg": "bg_panel",
+      "pl_bg": "accent_1",
+      "pl_fg": "bg_primary"
     },
     "directory": {
       "color": "accent_2",
-      "bg": "bg_panel"
+      "bg": "bg_panel",
+      "pl_bg": "accent_2",
+      "pl_fg": "bg_primary"
     },
     "git": {
       "color": "accent_1",
-      "bg": "bg_panel"
+      "bg": "bg_panel",
+      "pl_bg": "accent_3",
+      "pl_fg": "bg_primary"
     },
     "time": {
       "color": "accent_1",
-      "bg": "bg_primary"
+      "bg": "bg_primary",
+      "pl_bg": "accent_1",
+      "pl_fg": "bg_primary"
     }
   }
 }

@@ -113,6 +113,22 @@ block_bg() {
   local ref=$("$JQ" -r ".blocks.$1.bg // \"bg_panel\"" "$THEME_FILE")
   color "$ref"
 }
+# Powerline: use accent color as bg, dark text as fg
+pl_block_bg() {
+  local ref=$("$JQ" -r ".blocks.$1.pl_bg // .blocks.$1.color // \"accent_1\"" "$THEME_FILE")
+  color "$ref"
+}
+pl_block_fg() {
+  local ref=$("$JQ" -r ".blocks.$1.pl_fg // \"bg_primary\"" "$THEME_FILE")
+  color "$ref"
+}
+
+# Detect powerline mode
+PL_MODE=false
+if [ "$cfg_separator" = "" ] || [ "$cfg_separator" = "" ]; then
+  PL_MODE=true
+  PL_ARROW="$cfg_separator"
+fi
 
 # ── Parse stdin JSON ──────────────────────────────────────────────────────
 model=$(echo "$input" | "$JQ" -r '.model.display_name // "UNKNOWN"')
@@ -156,10 +172,58 @@ format_countdown() {
 }
 
 # ── Build separator ────────────────────────────────────────────────────────
-SEP_FG=$(hex_to_fg "$C_SEP")
-SEP=" ${SEP_FG}${cfg_separator}${RESET} "
+if ! $PL_MODE; then
+  SEP_FG=$(hex_to_fg "$C_SEP")
+  SEP=" ${SEP_FG}${cfg_separator}${RESET} "
+fi
 
-# ── Block renderers ────────────────────────────────────────────────────────
+# ── Block content helpers (text only, no bg/fg wrapper) ───────────────────
+block_text_model() { echo -n " ${S_MODEL} ${model} "; }
+
+block_text_pct() {
+  local block_name="$1" symbol="$2" label="$3" pct="$4" resets_at="${5:-}"
+  local fg_hex=$(block_color "$block_name")
+  local dim_fg=$(hex_to_fg "$C_DIM")
+
+  if [ -z "$pct" ]; then
+    echo -n " ${symbol} ${label} -- "
+    return
+  fi
+
+  local pct_int=$(printf "%.0f" "$pct")
+  local countdown=$(format_countdown "$resets_at")
+  local reset_str=""
+  if [ -n "$countdown" ]; then reset_str=" ${countdown}"; fi
+
+  case "$cfg_spacing" in
+    ultra-compact) echo -n " ${symbol} ${pct_int}%${reset_str} " ;;
+    compact)
+      local bar=$(make_bar "$pct_int" "$cfg_bar_width" "$S_BAR_FILLED" "$S_BAR_EMPTY")
+      echo -n " ${symbol} ${bar} ${pct_int}%${reset_str} "
+      ;;
+    *)
+      local bar=$(make_bar "$pct_int" "$cfg_bar_width" "$S_BAR_FILLED" "$S_BAR_EMPTY")
+      echo -n " ${symbol} ${label} ${bar} ${pct_int}%${reset_str} "
+      ;;
+  esac
+}
+
+block_text_directory() {
+  local short_dir=$(echo "$cwd" | sed "s|$HOME|~|")
+  echo -n " ${S_DIR} ${short_dir} "
+}
+
+block_text_git() {
+  if [ -n "$git_branch" ]; then
+    echo -n " ${S_GIT} ${git_branch} "
+  else
+    echo -n " ${S_GIT} no-git "
+  fi
+}
+
+block_text_time() { echo -n " ${S_TIME} ${now} "; }
+
+# ── Classic block renderers ───────────────────────────────────────────────
 render_block_model() {
   local fg=$(hex_to_fg "$(block_color model)")
   local bg=$(hex_to_bg "$(block_bg model)")
@@ -232,25 +296,80 @@ render_block_time() {
   echo -n "${bg}${fg} ${S_TIME} ${now} ${RESET}"
 }
 
+# ── Get block's powerline bg hex ─────────────────────────────────────────
+get_block_bg_hex() {
+  local block="$1"
+  if $PL_MODE; then
+    pl_block_bg "$block"
+  else
+    block_bg "$block"
+  fi
+}
+
 # ── Assemble ───────────────────────────────────────────────────────────────
 output=""
-first=true
-for block in $cfg_blocks; do
-  if [ "$first" = true ]; then
-    first=false
-  else
-    output+="$SEP"
+
+if $PL_MODE; then
+  # ── Powerline assembly ─────────────────────────────────────────────────
+  # Collect block list into array
+  block_list=()
+  for b in $cfg_blocks; do block_list+=("$b"); done
+
+  prev_bg_hex=""
+  for idx in "${!block_list[@]}"; do
+    block="${block_list[$idx]}"
+    cur_bg_hex=$(pl_block_bg "$block")
+    cur_fg_hex=$(pl_block_fg "$block")
+    cur_bg=$(hex_to_bg "$cur_bg_hex")
+    cur_fg=$(hex_to_fg "$cur_fg_hex")
+
+    # Arrow from previous block to current
+    if [ "$idx" -gt 0 ]; then
+      local_arrow_fg=$(hex_to_fg "$prev_bg_hex")
+      output+="${RESET}${local_arrow_fg}${cur_bg}${PL_ARROW}${RESET}"
+    fi
+
+    # Block content
+    text=""
+    case "$block" in
+      model)     text=$(block_text_model) ;;
+      context)   text=$(block_text_pct "context" "$S_CTX" "CTX" "$used_pct") ;;
+      rate_5h)   text=$(block_text_pct "rate_5h" "$S_5H" "5H" "$five_pct" "$five_reset") ;;
+      rate_7d)   text=$(block_text_pct "rate_7d" "$S_7D" "7D" "$week_pct" "$week_reset") ;;
+      directory) text=$(block_text_directory) ;;
+      git)       text=$(block_text_git) ;;
+      time)      text=$(block_text_time) ;;
+    esac
+    output+="${cur_bg}${cur_fg}${BOLD}${text}${RESET}"
+
+    prev_bg_hex="$cur_bg_hex"
+  done
+
+  # Final arrow to terminal background
+  if [ -n "$prev_bg_hex" ]; then
+    local_arrow_fg=$(hex_to_fg "$prev_bg_hex")
+    output+="${RESET}${local_arrow_fg}${PL_ARROW}${RESET}"
   fi
-  case "$block" in
-    model)     output+=$(render_block_model) ;;
-    context)   output+=$(render_block_context) ;;
-    rate_5h)   output+=$(render_block_rate_5h) ;;
-    rate_7d)   output+=$(render_block_rate_7d) ;;
-    directory) output+=$(render_block_directory) ;;
-    git)       output+=$(render_block_git) ;;
-    time)      output+=$(render_block_time) ;;
-  esac
-done
+else
+  # ── Classic assembly ───────────────────────────────────────────────────
+  first=true
+  for block in $cfg_blocks; do
+    if [ "$first" = true ]; then
+      first=false
+    else
+      output+="$SEP"
+    fi
+    case "$block" in
+      model)     output+=$(render_block_model) ;;
+      context)   output+=$(render_block_context) ;;
+      rate_5h)   output+=$(render_block_rate_5h) ;;
+      rate_7d)   output+=$(render_block_rate_7d) ;;
+      directory) output+=$(render_block_directory) ;;
+      git)       output+=$(render_block_git) ;;
+      time)      output+=$(render_block_time) ;;
+    esac
+  done
+fi
 
 # Ensure output ends with newline so subsequent prompts start on a new line
 echo -e "$output"
