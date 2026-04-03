@@ -594,9 +594,9 @@ step_bar_style() {
   local tf="${sel_time_format:-$cur_time_format}"
 
   # Each option: "label|preview" — preview uses specific bar chars
-  local styles_filled=("" "■" "◆" "★" "▰" "◼" "▮" "⬢")
-  local styles_empty=("" "□" "◇" "☆" "▱" "◻" "▯" "⬡")
-  local styles_label=("Default (█░)" "Square ■□" "Diamond ◆◇" "Star ★☆" "Parallelogram ▰▱" "Medium Square ◼◻" "Rectangle ▮▯" "Hexagon ⬢⬡")
+  local styles_filled=("■" "●" "◆" "★" "▰" "◼" "▮" "⬢" "")
+  local styles_empty=("□" "○" "◇" "☆" "▱" "◻" "▯" "⬡" "")
+  local styles_label=("Square ■□" "Circle ●○" "Diamond ◆◇" "Star ★☆" "Parallelogram ▰▱" "Medium Square ◼◻" "Rectangle ▮▯" "Hexagon ⬢⬡" "Block █░")
 
   local previews=()
   for i in "${!styles_filled[@]}"; do
