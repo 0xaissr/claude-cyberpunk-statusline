@@ -848,17 +848,26 @@ step_theme() {
   local bw="${sel_bar_width:-$cur_bar_width}"
   local tf="${sel_time_format:-$cur_time_format}"
 
-  # Pre-generate all theme previews (one-time cost)
+  # Pre-generate all theme previews in parallel (one-time cost)
+  local preview_dir=$(mktemp -d)
+  for i in "${!all_ids[@]}"; do
+    if [ "${all_ids[$i]}" != "__header__" ]; then
+      ( render_preview "${all_ids[$i]}" "${sel_symbols:-$cur_symbols}" \
+          "$sel_spacing" "$sel_separator" "$blocks_csv" "$bw" "$tf" \
+          "$(_cur_style)" "$(_cur_head)" "$(_cur_tail)" \
+          > "$preview_dir/$i" ) &
+    fi
+  done
+  wait
   local all_previews=()
   for i in "${!all_ids[@]}"; do
     if [ "${all_ids[$i]}" = "__header__" ]; then
       all_previews+=("")
     else
-      all_previews+=("$(render_preview "${all_ids[$i]}" "${sel_symbols:-$cur_symbols}" \
-        "$sel_spacing" "$sel_separator" "$blocks_csv" "$bw" "$tf" \
-        "$(_cur_style)" "$(_cur_head)" "$(_cur_tail)")")
+      all_previews+=("$(cat "$preview_dir/$i")")
     fi
   done
+  rm -rf "$preview_dir"
 
   draw_footer "j/k move · Enter select · r restart · b back · q quit"
 
