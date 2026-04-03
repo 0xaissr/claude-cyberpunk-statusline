@@ -2,6 +2,10 @@
 
 ## 2026-04-03
 
+### 修正：configure wizard Step 1 font detection 圖示顯示為亂碼
+- **問題：** `ask_yn` 用 `printf '%s'` 輸出 visual 內容，`\033[` 跳脫序列未被解析，直接顯示為文字
+- **修正：** 改用 `printf '%b'` 讓 ANSI 色彩碼正確渲染
+
 ### 修正：configure wizard preview 全開時跳行 — 縮短 bar、model 名、重置時間
 - **問題：** 全部 blocks 開啟時 preview 太寬導致跳行，影響可讀性
 - **修正 1：** model display_name 從 `Opus 4.6 (1M context)` 縮短為 `Opus 4.6 (1M)`

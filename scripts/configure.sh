@@ -163,7 +163,7 @@ ask_yn() {
   if [ -n "$visual" ]; then
     printf '\033[K\n'
     tput cup $((row + 1)) 0
-    printf '\033[K%s\n' "$visual"
+    printf '\033[K%b\n' "$visual"
     row=$((row + 3))
   fi
 
