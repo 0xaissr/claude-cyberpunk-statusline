@@ -6,6 +6,8 @@ Themeable cyberpunk status line for Claude Code, with a p10k-style setup wizard.
 
 Displays model, context usage, rate limits, daily cost, directory, git branch, and time — all rendered in your terminal with true-color themes.
 
+![overview](docs/overview.png)
+
 ## Prerequisites
 
 - **Claude Code** CLI or Desktop
