@@ -59,6 +59,9 @@ cfg_theme=$("$JQ" -r '.theme // "terminal-glitch"' "$CONFIG")
 cfg_symbols=$("$JQ" -r '.symbol_set // "unicode"' "$CONFIG")
 cfg_spacing=$("$JQ" -r '.spacing // "normal"' "$CONFIG")
 cfg_separator=$("$JQ" -r '.separator // "│"' "$CONFIG")
+cfg_style=$("$JQ" -r '.style // "classic"' "$CONFIG")
+cfg_head=$("$JQ" -r '.head // "sharp"' "$CONFIG")
+cfg_tail=$("$JQ" -r '.tail // "sharp"' "$CONFIG")
 cfg_bar_width=$("$JQ" -r '.bar_width // 10' "$CONFIG")
 cfg_time_format=$("$JQ" -r '.time_format // "24h"' "$CONFIG")
 cfg_blocks=$("$JQ" -r '.blocks // ["model","context","rate_5h","rate_7d","directory","git","time"] | .[]' "$CONFIG")
@@ -123,11 +126,28 @@ pl_block_fg() {
   color "$ref"
 }
 
-# Detect powerline mode
+# Detect rainbow mode
 PL_MODE=false
-if [ "$cfg_separator" = "" ] || [ "$cfg_separator" = "" ]; then
+if [ "$cfg_style" = "rainbow" ]; then
   PL_MODE=true
-  PL_ARROW="$cfg_separator"
+  # Head = left opening of first segment; Tail = right separator / closing glyph
+  # Nerd Font Powerline glyphs:
+  #   Sharp:    (E0B0) /  (E0B2)
+  #   Slanted:  (E0BC) /  (E0BA)  — Powerline Extra
+  #   Rounded:  (E0B4) /  (E0B6)  — Powerline Extra
+  #   Flat:     no glyph, just rectangular block edges
+  case "$cfg_head" in
+    sharp)    PL_HEAD_OPEN="" ;;
+    slanted)  PL_HEAD_OPEN="" ;;
+    rounded)  PL_HEAD_OPEN="" ;;
+    *)        PL_HEAD_OPEN="" ;;
+  esac
+  case "$cfg_tail" in
+    sharp)    PL_TAIL_SEP="" ;;
+    slanted)  PL_TAIL_SEP="" ;;
+    rounded)  PL_TAIL_SEP="" ;;
+    *)        PL_TAIL_SEP="" ;;
+  esac
 fi
 
 # ── Parse stdin JSON ──────────────────────────────────────────────────────
@@ -310,8 +330,7 @@ get_block_bg_hex() {
 output=""
 
 if $PL_MODE; then
-  # ── Powerline assembly ─────────────────────────────────────────────────
-  # Collect block list into array
+  # ── Rainbow assembly ───────────────────────────────────────────────────
   block_list=()
   for b in $cfg_blocks; do block_list+=("$b"); done
 
@@ -323,10 +342,18 @@ if $PL_MODE; then
     cur_bg=$(hex_to_bg "$cur_bg_hex")
     cur_fg=$(hex_to_fg "$cur_fg_hex")
 
-    # Arrow from previous block to current
-    if [ "$idx" -gt 0 ]; then
-      local_arrow_fg=$(hex_to_fg "$prev_bg_hex")
-      output+="${RESET}${local_arrow_fg}${cur_bg}${PL_ARROW}${RESET}"
+    if [ "$idx" -eq 0 ]; then
+      # Head glyph: opens the first segment
+      if [ -n "$PL_HEAD_OPEN" ]; then
+        head_fg=$(hex_to_fg "$cur_bg_hex")
+        output+="${RESET}${head_fg}${PL_HEAD_OPEN}${RESET}"
+      fi
+    else
+      # Tail glyph between segments: prev bg → cur bg transition
+      if [ -n "$PL_TAIL_SEP" ]; then
+        arrow_fg=$(hex_to_fg "$prev_bg_hex")
+        output+="${RESET}${arrow_fg}${cur_bg}${PL_TAIL_SEP}${RESET}"
+      fi
     fi
 
     # Block content
@@ -345,10 +372,10 @@ if $PL_MODE; then
     prev_bg_hex="$cur_bg_hex"
   done
 
-  # Final arrow to terminal background
-  if [ -n "$prev_bg_hex" ]; then
-    local_arrow_fg=$(hex_to_fg "$prev_bg_hex")
-    output+="${RESET}${local_arrow_fg}${PL_ARROW}${RESET}"
+  # Closing tail glyph after last segment
+  if [ -n "$prev_bg_hex" ] && [ -n "$PL_TAIL_SEP" ]; then
+    arrow_fg=$(hex_to_fg "$prev_bg_hex")
+    output+="${RESET}${arrow_fg}${PL_TAIL_SEP}${RESET}"
   fi
 else
   # ── Classic assembly ───────────────────────────────────────────────────
