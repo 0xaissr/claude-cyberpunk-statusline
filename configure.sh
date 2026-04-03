@@ -426,7 +426,7 @@ step_font_detect() {
 
 # ── Step 1b: Show icons ──────────────────────────────────────────────────
 step_show_icons() {
-  draw_header 1 $TOTAL_STEPS "Show icons in blocks?"
+  draw_header 5 $TOTAL_STEPS "Show icons in blocks?"
 
   local blocks_csv="${sel_blocks:-$(echo "$cur_blocks" | tr ' ' '\n' | tr '\n' ',' | sed 's/,$//')}"
   local _pd=$(mktemp -d)
@@ -1080,19 +1080,13 @@ rc=0
 
 while true; do
   case $current_step in
-    1) # Font detection + show icons
+    1) # Font detection
       step_font_detect
       rc=$?
       if [ $rc -eq 2 ]; then
         restart_wizard
       elif [ $rc -eq 0 ] && [ -n "$sel_symbols" ]; then
-        step_show_icons
-        rc=$?
-        if [ $rc -eq 2 ]; then
-          restart_wizard
-        elif [ $rc -eq 0 ]; then
-          current_step=2
-        fi
+        current_step=2
       fi
       ;;
     2) # Blocks
@@ -1163,13 +1157,19 @@ while true; do
         current_step=5
       fi
       ;;
-    5) # Time format (conditional)
+    5) # Time format (conditional) + show icons
       step_time_format
       rc=$?
       if [ $rc -eq 2 ]; then
         restart_wizard
       elif [ $rc -eq 0 ]; then
-        current_step=6
+        step_show_icons
+        rc=$?
+        if [ $rc -eq 2 ]; then
+          restart_wizard
+        elif [ $rc -eq 0 ]; then
+          current_step=6
+        fi
       fi
       ;;
     6) # Theme

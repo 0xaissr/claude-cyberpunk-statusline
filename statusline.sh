@@ -65,7 +65,7 @@ cfg_tail=$("$JQ" -r '.tail // "sharp"' "$CONFIG")
 cfg_bar_width=$("$JQ" -r '.bar_width // 10' "$CONFIG")
 cfg_bar_filled=$("$JQ" -r '.bar_filled // ""' "$CONFIG")
 cfg_bar_empty=$("$JQ" -r '.bar_empty // ""' "$CONFIG")
-cfg_show_icons=$("$JQ" -r '.show_icons // true' "$CONFIG")
+cfg_show_icons=$("$JQ" -r 'if .show_icons == false then "false" else "true" end' "$CONFIG")
 cfg_time_format=$("$JQ" -r '.time_format // "24h"' "$CONFIG")
 cfg_blocks=$("$JQ" -r '.blocks // ["model","context","rate_5h","rate_7d","directory","git","time"] | .[]' "$CONFIG")
 
