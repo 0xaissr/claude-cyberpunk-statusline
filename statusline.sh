@@ -168,6 +168,10 @@ case "$cfg_time_format" in
   *)          now=$(date +"%H:%M:%S") ;;
 esac
 git_branch=$(GIT_OPTIONAL_LOCKS=0 git -C "$cwd" symbolic-ref --short HEAD 2>/dev/null || true)
+# Fallback: use the repo where statusline.sh lives (useful for preview)
+if [ -z "$git_branch" ]; then
+  git_branch=$(GIT_OPTIONAL_LOCKS=0 git -C "$SCRIPT_DIR" symbolic-ref --short HEAD 2>/dev/null || true)
+fi
 
 # ── Daily cost (cached, background refresh) ──────────────────────────────
 COST_CACHE_DIR="$HOME/.cache/cyberpunk-statusline"
