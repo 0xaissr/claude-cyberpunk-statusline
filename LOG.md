@@ -2,6 +2,14 @@
 
 ## 2026-04-03
 
+### 優化：所有步驟的 preview 改為並行生成
+- 所有 render_preview 呼叫改為背景 job 並行執行 + wait
+- Step 3 spacing (3)、bar width (3)、bar style (6)
+- Step 4 prompt style (2)、separator (5)、head (4)、tail (4)
+- Step 5 time format (4)
+- Step 6 theme (13)
+- 原本逐一生成 N 個 preview 需要 N × ~25ms，並行後只需 ~25ms
+
 ### 優化：Step 6 theme 預覽改為並行生成
 - 13 個主題的 preview 用背景 job 並行生成，大幅減少等待時間
 - 生成完成後一次顯示所有主題 + 預覽
