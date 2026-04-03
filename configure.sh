@@ -322,9 +322,16 @@ get_preview_line() {
     "$(_cur_style)" "$(_cur_head)" "$(_cur_tail)"
 }
 
-# Draw preview at a fixed row near the bottom
+# Draw preview at a given row (default: content_row below content)
+# Usage: draw_preview [--row N] theme symbols ...
 draw_preview() {
-  local preview_row=$((TERM_LINES - 4))
+  local preview_row
+  if [ "$1" = "--row" ]; then
+    preview_row="$2"
+    shift 2
+  else
+    preview_row=$((TERM_LINES - 4))
+  fi
   tput cup "$preview_row" 0
   printf '\033[K\033[2mPreview:\033[0m\n'
   tput cup $((preview_row + 1)) 0
@@ -442,7 +449,7 @@ step_blocks() {
       fi
     done
 
-    draw_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" \
+    draw_preview --row $((5 + count + 1)) "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" \
       "${sel_spacing:-$cur_spacing}" "${sel_separator:-$cur_separator}" \
       "$blocks_csv" "${sel_bar_width:-$cur_bar_width}" "${sel_time_format:-$cur_time_format}"
 
@@ -784,7 +791,7 @@ step_theme() {
       done
 
       if [ "${all_ids[$cursor]}" != "__header__" ]; then
-        draw_preview "${all_ids[$cursor]}" "${sel_symbols:-$cur_symbols}" \
+        draw_preview --row $((5 + count + 1)) "${all_ids[$cursor]}" "${sel_symbols:-$cur_symbols}" \
           "$sel_spacing" "$sel_separator" "$blocks_csv" "$bw" "$tf" \
           "$(_cur_style)" "$(_cur_head)" "$(_cur_tail)"
       fi

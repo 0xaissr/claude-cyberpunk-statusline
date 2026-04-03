@@ -2,6 +2,10 @@
 
 ## 2026-04-03
 
+### 修正：configure wizard preview 位置改為緊跟內容下方
+- Step 2 (blocks) 和 Step 6 (theme) 的 preview 原本固定在螢幕最底部
+- 改為 `draw_preview --row N` 動態計算，放在選項列表正下方
+
 ### 改善：替換 context / rate_5h / rate_7d 的 Nerd Font icon
 - context: 󰍛（晶片）→ 󰾆（記憶體條）— 更直覺表達「上下文容量」
 - rate_5h: 󰕐（沙漏）→ 󰔟（時鐘）— 更像「短期速率」
