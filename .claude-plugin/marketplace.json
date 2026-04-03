@@ -1,0 +1,25 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "cyberpunk-statusline-marketplace",
+  "description": "Marketplace for cyberpunk-statusline — themeable status line for Claude Code",
+  "owner": {
+    "name": "0xaissr",
+    "email": "0xaissr@gmail.com"
+  },
+  "metadata": {
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "cyberpunk-statusline",
+      "description": "Themeable cyberpunk status line with p10k-style setup wizard. 13 built-in themes, 3 symbol sets, customizable layout.",
+      "source": "./cyberpunk-statusline",
+      "category": "productivity",
+      "version": "1.0.0",
+      "author": {
+        "name": "0xaissr",
+        "email": "0xaissr@gmail.com"
+      }
+    }
+  ]
+}
