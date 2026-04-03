@@ -124,6 +124,7 @@ restart_wizard() {
 draw_header() {
   local step="$1" total="$2" title="$3"
   tput clear
+  printf '\033[2m  ===================================\033[0m\n'
   printf '\033[1;36m  CYBERPUNK STATUSLINE CONFIGURATOR\033[0m\n'
   printf '\033[2m  ===================================\033[0m\n'
   printf '\n'
