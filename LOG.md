@@ -2,6 +2,12 @@
 
 ## 2026-04-03
 
+### 改善：替換 context / rate_5h / rate_7d 的 Nerd Font icon
+- context: 󰍛（晶片）→ 󰾆（記憶體條）— 更直覺表達「上下文容量」
+- rate_5h: 󰕐（沙漏）→ 󰔟（時鐘）— 更像「短期速率」
+- rate_7d: 󰔟（日曆鐘）→ 󰃰（日曆）— 更直覺表達「7 天配額」
+- 全部 14 個主題 + custom-example 同步更新
+
 ### 文件：新增繁體中文版 README
 - 新增 `docs/README.zh-TW.md` — 完整繁體中文版安裝與使用說明
 - 主 README 加上語言切換連結（English / 繁體中文）
