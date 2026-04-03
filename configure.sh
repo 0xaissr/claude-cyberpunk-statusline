@@ -50,7 +50,7 @@ _preview_7d_reset=$(( $(date +%s) + 4*86400 + 21*3600 ))
 SAMPLE_DATA='{
   "session_id": "preview",
   "model": { "id": "claude-opus-4-6", "display_name": "Opus 4.6 (1M)" },
-  "workspace": { "current_dir": "'"$HOME"'/project" },
+  "workspace": { "current_dir": "'"$SCRIPT_DIR"'" },
   "context_window": { "used_percentage": 58, "remaining_percentage": 42 },
   "rate_limits": {
     "five_hour": { "used_percentage": 76, "resets_at": '"$_preview_5h_reset"' },
