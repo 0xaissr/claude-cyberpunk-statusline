@@ -46,14 +46,15 @@ tput clear    # clear screen
 stty -echo    # disable echo
 
 # ── Preview sample data ──────────────────────────────────────────────────
+_preview_reset=$(( $(date +%s) + 99*86400 + 23*3600 ))
 SAMPLE_DATA='{
   "session_id": "preview",
-  "model": { "id": "claude-opus-4-6", "display_name": "Opus 4.6 (1M context)" },
+  "model": { "id": "claude-opus-4-6", "display_name": "Opus 4.6 (1M)" },
   "workspace": { "current_dir": "'"$HOME"'/project" },
   "context_window": { "used_percentage": 58, "remaining_percentage": 42 },
   "rate_limits": {
-    "five_hour": { "used_percentage": 76, "resets_at": 9999999999 },
-    "seven_day": { "used_percentage": 33, "resets_at": 9999999999 }
+    "five_hour": { "used_percentage": 76, "resets_at": '"$_preview_reset"' },
+    "seven_day": { "used_percentage": 33, "resets_at": '"$_preview_reset"' }
   }
 }'
 
@@ -481,7 +482,7 @@ step_spacing() {
   # Generate preview lines for each option
   local blocks_csv="${sel_blocks:-$(echo "$cur_blocks" | tr ' ' '\n' | tr '\n' ',' | sed 's/,$//')}"
   local separator="${sel_separator:-$cur_separator}"
-  local bw="${sel_bar_width:-$cur_bar_width}"
+  local bw="${sel_bar_width:-6}"
 
   local p_normal p_compact p_ultra
   p_normal=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "normal" "$separator" "$blocks_csv" "$bw")

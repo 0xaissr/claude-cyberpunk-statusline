@@ -2,6 +2,12 @@
 
 ## 2026-04-03
 
+### 修正：configure wizard preview 全開時跳行 — 縮短 bar、model 名、重置時間
+- **問題：** 全部 blocks 開啟時 preview 太寬導致跳行，影響可讀性
+- **修正 1：** model display_name 從 `Opus 4.6 (1M context)` 縮短為 `Opus 4.6 (1M)`
+- **修正 2：** 重置時間從不合理的 `↻95194d14h` 改為實際的 `↻99d23h`（動態計算 now + 99d23h）
+- **修正 3：** Step 3 preview 的 bar_width 預設從 10 降為 6，避免在 bar_width 未選擇前就太寬
+
 ### 修正：configure wizard Step 2 blocks 預設應為全關
 - **問題：** Step 2 checkbox 初始狀態從現有 config 讀取，預設全開，但使用者期望全關（opt-in）
 - **修正：** 初始 states 全部設為 `0`，讓使用者自己勾選要顯示的 blocks
