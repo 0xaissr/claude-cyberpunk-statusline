@@ -2,9 +2,11 @@
 
 ## 2026-04-03
 
-### 文件：Configure Wizard v2 改進計畫
-- 新增 `docs/plans/2026-04-03-configure-wizard-v2-plan.md`
-- 借鑑 Powerlevel10k 設定體驗，規劃 6 項改進：字型自動偵測、restart 導覽、bar_width 設定、時間格式選項、步驟順序優化、preview 品質提升
+### 文件：Configure Wizard v2 改進計畫（v2 更新）
+- 更新 `docs/plans/2026-04-03-configure-wizard-v2-plan.md` — 重新 brainstorming
+- 混合輸入模式：字型偵測用 y/n（p10k 風格）、blocks 用 checkbox、其他用數字選擇、theme 用方向鍵
+- 嵌入式 preview：每個選項下方直接嵌入渲染結果（使用預設主題），theme 步驟最後才選（大揭曉）
+- 新流程 7 步：字型偵測 → blocks → spacing+bar_width → separator → time_format → theme → 儲存
 
 ### 新增：Midnight Phantom 主題
 - 新增 `themes/midnight-phantom.json` — 午夜幻影賽博龐克主題
