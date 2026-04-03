@@ -2,6 +2,9 @@
 
 ## 2026-04-03
 
+### 調整：bar style 預設改為 Square、新增 Circle、Block 移到最後
+- 順序：Square ■□（預設）→ Circle ●○（新增）→ Diamond → Star → Parallelogram → Medium Square → Rectangle → Hexagon → Block █░
+
 ### 新增：progress bar 樣式選擇步驟（Step 3c）
 - configure wizard 新增 bar style 步驟（非 ultra-compact 時顯示）
 - 8 種樣式：Default █░、Square ■□、Diamond ◆◇、Star ★☆、Parallelogram ▰▱、Medium Square ◼◻、Rectangle ▮▯、Hexagon ⬢⬡
