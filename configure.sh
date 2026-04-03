@@ -536,9 +536,11 @@ step_spacing() {
   local bw="${sel_bar_width:-6}"
 
   local p_normal p_compact p_ultra
-  p_normal=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "normal" "$separator" "$blocks_csv" "$bw")
-  p_compact=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "compact" "$separator" "$blocks_csv" "$bw")
-  p_ultra=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "ultra-compact" "$separator" "$blocks_csv" "$bw")
+  local _pd=$(mktemp -d)
+  ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "normal" "$separator" "$blocks_csv" "$bw" > "$_pd/0" ) &
+  ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "compact" "$separator" "$blocks_csv" "$bw" > "$_pd/1" ) &
+  ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "ultra-compact" "$separator" "$blocks_csv" "$bw" > "$_pd/2" ) &
+  wait; p_normal=$(cat "$_pd/0"); p_compact=$(cat "$_pd/1"); p_ultra=$(cat "$_pd/2"); rm -rf "$_pd"
 
   ask_choice \
     "Normal        — symbol + label + bar + %|$p_normal" \
@@ -567,9 +569,11 @@ step_bar_width() {
   local separator="${sel_separator:-$cur_separator}"
 
   local p_short p_medium p_long
-  p_short=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "$separator" "$blocks_csv" 6)
-  p_medium=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "$separator" "$blocks_csv" 10)
-  p_long=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "$separator" "$blocks_csv" 16)
+  local _pd=$(mktemp -d)
+  ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "$separator" "$blocks_csv" 6 > "$_pd/0" ) &
+  ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "$separator" "$blocks_csv" 10 > "$_pd/1" ) &
+  ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "$separator" "$blocks_csv" 16 > "$_pd/2" ) &
+  wait; p_short=$(cat "$_pd/0"); p_medium=$(cat "$_pd/1"); p_long=$(cat "$_pd/2"); rm -rf "$_pd"
 
   ask_choice \
     "Short  (6)|$p_short" \
@@ -605,18 +609,19 @@ step_bar_style() {
   local styles_empty=("□" "○" "◇" "◻" "▯" "⬡")
   local styles_label=("Square ■□" "Circle ●○" "Diamond ◆◇" "Medium Square ◼◻" "Rectangle ▮▯" "Hexagon ⬢⬡")
 
-  local previews=()
+  local _pd=$(mktemp -d)
   for i in "${!styles_filled[@]}"; do
-    previews+=("$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" \
-      "$sel_spacing" "$separator" "$blocks_csv" "$bw" "$tf" \
-      "$(_cur_style)" "$(_cur_head)" "$(_cur_tail)" \
-      "${styles_filled[$i]}" "${styles_empty[$i]}")")
+    ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" \
+        "$sel_spacing" "$separator" "$blocks_csv" "$bw" "$tf" \
+        "$(_cur_style)" "$(_cur_head)" "$(_cur_tail)" \
+        "${styles_filled[$i]}" "${styles_empty[$i]}" > "$_pd/$i" ) &
   done
-
+  wait
   local args=()
   for i in "${!styles_label[@]}"; do
-    args+=("${styles_label[$i]}|${previews[$i]}")
+    args+=("${styles_label[$i]}|$(cat "$_pd/$i")")
   done
+  rm -rf "$_pd"
 
   ask_choice "${args[@]}"
 
@@ -636,9 +641,10 @@ step_prompt_style() {
   local blocks_csv="${sel_blocks:-$(echo "$cur_blocks" | tr ' ' '\n' | tr '\n' ',' | sed 's/,$//')}"
   local bw="${sel_bar_width:-$cur_bar_width}"
 
-  local p_classic p_rainbow
-  p_classic=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "│" "$blocks_csv" "$bw" "24h" "classic" "" "")
-  p_rainbow=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw" "24h" "rainbow" "sharp" "sharp")
+  local p_classic p_rainbow _pd=$(mktemp -d)
+  ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "│" "$blocks_csv" "$bw" "24h" "classic" "" "" > "$_pd/0" ) &
+  ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw" "24h" "rainbow" "sharp" "sharp" > "$_pd/1" ) &
+  wait; p_classic=$(cat "$_pd/0"); p_rainbow=$(cat "$_pd/1"); rm -rf "$_pd"
 
   ask_choice \
     "Rainbow|$p_rainbow" \
@@ -667,12 +673,13 @@ step_separator() {
   local blocks_csv="${sel_blocks:-$(echo "$cur_blocks" | tr ' ' '\n' | tr '\n' ',' | sed 's/,$//')}"
   local bw="${sel_bar_width:-$cur_bar_width}"
 
-  local p1 p2 p3 p4 p5
-  p1=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "│" "$blocks_csv" "$bw" "24h" "classic")
-  p2=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "/" "$blocks_csv" "$bw" "24h" "classic")
-  p3=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "·" "$blocks_csv" "$bw" "24h" "classic")
-  p4=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" " " "$blocks_csv" "$bw" "24h" "classic")
-  p5=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "›" "$blocks_csv" "$bw" "24h" "classic")
+  local p1 p2 p3 p4 p5 _pd=$(mktemp -d)
+  ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "│" "$blocks_csv" "$bw" "24h" "classic" > "$_pd/0" ) &
+  ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "/" "$blocks_csv" "$bw" "24h" "classic" > "$_pd/1" ) &
+  ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "·" "$blocks_csv" "$bw" "24h" "classic" > "$_pd/2" ) &
+  ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" " " "$blocks_csv" "$bw" "24h" "classic" > "$_pd/3" ) &
+  ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "›" "$blocks_csv" "$bw" "24h" "classic" > "$_pd/4" ) &
+  wait; p1=$(cat "$_pd/0"); p2=$(cat "$_pd/1"); p3=$(cat "$_pd/2"); p4=$(cat "$_pd/3"); p5=$(cat "$_pd/4"); rm -rf "$_pd"
 
   ask_choice \
     "Pipe  │|$p1" \
@@ -702,11 +709,12 @@ step_head() {
   local bw="${sel_bar_width:-$cur_bar_width}"
   local tf="${sel_time_format:-24h}"
 
-  local p1 p2 p3 p4
-  p1=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw" "$tf" "rainbow" "flat" "${sel_tail:-sharp}")
-  p2=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw" "$tf" "rainbow" "sharp" "${sel_tail:-sharp}")
-  p3=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw" "$tf" "rainbow" "slanted" "${sel_tail:-sharp}")
-  p4=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw" "$tf" "rainbow" "rounded" "${sel_tail:-sharp}")
+  local p1 p2 p3 p4 _pd=$(mktemp -d)
+  ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw" "$tf" "rainbow" "flat" "${sel_tail:-sharp}" > "$_pd/0" ) &
+  ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw" "$tf" "rainbow" "sharp" "${sel_tail:-sharp}" > "$_pd/1" ) &
+  ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw" "$tf" "rainbow" "slanted" "${sel_tail:-sharp}" > "$_pd/2" ) &
+  ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw" "$tf" "rainbow" "rounded" "${sel_tail:-sharp}" > "$_pd/3" ) &
+  wait; p1=$(cat "$_pd/0"); p2=$(cat "$_pd/1"); p3=$(cat "$_pd/2"); p4=$(cat "$_pd/3"); rm -rf "$_pd"
 
   ask_choice \
     "Flat|$p1" \
@@ -735,11 +743,12 @@ step_tail() {
   local bw="${sel_bar_width:-$cur_bar_width}"
   local tf="${sel_time_format:-24h}"
 
-  local p1 p2 p3 p4
-  p1=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw" "$tf" "rainbow" "$sel_head" "flat")
-  p2=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw" "$tf" "rainbow" "$sel_head" "sharp")
-  p3=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw" "$tf" "rainbow" "$sel_head" "slanted")
-  p4=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw" "$tf" "rainbow" "$sel_head" "rounded")
+  local p1 p2 p3 p4 _pd=$(mktemp -d)
+  ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw" "$tf" "rainbow" "$sel_head" "flat" > "$_pd/0" ) &
+  ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw" "$tf" "rainbow" "$sel_head" "sharp" > "$_pd/1" ) &
+  ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw" "$tf" "rainbow" "$sel_head" "slanted" > "$_pd/2" ) &
+  ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw" "$tf" "rainbow" "$sel_head" "rounded" > "$_pd/3" ) &
+  wait; p1=$(cat "$_pd/0"); p2=$(cat "$_pd/1"); p3=$(cat "$_pd/2"); p4=$(cat "$_pd/3"); rm -rf "$_pd"
 
   ask_choice \
     "Flat|$p1" \
@@ -770,11 +779,13 @@ step_time_format() {
   local separator="${sel_separator:-│}"
   local blocks_csv="${sel_blocks}"
 
-  local p1 p2 p3 p4
-  p1=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "$separator" "$blocks_csv" "$bw" "24h" "$(_cur_style)" "$(_cur_head)" "$(_cur_tail)")
-  p2=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "$separator" "$blocks_csv" "$bw" "12h" "$(_cur_style)" "$(_cur_head)" "$(_cur_tail)")
-  p3=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "$separator" "$blocks_csv" "$bw" "24h-no-sec" "$(_cur_style)" "$(_cur_head)" "$(_cur_tail)")
-  p4=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "$separator" "$blocks_csv" "$bw" "12h-no-sec" "$(_cur_style)" "$(_cur_head)" "$(_cur_tail)")
+  local p1 p2 p3 p4 _pd=$(mktemp -d)
+  local _sty=$(_cur_style) _hd=$(_cur_head) _tl=$(_cur_tail)
+  ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "$separator" "$blocks_csv" "$bw" "24h" "$_sty" "$_hd" "$_tl" > "$_pd/0" ) &
+  ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "$separator" "$blocks_csv" "$bw" "12h" "$_sty" "$_hd" "$_tl" > "$_pd/1" ) &
+  ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "$separator" "$blocks_csv" "$bw" "24h-no-sec" "$_sty" "$_hd" "$_tl" > "$_pd/2" ) &
+  ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "$separator" "$blocks_csv" "$bw" "12h-no-sec" "$_sty" "$_hd" "$_tl" > "$_pd/3" ) &
+  wait; p1=$(cat "$_pd/0"); p2=$(cat "$_pd/1"); p3=$(cat "$_pd/2"); p4=$(cat "$_pd/3"); rm -rf "$_pd"
 
   ask_choice \
     "24-hour          (16:23:42)|$p1" \
