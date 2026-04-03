@@ -2,6 +2,10 @@
 
 ## 2026-04-03
 
+### 文件：Configure Wizard v2 改進計畫
+- 新增 `docs/plans/2026-04-03-configure-wizard-v2-plan.md`
+- 借鑑 Powerlevel10k 設定體驗，規劃 6 項改進：字型自動偵測、restart 導覽、bar_width 設定、時間格式選項、步驟順序優化、preview 品質提升
+
 ### 新增：Midnight Phantom 主題
 - 新增 `themes/midnight-phantom.json` — 午夜幻影賽博龐克主題
 - `docs/all-themes.html` 加入第 13 號主題預覽，更新主題總數
