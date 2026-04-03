@@ -15,13 +15,13 @@ Displays model, context usage, rate limits, directory, git branch, and time — 
 ### 1. Clone
 
 ```bash
-git clone https://github.com/0xaissr/cyberpunk-statusline.git ~/cyberpunk-statusline
+git clone https://github.com/0xaissr/claude-cyberpunk-statusline.git ~/claude-cyberpunk-statusline
 ```
 
 ### 2. Install
 
 ```bash
-cd ~/cyberpunk-statusline && ./install.sh
+cd ~/claude-cyberpunk-statusline && ./install.sh
 ```
 
 This will:
@@ -36,7 +36,7 @@ Restart your Claude Code session to see the status line.
 ### Reconfigure
 
 ```bash
-cd ~/cyberpunk-statusline && ./configure.sh
+cd ~/claude-cyberpunk-statusline && ./configure.sh
 ```
 
 The setup wizard will guide you through:
@@ -52,7 +52,7 @@ The setup wizard will guide you through:
 ### Update
 
 ```bash
-cd ~/cyberpunk-statusline && git pull
+cd ~/claude-cyberpunk-statusline && git pull
 ```
 
 ## Themes
@@ -72,7 +72,7 @@ You can also create custom themes — see `themes/custom-example/` for reference
 ## Uninstall
 
 ```bash
-cd ~/cyberpunk-statusline && ./uninstall.sh
+cd ~/claude-cyberpunk-statusline && ./uninstall.sh
 ```
 
 ## License
