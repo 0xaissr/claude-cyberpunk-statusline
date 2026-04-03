@@ -67,7 +67,10 @@ preview_all() {
   local idx=0
   for t in "${cyberpunk[@]}"; do
     local name=$("$JQ" -r '.name // "'"$t"'"' "$THEMES_DIR/$t.json" 2>/dev/null)
-    printf "  \033[1m%-24s\033[0m " "$name"
+    local display_width=$(echo -n "$name" | wc -m)
+    local pad=$((24 - display_width))
+    [ "$pad" -lt 0 ] && pad=0
+    printf "  \033[1m%s%*s\033[0m " "$name" "$pad" ""
     echo -e "$(cat "$_pd/$idx")"
     idx=$((idx + 1))
   done
@@ -76,7 +79,10 @@ preview_all() {
   echo -e "  \033[2;33m── Classic ──\033[0m"
   for t in "${classic[@]}"; do
     local name=$("$JQ" -r '.name // "'"$t"'"' "$THEMES_DIR/$t.json" 2>/dev/null)
-    printf "  \033[1m%-24s\033[0m " "$name"
+    local display_width=$(echo -n "$name" | wc -m)
+    local pad=$((24 - display_width))
+    [ "$pad" -lt 0 ] && pad=0
+    printf "  \033[1m%s%*s\033[0m " "$name" "$pad" ""
     echo -e "$(cat "$_pd/$idx")"
     idx=$((idx + 1))
   done
