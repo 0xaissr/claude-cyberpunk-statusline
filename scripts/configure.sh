@@ -255,7 +255,7 @@ step_theme() {
   local theme_labels=()
 
   # Cyberpunk themes (ordered)
-  local cyberpunk_order=("terminal-glitch" "neon-classic" "synthwave-sunset" "blade-runner" "retrowave-chrome")
+  local cyberpunk_order=("terminal-glitch" "neon-classic" "synthwave-sunset" "blade-runner" "retrowave-chrome" "midnight-phantom")
   # Classic themes (ordered)
   local classic_order=("dracula" "tokyo-night" "catppuccin-mocha" "rose-pine" "nord" "one-dark" "gruvbox-dark")
 
@@ -614,7 +614,8 @@ step_done() {
   local block_count=${#block_arr[@]}
 
   # Write config
-  cat > "$CONFIG" <<CONF
+  local config_content
+  config_content=$(cat <<CONF
 {
   "theme": "$sel_theme",
   "symbol_set": "$sel_symbols",
@@ -624,6 +625,32 @@ step_done() {
   "bar_width": 10
 }
 CONF
+)
+  echo "$config_content" > "$CONFIG"
+
+  # Sync to plugin cache if installed via Claude Code plugin system
+  local claude_settings="$HOME/.claude/settings.json"
+  if [ -f "$claude_settings" ]; then
+    local cache_script
+    cache_script=$("$JQ" -r '.statusLine.command // empty' "$claude_settings" | grep -o '"[^"]*statusline\.sh"' | tr -d '"' || true)
+    if [ -z "$cache_script" ]; then
+      cache_script=$("$JQ" -r '.statusLine.command // empty' "$claude_settings" | awk '{for(i=1;i<=NF;i++) if($i ~ /statusline\.sh/) print $i}' | tr -d '"' || true)
+    fi
+    if [ -n "$cache_script" ] && [ -f "$cache_script" ]; then
+      local cache_plugin_dir
+      cache_plugin_dir="$(cd "$(dirname "$cache_script")/.." && pwd)"
+      if [ "$cache_plugin_dir" != "$PLUGIN_DIR" ]; then
+        # Sync config.json
+        echo "$config_content" > "$cache_plugin_dir/config.json"
+        # Sync theme file if not already present
+        local theme_src="$THEMES_DIR/${sel_theme}.json"
+        local theme_dst="$cache_plugin_dir/themes/${sel_theme}.json"
+        if [ -f "$theme_src" ] && [ ! -f "$theme_dst" ]; then
+          cp "$theme_src" "$theme_dst"
+        fi
+      fi
+    fi
+  fi
 
   # Show completion screen
   tput clear
