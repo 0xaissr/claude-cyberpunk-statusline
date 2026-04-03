@@ -2,10 +2,10 @@
 
 ## 2026-04-03
 
-### 修正：rainbow 模式 bar 黑色夾層 — 改用 `·` 取代 `░`
-- rainbow 模式下 `░`（light shade）有透明間隙，在彩色背景上產生黑色夾層
-- statusline.sh: rainbow 時 empty bar 字元從 `░` 改為 `·`，filled `█` 不變
-- 三種 spacing 保持完整差異：normal=icon+label+bar+%、compact=icon+bar+%、ultra=icon+%
+### 改善：rainbow 模式 progress bar 改用實心/空心圓（●○）
+- rainbow 模式下 bar 改為 5 個圓點，每個代表 20%（`●●●○○` = 60%）
+- 解決 `░` 在彩色背景上的黑色夾層問題
+- classic 模式不受影響，維持原本的 `█░` bar
 - configure.sh: 預設 spacing 改為 ultra-compact
 
 ### 改善：configure wizard 預設 preview 改為 compact + rainbow
