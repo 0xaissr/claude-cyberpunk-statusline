@@ -2,6 +2,11 @@
 
 ## 2026-04-03
 
+### 改善：Step 6 theme 選擇改為列出所有主題預覽
+- 進入步驟時一次性預生成全部 13 個主題的 preview
+- 每個主題名稱下方直接顯示彩色預覽，一目了然
+- 上下鍵移動只切換 cursor highlight，不再每次重新渲染
+
 ### 優化：Step 2 blocks 上下鍵移動不再重新渲染 preview
 - 原本每次按鍵都呼叫 draw_preview（跑 statusline.sh 子程序），導致 lag
 - 改為 preview_dirty flag，只在 Space toggle 變更 block 時才重新渲染

@@ -848,27 +848,53 @@ step_theme() {
   local bw="${sel_bar_width:-$cur_bar_width}"
   local tf="${sel_time_format:-$cur_time_format}"
 
+  # Pre-generate all theme previews (one-time cost)
+  local all_previews=()
+  for i in "${!all_ids[@]}"; do
+    if [ "${all_ids[$i]}" = "__header__" ]; then
+      all_previews+=("")
+    else
+      all_previews+=("$(render_preview "${all_ids[$i]}" "${sel_symbols:-$cur_symbols}" \
+        "$sel_spacing" "$sel_separator" "$blocks_csv" "$bw" "$tf" \
+        "$(_cur_style)" "$(_cur_head)" "$(_cur_tail)")")
+    fi
+  done
+
   draw_footer "j/k move · Enter select · r restart · b back · q quit"
+
+  # Display all themes with inline previews (static, drawn once)
+  # Each theme takes 2 rows: label + preview; headers take 1 row
+  local row_map=()  # maps index -> starting row
+  local row=5
+  for i in "${!all_labels[@]}"; do
+    row_map+=("$row")
+    if [ "${all_ids[$i]}" = "__header__" ]; then
+      tput cup "$row" 0
+      printf '\033[K \033[2;33m%s\033[0m' "${all_labels[$i]}"
+      row=$((row + 1))
+    else
+      tput cup "$row" 0
+      printf '\033[K   \033[2m%s\033[0m' "${all_labels[$i]}"
+      row=$((row + 1))
+      tput cup "$row" 0
+      printf '\033[K   '
+      echo -e "${all_previews[$i]}"
+      printf '\033[0m'
+      row=$((row + 1))
+    fi
+  done
 
   local prev_cursor=-1
   while true; do
     if [ "$cursor" != "$prev_cursor" ]; then
-      for i in "${!all_labels[@]}"; do
-        tput cup $((5 + i)) 0
-        if [ "${all_ids[$i]}" = "__header__" ]; then
-          printf '\033[K \033[2;33m%s\033[0m' "${all_labels[$i]}"
-        elif [ "$i" -eq "$cursor" ]; then
-          printf '\033[K \033[1;36m❯\033[0m \033[1m%s\033[0m' "${all_labels[$i]}"
-        else
-          printf '\033[K   \033[2m%s\033[0m' "${all_labels[$i]}"
-        fi
-      done
-
-      if [ "${all_ids[$cursor]}" != "__header__" ]; then
-        draw_preview --row $((5 + count + 1)) "${all_ids[$cursor]}" "${sel_symbols:-$cur_symbols}" \
-          "$sel_spacing" "$sel_separator" "$blocks_csv" "$bw" "$tf" \
-          "$(_cur_style)" "$(_cur_head)" "$(_cur_tail)"
+      # Un-highlight previous
+      if [ "$prev_cursor" -ge 0 ] && [ "${all_ids[$prev_cursor]}" != "__header__" ]; then
+        tput cup "${row_map[$prev_cursor]}" 0
+        printf '\033[K   \033[2m%s\033[0m' "${all_labels[$prev_cursor]}"
       fi
+      # Highlight current
+      tput cup "${row_map[$cursor]}" 0
+      printf '\033[K \033[1;36m❯\033[0m \033[1m%s\033[0m' "${all_labels[$cursor]}"
       prev_cursor=$cursor
     fi
 
