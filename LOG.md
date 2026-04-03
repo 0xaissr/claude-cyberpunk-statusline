@@ -2,6 +2,11 @@
 
 ## 2026-04-03
 
+### 改善：configure wizard 預設 preview 改為 compact + rainbow
+- 首次安裝（無 config）預設：spacing=compact、style=rainbow、separator=""
+- 有 config 時從 config.json 讀取 style/head/tail（原本缺少這三個欄位的讀取）
+- `_cur_style`/`_cur_head`/`_cur_tail` fallback 改為 rainbow/sharp/sharp
+
 ### 修正：configure wizard preview 位置改為緊跟內容下方
 - Step 2 (blocks) 和 Step 6 (theme) 的 preview 原本固定在螢幕最底部
 - 改為 `draw_preview --row N` 動態計算，放在選項列表正下方
