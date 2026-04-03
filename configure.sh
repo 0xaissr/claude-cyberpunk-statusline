@@ -277,7 +277,7 @@ render_preview() {
   local bar_filled="${11:-${sel_bar_filled:-${cur_bar_filled:-}}}"
   local bar_empty="${12:-${sel_bar_empty:-${cur_bar_empty:-}}}"
 
-  local tmp_config="${PREVIEW_TMP_CONFIG:-$(mktemp)}"
+  local tmp_config=$(mktemp)
   PREVIEW_TMP_CONFIG="$tmp_config"
 
   # Build blocks JSON array from CSV
