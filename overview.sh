@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-# ╔══════════════════════════════════════════╗
-# ║  cyberpunk-statusline feature overview  ║
-# ╚══════════════════════════════════════════╝
+# cyberpunk-statusline feature overview
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONFIG="$SCRIPT_DIR/config.json"
@@ -28,6 +26,8 @@ if [ -f "$CONFIG" ]; then
   cfg_blocks=$("$JQ" -r '(.blocks // []) | length' "$CONFIG")
   cfg_bar=$("$JQ" -r '(.bar_filled // "") + (.bar_empty // "")' "$CONFIG")
   cfg_time=$("$JQ" -r '.time_format // "?"' "$CONFIG")
+  cfg_head=$("$JQ" -r '.head // "sharp"' "$CONFIG")
+  cfg_tail=$("$JQ" -r '.tail // "sharp"' "$CONFIG")
 else
   cfg_theme="not configured"
 fi
@@ -37,97 +37,133 @@ _5h=$(( $(date +%s) + 2*3600 + 46*60 ))
 _7d=$(( $(date +%s) + 4*86400 + 21*3600 ))
 SAMPLE='{"model":{"display_name":"Opus 4.6 (1M)"},"workspace":{"current_dir":"'"$SCRIPT_DIR"'"},"context_window":{"used_percentage":58},"rate_limits":{"five_hour":{"used_percentage":76,"resets_at":'"$_5h"'},"seven_day":{"used_percentage":33,"resets_at":'"$_7d"'}}}'
 
+# ── Helper: render with config overrides ──────────────────────────────────
+render_with() {
+  local overrides="$1"
+  local tmp=$(mktemp)
+  echo "$overrides" | "$JQ" -s '.[0] * .[1]' "$CONFIG" - > "$tmp"
+  echo "$SAMPLE" | CONFIG_OVERRIDE="$tmp" bash "$STATUSLINE" 2>/dev/null
+  rm -f "$tmp"
+}
+
+# ── Title ─────────────────────────────────────────────────────────────────
 echo ""
-echo -e "  ${C}╔══════════════════════════════════════════════════╗${R}"
-echo -e "  ${C}║     CYBERPUNK STATUSLINE — FEATURE OVERVIEW     ║${R}"
-echo -e "  ${C}╚══════════════════════════════════════════════════╝${R}"
+echo -e "  ${C}====================================================${R}"
+echo -e "  ${C}  CYBERPUNK STATUSLINE -- FEATURE OVERVIEW${R}"
+echo -e "  ${C}====================================================${R}"
 echo ""
 
 # ── Live statusline ───────────────────────────────────────────────────────
 echo -e "  ${Y}YOUR STATUSLINE${R}"
-echo -e "  ${D}─────────────────────────────────────────────────${R}"
+echo -e "  ${D}----------------------------------------------------${R}"
 if [ -f "$CONFIG" ]; then
   printf "  "
   echo "$SAMPLE" | bash "$STATUSLINE" 2>/dev/null
   echo ""
 else
-  echo -e "  ${D}(not configured — run ./install.sh)${R}"
+  echo -e "  ${D}(not configured -- run ./install.sh)${R}"
   echo ""
 fi
 
 # ── Current config ────────────────────────────────────────────────────────
 echo -e "  ${Y}CURRENT CONFIG${R}"
-echo -e "  ${D}─────────────────────────────────────────────────${R}"
+echo -e "  ${D}----------------------------------------------------${R}"
 if [ -f "$CONFIG" ]; then
-  echo -e "  ${B}Theme:${R}     $cfg_theme"
-  echo -e "  ${B}Style:${R}     $cfg_style"
-  echo -e "  ${B}Symbols:${R}   $cfg_symbols"
-  echo -e "  ${B}Spacing:${R}   $cfg_spacing"
-  echo -e "  ${B}Icons:${R}     $cfg_icons"
-  echo -e "  ${B}Bar style:${R} $cfg_bar"
-  echo -e "  ${B}Time:${R}      $cfg_time"
-  echo -e "  ${B}Blocks:${R}    $cfg_blocks/8 enabled"
+  printf "  ${B}%-14s${R} %s\n" "Theme:" "$cfg_theme"
+  printf "  ${B}%-14s${R} %s\n" "Style:" "$cfg_style"
+  printf "  ${B}%-14s${R} %s\n" "Symbols:" "$cfg_symbols"
+  printf "  ${B}%-14s${R} %s\n" "Spacing:" "$cfg_spacing"
+  printf "  ${B}%-14s${R} %s\n" "Icons:" "$cfg_icons"
+  echo -e "  ${B}Bar style:${R}     $cfg_bar"
+  printf "  ${B}%-14s${R} %s\n" "Time:" "$cfg_time"
+  printf "  ${B}%-14s${R} %s\n" "Blocks:" "$cfg_blocks/8 enabled"
 else
   echo -e "  ${D}No config found.${R}"
 fi
 echo ""
 
+# ── Style comparison ──────────────────────────────────────────────────────
+echo -e "  ${Y}STYLE COMPARISON${R}"
+echo -e "  ${D}----------------------------------------------------${R}"
+
+# Generate previews in parallel
+_pd=$(mktemp -d)
+( render_with '{"style":"rainbow","head":"sharp","tail":"sharp","spacing":"ultra-compact","blocks":["model","context","rate_5h","rate_7d","cost","directory","git","time"]}' > "$_pd/rainbow" ) &
+( render_with '{"style":"classic","separator":"|","spacing":"ultra-compact","blocks":["model","context","rate_5h","rate_7d","cost","directory","git","time"]}' > "$_pd/classic" ) &
+( render_with '{"style":"rainbow","head":"rounded","tail":"rounded","spacing":"ultra-compact","blocks":["model","context","rate_5h","rate_7d","cost","directory","git","time"]}' > "$_pd/rounded" ) &
+( render_with '{"style":"rainbow","head":"sharp","tail":"sharp","spacing":"compact","blocks":["model","context","rate_5h","cost","time"]}' > "$_pd/compact" ) &
+( render_with '{"style":"rainbow","head":"sharp","tail":"sharp","spacing":"normal","blocks":["model","context","rate_5h","cost","time"]}' > "$_pd/normal" ) &
+wait
+
+echo ""
+echo -e "  ${G}Rainbow (sharp)${R}"
+printf "  "; echo -e "$(cat "$_pd/rainbow")"
+echo ""
+echo -e "  ${G}Rainbow (rounded)${R}"
+printf "  "; echo -e "$(cat "$_pd/rounded")"
+echo ""
+echo -e "  ${G}Classic${R}"
+printf "  "; echo -e "$(cat "$_pd/classic")"
+echo ""
+
+echo -e "  ${Y}SPACING COMPARISON${R}"
+echo -e "  ${D}----------------------------------------------------${R}"
+echo ""
+echo -e "  ${G}Normal${R}  ${D}icon + label + bar + %${R}"
+printf "  "; echo -e "$(cat "$_pd/normal")"
+echo ""
+echo -e "  ${G}Compact${R} ${D}icon + bar + %${R}"
+printf "  "; echo -e "$(cat "$_pd/compact")"
+echo ""
+echo -e "  ${G}Ultra${R}   ${D}icon + % only${R}"
+printf "  "; echo -e "$(cat "$_pd/rainbow")"
+
+rm -rf "$_pd"
+echo ""
+
 # ── Features ──────────────────────────────────────────────────────────────
-echo -e "  ${Y}FEATURES${R}"
-echo -e "  ${D}─────────────────────────────────────────────────${R}"
+echo -e "  ${Y}AVAILABLE BLOCKS${R}"
+echo -e "  ${D}----------------------------------------------------${R}"
+printf "  ${B}%-12s${R} %s\n" "model"     "Current Claude model"
+printf "  ${B}%-12s${R} %s\n" "context"   "Context window usage %%"
+printf "  ${B}%-12s${R} %s\n" "rate_5h"   "5-hour rate limit + reset countdown"
+printf "  ${B}%-12s${R} %s\n" "rate_7d"   "7-day rate limit + reset countdown"
+printf "  ${B}%-12s${R} %s\n" "cost"      "Daily cost (ccusage or built-in JSONL)"
+printf "  ${B}%-12s${R} %s\n" "directory" "Current folder name"
+printf "  ${B}%-12s${R} %s\n" "git"       "Git branch"
+printf "  ${B}%-12s${R} %s\n" "time"      "Current time (24h/12h/no-sec)"
 echo ""
-echo -e "  ${G}Blocks${R} ${D}— customizable info segments${R}"
-echo -e "    ${B}model${R}      Current Claude model"
-echo -e "    ${B}context${R}    Context window usage %"
-echo -e "    ${B}rate_5h${R}    5-hour rate limit + reset countdown"
-echo -e "    ${B}rate_7d${R}    7-day rate limit + reset countdown"
-echo -e "    ${B}cost${R}       Daily cost across all sessions (via ccusage or JSONL)"
-echo -e "    ${B}directory${R}  Current folder name"
-echo -e "    ${B}git${R}        Git branch"
-echo -e "    ${B}time${R}       Current time (24h/12h/no-sec)"
-echo ""
-echo -e "  ${G}Styles${R} ${D}— two rendering modes${R}"
-echo -e "    ${B}Rainbow${R}    Colored backgrounds with Powerline separators"
-echo -e "    ${B}Classic${R}    Dark background with separator chars (│ / · › etc.)"
-echo ""
-echo -e "  ${G}Spacing${R} ${D}— three density levels${R}"
-echo -e "    ${B}Normal${R}     icon + label + bar + %"
-echo -e "    ${B}Compact${R}    icon + bar + %"
-echo -e "    ${B}Ultra${R}      icon + % only"
-echo ""
-echo -e "  ${G}Bar Styles${R} ${D}— progress bar shapes${R}"
-echo -e "    ■□  ●○  ◆◇  ◼◻  ▮▯  ⬢⬡"
-echo ""
-echo -e "  ${G}Rainbow Shapes${R} ${D}— head & tail glyphs${R}"
-echo -e "    ${B}Head:${R}  flat / sharp  / slanted  / rounded "
-echo -e "    ${B}Tail:${R}  flat / sharp  / slanted  / rounded "
+
+echo -e "  ${Y}BAR STYLES${R}"
+echo -e "  ${D}----------------------------------------------------${R}"
+echo -e "  Square ${B}■□${R}  Circle ${B}●○${R}  Diamond ${B}◆◇${R}  Med.Square ${B}◼◻${R}  Rectangle ${B}▮▯${R}  Hexagon ${B}⬢⬡${R}"
 echo ""
 
 # ── Themes ────────────────────────────────────────────────────────────────
 theme_count=$(ls "$THEMES_DIR"/*.json 2>/dev/null | wc -l | tr -d ' ')
-echo -e "  ${G}Themes${R} ${D}— ${theme_count} built-in + custom support${R}"
-echo -e "    ${M}Cyberpunk:${R} terminal-glitch, neon-classic, synthwave-sunset,"
-echo -e "               blade-runner, retrowave-chrome, midnight-phantom"
-echo -e "    ${M}Classic:${R}   dracula, tokyo-night, catppuccin-mocha, rose-pine,"
-echo -e "               nord, one-dark, gruvbox-dark"
-echo -e "    ${M}Custom:${R}    themes/custom-example/ for reference"
+echo -e "  ${Y}THEMES${R} ${D}(${theme_count} built-in + custom)${R}"
+echo -e "  ${D}----------------------------------------------------${R}"
+echo -e "  ${M}Cyberpunk${R}  terminal-glitch  neon-classic  synthwave-sunset"
+echo -e "             blade-runner  retrowave-chrome  midnight-phantom"
+echo -e "  ${M}Classic${R}    dracula  tokyo-night  catppuccin-mocha  rose-pine"
+echo -e "             nord  one-dark  gruvbox-dark"
 echo ""
 
 # ── Scripts ───────────────────────────────────────────────────────────────
 echo -e "  ${Y}SCRIPTS${R}"
-echo -e "  ${D}─────────────────────────────────────────────────${R}"
-echo -e "  ${B}./install.sh${R}           Install + configure Claude Code"
-echo -e "  ${B}./configure.sh${R}         Full setup wizard (p10k-style)"
-echo -e "  ${B}./configure-theme.sh${R}   Preview + switch/edit themes"
-echo -e "  ${B}./overview.sh${R}          This overview"
-echo -e "  ${B}./uninstall.sh${R}         Remove from Claude Code"
+echo -e "  ${D}----------------------------------------------------${R}"
+printf "  ${B}%-24s${R} %s\n" "./install.sh"          "Install + configure Claude Code"
+printf "  ${B}%-24s${R} %s\n" "./configure.sh"        "Full setup wizard (p10k-style)"
+printf "  ${B}%-24s${R} %s\n" "./configure-theme.sh"  "Preview + switch/edit themes"
+printf "  ${B}%-24s${R} %s\n" "./overview.sh"         "This overview"
+printf "  ${B}%-24s${R} %s\n" "./uninstall.sh"        "Remove from Claude Code"
 echo ""
 
 # ── Quick actions ─────────────────────────────────────────────────────────
 echo -e "  ${Y}QUICK ACTIONS${R}"
-echo -e "  ${D}─────────────────────────────────────────────────${R}"
-echo -e "  ${D}Switch theme:${R}     ${C}./configure-theme.sh${R}"
-echo -e "  ${D}Full reconfigure:${R} ${C}./configure.sh${R}"
-echo -e "  ${D}Edit theme:${R}       ${C}./configure-theme.sh tokyo-night${R}"
-echo -e "  ${D}Update:${R}           ${C}git pull${R}"
+echo -e "  ${D}----------------------------------------------------${R}"
+echo -e "  Switch theme:      ${C}./configure-theme.sh${R}"
+echo -e "  Full reconfigure:  ${C}./configure.sh${R}"
+echo -e "  Edit theme colors: ${C}./configure-theme.sh tokyo-night${R}"
+echo -e "  Update:            ${C}git pull${R}"
 echo ""
