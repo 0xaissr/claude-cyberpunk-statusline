@@ -71,10 +71,10 @@ The **cost** block shows today's total spending across all Claude models and ses
 
 ```bash
 # Preview all themes
-cd ~/claude-cyberpunk-statusline && ./preview.sh
+cd ~/claude-cyberpunk-statusline && ./configure-theme.sh
 
 # Edit a specific theme (interactive color editor with live preview)
-cd ~/claude-cyberpunk-statusline && ./preview.sh tokyo-night
+cd ~/claude-cyberpunk-statusline && ./configure-theme.sh tokyo-night
 ```
 
 ### Update

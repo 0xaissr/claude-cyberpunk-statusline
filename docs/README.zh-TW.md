@@ -69,10 +69,10 @@ cd ~/claude-cyberpunk-statusline && ./configure.sh
 
 ```bash
 # 預覽所有主題
-cd ~/claude-cyberpunk-statusline && ./preview.sh
+cd ~/claude-cyberpunk-statusline && ./configure-theme.sh
 
 # 編輯特定主題（互動式色彩編輯器 + 即時預覽）
-cd ~/claude-cyberpunk-statusline && ./preview.sh tokyo-night
+cd ~/claude-cyberpunk-statusline && ./configure-theme.sh tokyo-night
 ```
 
 ### 更新
