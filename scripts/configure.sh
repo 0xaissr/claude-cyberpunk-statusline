@@ -347,7 +347,7 @@ step_font_detect() {
   if $nerd_ok; then
     draw_header 1 $TOTAL_STEPS "Font detection — icon spacing"
 
-    ask_yn "Do all these icons fit between the crosses?" "              ---> \033[1mX\033[36m󰚩\033[0;1mX\033[36m󰍛\033[0;1mX\033[36m\033[0;1mX\033[36m\033[0;1mX\033[36m󰔟\033[0;1mX\033[0m <---"
+    ask_yn "Do all these icons fit between the crosses?" "              ---> \033[1mX\033[36m󰚩\033[0;1mX\033[36m󰍛\033[0;1mX\033[36m󰕐\033[0;1mX\033[36m󰔟\033[0;1mX\033[36m󰉋\033[0;1mX\033[36m󰊢\033[0;1mX\033[36m󰅐\033[0;1mX\033[0m <---"
     rc=$?
     if [ $rc -eq 2 ]; then return 2; fi
     if [ $rc -eq 0 ]; then
