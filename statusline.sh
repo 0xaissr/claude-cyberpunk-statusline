@@ -215,7 +215,13 @@ block_text_pct() {
   local reset_str=""
   if [ -n "$countdown" ]; then reset_str=" ${countdown}"; fi
 
-  case "$cfg_spacing" in
+  # Rainbow mode: force ultra-compact (bars look broken with colored bg)
+  local effective_spacing="$cfg_spacing"
+  if [ "$cfg_style" = "rainbow" ] || $PL_MODE 2>/dev/null; then
+    effective_spacing="ultra-compact"
+  fi
+
+  case "$effective_spacing" in
     ultra-compact) echo -n " ${symbol} ${pct_int}%${reset_str} " ;;
     compact)
       local bar=$(make_bar "$pct_int" "$cfg_bar_width" "$S_BAR_FILLED" "$S_BAR_EMPTY")

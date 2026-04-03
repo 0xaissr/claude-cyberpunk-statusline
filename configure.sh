@@ -61,7 +61,7 @@ SAMPLE_DATA='{
 if [ -f "$CONFIG" ]; then
   cur_theme=$("$JQ" -r '.theme // "terminal-glitch"' "$CONFIG")
   cur_symbols=$("$JQ" -r '.symbol_set // "unicode"' "$CONFIG")
-  cur_spacing=$("$JQ" -r '.spacing // "compact"' "$CONFIG")
+  cur_spacing=$("$JQ" -r '.spacing // "ultra-compact"' "$CONFIG")
   cur_separator=$("$JQ" -r '.separator // ""' "$CONFIG")
   cur_style=$("$JQ" -r '.style // "rainbow"' "$CONFIG")
   cur_head=$("$JQ" -r '.head // "sharp"' "$CONFIG")
@@ -72,7 +72,7 @@ if [ -f "$CONFIG" ]; then
 else
   cur_theme="terminal-glitch"
   cur_symbols="unicode"
-  cur_spacing="compact"
+  cur_spacing="ultra-compact"
   cur_separator=""
   cur_style="rainbow"
   cur_head="sharp"

@@ -2,6 +2,11 @@
 
 ## 2026-04-03
 
+### 修正：rainbow 模式強制 ultra-compact + 預設改 ultra-compact
+- rainbow 模式下 bar 字元（█░）搭配彩色背景會出現黑色夾層
+- statusline.sh: rainbow/PL_MODE 時 `block_text_pct` 強制使用 ultra-compact（不顯示 bar）
+- configure.sh: 預設 spacing 從 compact 改為 ultra-compact
+
 ### 改善：configure wizard 預設 preview 改為 compact + rainbow
 - 首次安裝（無 config）預設：spacing=compact、style=rainbow、separator=""
 - 有 config 時從 config.json 讀取 style/head/tail（原本缺少這三個欄位的讀取）
