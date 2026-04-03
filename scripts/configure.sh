@@ -386,10 +386,10 @@ step_blocks() {
     "time        — Current time"
   )
 
-  # All blocks start unchecked — user opts in
+  # All blocks start checked — user opts out
   local states=()
   for bid in "${block_ids[@]}"; do
-    states+=("0")
+    states+=("1")
   done
 
   draw_footer "j/k move · Space toggle · Enter confirm · r restart · q quit"

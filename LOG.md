@@ -2,6 +2,9 @@
 
 ## 2026-04-03
 
+### 修正：configure wizard Step 2 blocks 預設改為全選（全開）
+- 修正先前誤解：使用者要的是預設全選，讓使用者取消不要的 blocks
+
 ### 修正：configure wizard Step 1 font detection 圖示顯示為亂碼
 - **問題：** `ask_yn` 用 `printf '%s'` 輸出 visual 內容，`\033[` 跳脫序列未被解析，直接顯示為文字
 - **修正：** 改用 `printf '%b'` 讓 ANSI 色彩碼正確渲染
