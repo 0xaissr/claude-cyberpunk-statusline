@@ -2,6 +2,12 @@
 
 ## 2026-04-03
 
+### 文件：README 更新 — 新增 cost block、bar style、time format 說明
+- 英文/繁中 README 同步更新
+- 新增 Available Blocks 表格（含 cost 說明）
+- 設定精靈步驟描述更新（bar style、time format）
+- Prerequisites 新增 ccusage（optional）
+
 ### 新增：daily cost block — 透過 ccusage 顯示今日花費
 - 新增 `cost` block，顯示今日所有 model 的 token 花費（美元）
 - 透過 ccusage (`npx ccusage daily --jq`) 取得資料
