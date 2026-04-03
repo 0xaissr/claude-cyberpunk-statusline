@@ -80,8 +80,8 @@ else
   cur_head="sharp"
   cur_tail="sharp"
   cur_bar_width=10
-  cur_bar_filled=""
-  cur_bar_empty=""
+  cur_bar_filled="■"
+  cur_bar_empty="□"
   cur_time_format="24h"
   cur_blocks="model context rate_5h rate_7d directory git time"
 fi
@@ -273,7 +273,8 @@ render_preview() {
   local theme="$1" symbol_set="$2" spacing="$3" separator="$4" blocks_csv="$5"
   local bar_width="${6:-10}" time_format="${7:-24h}"
   local style="${8:-classic}" head="${9:-sharp}" tail="${10:-sharp}"
-  local bar_filled="${11:-}" bar_empty="${12:-}"
+  local bar_filled="${11:-${sel_bar_filled:-${cur_bar_filled:-}}}"
+  local bar_empty="${12:-${sel_bar_empty:-${cur_bar_empty:-}}}"
 
   local tmp_config="${PREVIEW_TMP_CONFIG:-$(mktemp)}"
   PREVIEW_TMP_CONFIG="$tmp_config"

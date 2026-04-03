@@ -2,6 +2,11 @@
 
 ## 2026-04-03
 
+### 修正：所有步驟的 preview 自動套用已選/預設 bar style
+- render_preview 的 bar_filled/bar_empty 參數自動 fallback 到 sel_*/cur_* 值
+- 首次安裝預設 bar style 為 Square ■□
+- 所有步驟的 preview 不再需要手動傳 bar style 參數
+
 ### 調整：bar style 預設改為 Square、新增 Circle、Block 移到最後
 - 順序：Square ■□（預設）→ Circle ●○（新增）→ Diamond → Star → Parallelogram → Medium Square → Rectangle → Hexagon → Block █░
 
