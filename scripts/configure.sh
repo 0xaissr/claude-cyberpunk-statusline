@@ -82,7 +82,10 @@ sel_symbols=""
 sel_theme=""
 sel_blocks=""
 sel_spacing=""
+sel_style=""        # "classic" or "rainbow"
 sel_separator=""
+sel_head=""         # "flat", "sharp", "slanted", "rounded"
+sel_tail=""         # "flat", "sharp", "slanted", "rounded"
 sel_bar_width=""
 sel_time_format=""
 
@@ -92,7 +95,10 @@ restart_wizard() {
   sel_theme=""
   sel_blocks=""
   sel_spacing=""
+  sel_style=""
   sel_separator=""
+  sel_head=""
+  sel_tail=""
   sel_bar_width=""
   sel_time_format=""
   current_step=1
@@ -249,10 +255,11 @@ ask_choice() {
 
 # ── Preview rendering ────────────────────────────────────────────────────
 # Render statusline preview with given config overrides
-# Usage: render_preview theme symbol_set spacing separator blocks_csv [bar_width] [time_format]
+# Usage: render_preview theme symbol_set spacing separator blocks_csv [bar_width] [time_format] [style] [head] [tail]
 render_preview() {
   local theme="$1" symbol_set="$2" spacing="$3" separator="$4" blocks_csv="$5"
   local bar_width="${6:-10}" time_format="${7:-24h}"
+  local style="${8:-classic}" head="${9:-sharp}" tail="${10:-sharp}"
 
   local tmp_config="${PREVIEW_TMP_CONFIG:-$(mktemp)}"
   PREVIEW_TMP_CONFIG="$tmp_config"
@@ -276,6 +283,9 @@ render_preview() {
   "symbol_set": "$symbol_set",
   "spacing": "$spacing",
   "separator": "$separator",
+  "style": "$style",
+  "head": "$head",
+  "tail": "$tail",
   "blocks": [$blocks_json],
   "bar_width": $bar_width,
   "time_format": "$time_format"
@@ -286,6 +296,11 @@ CONF
   output=$(CONFIG_OVERRIDE="$tmp_config" bash "$STATUSLINE" <<< "$SAMPLE_DATA" 2>/dev/null) || true
   echo -e "$output"
 }
+
+# Get current style params for preview
+_cur_style() { echo "${sel_style:-classic}"; }
+_cur_head()  { echo "${sel_head:-sharp}"; }
+_cur_tail()  { echo "${sel_tail:-sharp}"; }
 
 # Get a one-line preview string using default theme and current selections
 get_preview_line() {
@@ -304,7 +319,8 @@ get_preview_line() {
   fi
 
   render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" \
-    "$spacing" "$separator" "$blocks_csv" "$bar_width" "$time_format"
+    "$spacing" "$separator" "$blocks_csv" "$bar_width" "$time_format" \
+    "$(_cur_style)" "$(_cur_head)" "$(_cur_tail)"
 }
 
 # Draw preview at a fixed row near the bottom
@@ -533,34 +549,129 @@ step_bar_width() {
   return 0
 }
 
-# ── Step 4: Separator style ──────────────────────────────────────────────
+# ── Step 4: Prompt style ─────────────────────────────────────────────────
+step_prompt_style() {
+  draw_header 4 $TOTAL_STEPS "Prompt style:"
+
+  local blocks_csv="${sel_blocks:-$(echo "$cur_blocks" | tr ' ' '\n' | tr '\n' ',' | sed 's/,$//')}"
+  local bw="${sel_bar_width:-$cur_bar_width}"
+
+  local p_classic p_rainbow
+  p_classic=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "│" "$blocks_csv" "$bw" "24h" "classic" "" "")
+  p_rainbow=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw" "24h" "rainbow" "sharp" "sharp")
+
+  ask_choice \
+    "Classic   — colored text on dark bg|$p_classic" \
+    "Rainbow   — colored bg segments with arrows|$p_rainbow"
+
+  local rc=$?
+  if [ $rc -eq 1 ]; then return 2; fi
+
+  if [ "$CHOICE_RESULT" -eq 1 ]; then
+    sel_style="classic"
+  else
+    sel_style="rainbow"
+  fi
+  return 0
+}
+
+# ── Step 4b: Classic separator (only if classic style) ───────────────────
 step_separator() {
+  if [ "$sel_style" = "rainbow" ]; then
+    sel_separator=""
+    return 0
+  fi
+
   draw_header 4 $TOTAL_STEPS "Block separator:"
 
   local blocks_csv="${sel_blocks:-$(echo "$cur_blocks" | tr ' ' '\n' | tr '\n' ',' | sed 's/,$//')}"
   local bw="${sel_bar_width:-$cur_bar_width}"
 
-  local p1 p2 p3 p4 p5 p6
-  p1=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw")
-  p2=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "│" "$blocks_csv" "$bw")
-  p3=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "/" "$blocks_csv" "$bw")
-  p4=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "·" "$blocks_csv" "$bw")
-  p5=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" " " "$blocks_csv" "$bw")
-  p6=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "›" "$blocks_csv" "$bw")
+  local p1 p2 p3 p4 p5
+  p1=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "│" "$blocks_csv" "$bw" "24h" "classic")
+  p2=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "/" "$blocks_csv" "$bw" "24h" "classic")
+  p3=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "·" "$blocks_csv" "$bw" "24h" "classic")
+  p4=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" " " "$blocks_csv" "$bw" "24h" "classic")
+  p5=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "›" "$blocks_csv" "$bw" "24h" "classic")
 
   ask_choice \
-    "Powerline  (colored bg + arrow)|$p1" \
-    "Pipe  │|$p2" \
-    "Slash /|$p3" \
-    "Dot   ·|$p4" \
-    "Space|$p5" \
-    "Arrow ›|$p6"
+    "Pipe  │|$p1" \
+    "Slash /|$p2" \
+    "Dot   ·|$p3" \
+    "Space|$p4" \
+    "Arrow ›|$p5"
 
   local rc=$?
   if [ $rc -eq 1 ]; then return 2; fi
 
-  local values=("" "│" "/" "·" " " "›")
+  local values=("│" "/" "·" " " "›")
   sel_separator="${values[$((CHOICE_RESULT - 1))]}"
+  return 0
+}
+
+# ── Step 4c: Head style (only if rainbow) ────────────────────────────────
+step_head() {
+  if [ "$sel_style" != "rainbow" ]; then
+    sel_head="sharp"
+    return 0
+  fi
+
+  draw_header 4 $TOTAL_STEPS "Segment head (left edge):"
+
+  local blocks_csv="${sel_blocks:-$(echo "$cur_blocks" | tr ' ' '\n' | tr '\n' ',' | sed 's/,$//')}"
+  local bw="${sel_bar_width:-$cur_bar_width}"
+  local tf="${sel_time_format:-24h}"
+
+  local p1 p2 p3 p4
+  p1=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw" "$tf" "rainbow" "flat" "${sel_tail:-sharp}")
+  p2=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw" "$tf" "rainbow" "sharp" "${sel_tail:-sharp}")
+  p3=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw" "$tf" "rainbow" "slanted" "${sel_tail:-sharp}")
+  p4=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw" "$tf" "rainbow" "rounded" "${sel_tail:-sharp}")
+
+  ask_choice \
+    "Flat|$p1" \
+    "Sharp|$p2" \
+    "Slanted|$p3" \
+    "Rounded|$p4"
+
+  local rc=$?
+  if [ $rc -eq 1 ]; then return 2; fi
+
+  local values=("flat" "sharp" "slanted" "rounded")
+  sel_head="${values[$((CHOICE_RESULT - 1))]}"
+  return 0
+}
+
+# ── Step 4d: Tail style (only if rainbow) ────────────────────────────────
+step_tail() {
+  if [ "$sel_style" != "rainbow" ]; then
+    sel_tail="sharp"
+    return 0
+  fi
+
+  draw_header 4 $TOTAL_STEPS "Segment tail (separator / right edge):"
+
+  local blocks_csv="${sel_blocks:-$(echo "$cur_blocks" | tr ' ' '\n' | tr '\n' ',' | sed 's/,$//')}"
+  local bw="${sel_bar_width:-$cur_bar_width}"
+  local tf="${sel_time_format:-24h}"
+
+  local p1 p2 p3 p4
+  p1=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw" "$tf" "rainbow" "$sel_head" "flat")
+  p2=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw" "$tf" "rainbow" "$sel_head" "sharp")
+  p3=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw" "$tf" "rainbow" "$sel_head" "slanted")
+  p4=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw" "$tf" "rainbow" "$sel_head" "rounded")
+
+  ask_choice \
+    "Flat|$p1" \
+    "Sharp|$p2" \
+    "Slanted|$p3" \
+    "Rounded|$p4"
+
+  local rc=$?
+  if [ $rc -eq 1 ]; then return 2; fi
+
+  local values=("flat" "sharp" "slanted" "rounded")
+  sel_tail="${values[$((CHOICE_RESULT - 1))]}"
   return 0
 }
 
@@ -580,10 +691,10 @@ step_time_format() {
   local blocks_csv="${sel_blocks}"
 
   local p1 p2 p3 p4
-  p1=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "$separator" "$blocks_csv" "$bw" "24h")
-  p2=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "$separator" "$blocks_csv" "$bw" "12h")
-  p3=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "$separator" "$blocks_csv" "$bw" "24h-no-sec")
-  p4=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "$separator" "$blocks_csv" "$bw" "12h-no-sec")
+  p1=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "$separator" "$blocks_csv" "$bw" "24h" "$(_cur_style)" "$(_cur_head)" "$(_cur_tail)")
+  p2=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "$separator" "$blocks_csv" "$bw" "12h" "$(_cur_style)" "$(_cur_head)" "$(_cur_tail)")
+  p3=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "$separator" "$blocks_csv" "$bw" "24h-no-sec" "$(_cur_style)" "$(_cur_head)" "$(_cur_tail)")
+  p4=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "$separator" "$blocks_csv" "$bw" "12h-no-sec" "$(_cur_style)" "$(_cur_head)" "$(_cur_tail)")
 
   ask_choice \
     "24-hour          (16:23:42)|$p1" \
@@ -675,7 +786,8 @@ step_theme() {
 
       if [ "${all_ids[$cursor]}" != "__header__" ]; then
         draw_preview "${all_ids[$cursor]}" "${sel_symbols:-$cur_symbols}" \
-          "$sel_spacing" "$sel_separator" "$blocks_csv" "$bw" "$tf"
+          "$sel_spacing" "$sel_separator" "$blocks_csv" "$bw" "$tf" \
+          "$(_cur_style)" "$(_cur_head)" "$(_cur_tail)"
       fi
       prev_cursor=$cursor
     fi
@@ -735,7 +847,10 @@ step_done() {
   "theme": "$sel_theme",
   "symbol_set": "$sel_symbols",
   "spacing": "$sel_spacing",
+  "style": "$sel_style",
   "separator": "$sel_separator",
+  "head": "$sel_head",
+  "tail": "$sel_tail",
   "blocks": [$blocks_json],
   "bar_width": $bar_width,
   "time_format": "$time_format"
@@ -775,12 +890,18 @@ CONF
   echo -e "\033[2mSymbols:    \033[0m $sel_symbols"
   echo -e "\033[2mBlocks:     \033[0m ${block_count}/7 enabled"
   echo -e "\033[2mSpacing:    \033[0m $sel_spacing"
-  echo -e "\033[2mSeparator:  \033[0m $sel_separator"
+  echo -e "\033[2mStyle:      \033[0m $sel_style"
+  if [ "$sel_style" = "rainbow" ]; then
+    echo -e "\033[2mHead:       \033[0m $sel_head"
+    echo -e "\033[2mTail:       \033[0m $sel_tail"
+  else
+    echo -e "\033[2mSeparator:  \033[0m $sel_separator"
+  fi
   echo -e "\033[2mBar width:  \033[0m $bar_width"
   echo -e "\033[2mTime format:\033[0m $time_format"
   echo ""
   render_preview "$sel_theme" "$sel_symbols" "$sel_spacing" "$sel_separator" \
-    "$sel_blocks" "$bar_width" "$time_format"
+    "$sel_blocks" "$bar_width" "$time_format" "$sel_style" "$sel_head" "$sel_tail"
   echo ""
   echo ""
   echo -e "\033[2mYour status line will update on the next refresh.\033[0m"
@@ -834,8 +955,35 @@ while true; do
         fi
       fi
       ;;
-    4) # Separator
-      step_separator
+    4) # Prompt style
+      step_prompt_style
+      rc=$?
+      if [ $rc -eq 2 ]; then
+        restart_wizard
+      elif [ $rc -eq 0 ]; then
+        # Rainbow → heads/tails; Classic → separator
+        current_step="4b"
+      fi
+      ;;
+    4b) # Separator (classic) or Head (rainbow)
+      if [ "$sel_style" = "rainbow" ]; then
+        step_head
+      else
+        step_separator
+      fi
+      rc=$?
+      if [ $rc -eq 2 ]; then
+        restart_wizard
+      elif [ $rc -eq 0 ]; then
+        if [ "$sel_style" = "rainbow" ]; then
+          current_step="4c"
+        else
+          current_step=5
+        fi
+      fi
+      ;;
+    4c) # Tail (rainbow only)
+      step_tail
       rc=$?
       if [ $rc -eq 2 ]; then
         restart_wizard
@@ -860,7 +1008,6 @@ while true; do
       elif [ $rc -eq 0 ]; then
         current_step=7
       elif [ $rc -eq 1 ]; then
-        # back — go to time_format or separator depending on blocks
         if echo ",$sel_blocks," | grep -q ",time,"; then
           current_step=5
         else

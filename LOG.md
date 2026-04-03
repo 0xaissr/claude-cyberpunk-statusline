@@ -2,7 +2,15 @@
 
 ## 2026-04-03
 
-### 新增：Powerline 風格渲染模式
+### 重構：Powerline → Rainbow 風格 + Head/Tail 設定
+- **重命名：** Powerline → Rainbow（參照 p10k prompt style 命名）
+- **新增 `style` 設定：** `"classic"` 或 `"rainbow"`，取代用 separator 字元偵測
+- **新增 Head 設定：** segment 左端形狀 — flat / sharp () / slanted () / rounded ()
+- **新增 Tail 設定：** segment 間分隔 + 右端 — flat / sharp () / slanted () / rounded ()
+- **Wizard 流程：** Step 4 改為 Prompt Style 選擇 → Rainbow 進入 Head/Tail 子步驟，Classic 進入 Separator 選擇
+- **Config：** 新增 `style`、`head`、`tail` 欄位，所有下游預覽都傳遞 style 參數
+
+### 新增：Powerline 風格渲染模式（已重構為 Rainbow）
 - **功能：** 支援 Powerline 風格 — 每個 block 用 accent color 當背景、深色文字，blocks 間用 `` 箭頭連接
 - **statusline.sh：** 新增 `PL_MODE` 偵測（separator 為 `` 或 ``）、`pl_block_bg()`/`pl_block_fg()` 色彩查詢、`block_text_*()` 內容 helpers、powerline assembly 迴圈
 - **Theme：** 所有 14 個 theme 的 blocks 新增 `pl_bg`（accent 循環 1→2→3）和 `pl_fg`（bg_primary）
