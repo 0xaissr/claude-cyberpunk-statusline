@@ -3,7 +3,7 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-STATUSLINE="$PROJECT_DIR/scripts/statusline.sh"
+STATUSLINE="$PROJECT_DIR/statusline.sh"
 SAMPLE="$SCRIPT_DIR/sample-input.json"
 
 PASS=0

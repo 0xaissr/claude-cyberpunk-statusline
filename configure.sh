@@ -8,9 +8,8 @@
 # set -e kills on arithmetic false, set -u kills on any empty variable.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PLUGIN_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-CONFIG="$PLUGIN_DIR/config.json"
-THEMES_DIR="$PLUGIN_DIR/themes"
+CONFIG="$SCRIPT_DIR/config.json"
+THEMES_DIR="$SCRIPT_DIR/themes"
 STATUSLINE="$SCRIPT_DIR/statusline.sh"
 JQ=$(command -v jq 2>/dev/null || echo "/opt/homebrew/bin/jq")
 
@@ -858,28 +857,6 @@ step_done() {
 CONF
 )
   echo "$config_content" > "$CONFIG"
-
-  # Sync to plugin cache if installed via Claude Code plugin system
-  local claude_settings="$HOME/.claude/settings.json"
-  if [ -f "$claude_settings" ]; then
-    local cache_script
-    cache_script=$("$JQ" -r '.statusLine.command // empty' "$claude_settings" | grep -o '"[^"]*statusline\.sh"' | tr -d '"' || true)
-    if [ -z "$cache_script" ]; then
-      cache_script=$("$JQ" -r '.statusLine.command // empty' "$claude_settings" | awk '{for(i=1;i<=NF;i++) if($i ~ /statusline\.sh/) print $i}' | tr -d '"' || true)
-    fi
-    if [ -n "$cache_script" ] && [ -f "$cache_script" ]; then
-      local cache_plugin_dir
-      cache_plugin_dir="$(cd "$(dirname "$cache_script")/.." && pwd)"
-      if [ "$cache_plugin_dir" != "$PLUGIN_DIR" ]; then
-        echo "$config_content" > "$cache_plugin_dir/config.json"
-        local theme_src="$THEMES_DIR/${sel_theme}.json"
-        local theme_dst="$cache_plugin_dir/themes/${sel_theme}.json"
-        if [ -f "$theme_src" ] && [ ! -f "$theme_dst" ]; then
-          cp "$theme_src" "$theme_dst"
-        fi
-      fi
-    fi
-  fi
 
   # Show completion screen
   tput clear

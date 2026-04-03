@@ -7,8 +7,8 @@
 input=$(cat)
 
 # ── Resolve paths ──────────────────────────────────────────────────────────
-PLUGIN_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-CONFIG="${CONFIG_OVERRIDE:-$PLUGIN_DIR/config.json}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CONFIG="${CONFIG_OVERRIDE:-$SCRIPT_DIR/config.json}"
 JQ=$(command -v jq 2>/dev/null || echo "/opt/homebrew/bin/jq")
 if ! "$JQ" --version >/dev/null 2>&1; then
   echo "cyberpunk-statusline: jq is required but not found"
@@ -67,7 +67,7 @@ cfg_time_format=$("$JQ" -r '.time_format // "24h"' "$CONFIG")
 cfg_blocks=$("$JQ" -r '.blocks // ["model","context","rate_5h","rate_7d","directory","git","time"] | .[]' "$CONFIG")
 
 # ── Resolve theme ──────────────────────────────────────────────────────────
-THEME_DIR="$PLUGIN_DIR/themes"
+THEME_DIR="$SCRIPT_DIR/themes"
 
 # Check for custom renderer (directory with render.sh)
 if [ -d "$THEME_DIR/$cfg_theme" ] && [ -f "$THEME_DIR/$cfg_theme/render.sh" ]; then
