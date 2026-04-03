@@ -2,6 +2,10 @@
 
 ## 2026-04-03
 
+### 優化：Step 2 blocks 上下鍵移動不再重新渲染 preview
+- 原本每次按鍵都呼叫 draw_preview（跑 statusline.sh 子程序），導致 lag
+- 改為 preview_dirty flag，只在 Space toggle 變更 block 時才重新渲染
+
 ### 修正：所有步驟的 preview 自動套用已選/預設 bar style
 - render_preview 的 bar_filled/bar_empty 參數自動 fallback 到 sel_*/cur_* 值
 - 首次安裝預設 bar style 為 Square ■□
