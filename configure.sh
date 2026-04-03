@@ -45,15 +45,16 @@ tput clear    # clear screen
 stty -echo    # disable echo
 
 # ── Preview sample data ──────────────────────────────────────────────────
-_preview_reset=$(( $(date +%s) + 99*86400 + 23*3600 ))
+_preview_5h_reset=$(( $(date +%s) + 2*3600 + 46*60 ))
+_preview_7d_reset=$(( $(date +%s) + 4*86400 + 21*3600 ))
 SAMPLE_DATA='{
   "session_id": "preview",
   "model": { "id": "claude-opus-4-6", "display_name": "Opus 4.6 (1M)" },
   "workspace": { "current_dir": "'"$HOME"'/project" },
   "context_window": { "used_percentage": 58, "remaining_percentage": 42 },
   "rate_limits": {
-    "five_hour": { "used_percentage": 76, "resets_at": '"$_preview_reset"' },
-    "seven_day": { "used_percentage": 33, "resets_at": '"$_preview_reset"' }
+    "five_hour": { "used_percentage": 76, "resets_at": '"$_preview_5h_reset"' },
+    "seven_day": { "used_percentage": 33, "resets_at": '"$_preview_7d_reset"' }
   }
 }'
 
