@@ -19,7 +19,7 @@ List available themes by reading the themes directory.
 
 Show these symbols and ask if they display correctly:
 
-**Test A (Nerd Font):** 󰚩 󰍛  󰔟
+**Test A (Nerd Font):** 󰚩 󰍛  󰔟    
 **Test B (Unicode):** ⬡ ◈ ⚡ ⟳ ⌁ ⎇ ◷ █ ░
 **Test C (ASCII):** [M] [C] [!] [~] [D] [G] [T] # .
 
@@ -52,13 +52,7 @@ List all available themes with their descriptions. Read each theme JSON to get `
 
 Ask the user to pick one by number or name.
 
-## Step 3: Color Adjustment (Optional)
-
-Ask: "Keep the theme's default colors, or customize?"
-
-Most users will keep defaults — just move on. Color customization is an advanced feature for v2. If they want to customize now, suggest they edit the theme JSON file directly after the wizard completes.
-
-## Step 4: Block Selection
+## Step 3: Block Selection
 
 Show the available blocks:
 - `model` — Model name (e.g., Opus 4.6)
@@ -74,7 +68,7 @@ Default: all 7 enabled in this order.
 Ask: "Which blocks do you want? List the ones to keep (or say 'all')."
 Also ask if they want to reorder.
 
-## Step 5: Symbol Style
+## Step 4: Symbol Style
 
 Based on Step 1 result, confirm the recommended symbol set:
 - **Nerd Font** — full icons (requires Nerd Font installed)
@@ -83,7 +77,7 @@ Based on Step 1 result, confirm the recommended symbol set:
 
 Ask: "Use [recommended] symbols, or choose differently?"
 
-## Step 6: Spacing Mode
+## Step 5: Spacing Mode
 
 Show examples for each mode (use the selected theme's colors):
 - **Normal** — `◈ CTX ██░░░░░░░░ 3%` (symbol + label + bar + %)
@@ -92,38 +86,75 @@ Show examples for each mode (use the selected theme's colors):
 
 Ask: "Which spacing mode? (normal/compact/ultra-compact)"
 
-## Step 7: Separator Style
+## Step 6: Prompt Style
 
-Show examples:
+Ask: "Choose your prompt style:"
+
+- **Classic** — each block has its own background, separated by `│` or other character
+- **Rainbow** — Powerline 風格，每個 block 有獨立底色 + 箭頭 separator（需要 Nerd Font）
+
+If they choose **Rainbow**, ask for head/tail shape:
+- **Sharp:** `` / `` — 標準 Powerline 箭頭
+- **Rounded:** `` / `` — 圓角
+- **Slanted:** `` / `` — 斜切
+
+If they choose **Classic**, ask for separator style:
 - **Pipe:** `segment │ segment`
 - **Slash:** `segment / segment`
 - **Dot:** `segment · segment`
 - **Space:** `segment  segment`
 - **Arrow:** `segment › segment`
 
-Ask: "Which separator style?"
+## Step 7: Time Format
+
+Ask: "Choose time format:"
+- **24h** — `14:30:05`
+- **24h-no-sec** — `14:30`
+- **12h** — `02:30:05 PM`
+- **12h-no-sec** — `2:30 PM`
+
+Default: `24h`
 
 ## Finalize
 
-After all 7 steps, write the config.json using the Write tool:
+After all steps, build the config object and write it using the Write tool.
 
+For **Classic** style:
 ```json
 {
   "theme": "<selected>",
   "symbol_set": "<selected>",
   "spacing": "<selected>",
+  "style": "classic",
   "separator": "<selected>",
-  "blocks": [<selected blocks in order>],
-  "bar_width": 10
+  "blocks": ["model", "context", "rate_5h", "rate_7d", "directory", "git", "time"],
+  "bar_width": 10,
+  "time_format": "<selected>"
+}
+```
+
+For **Rainbow** style:
+```json
+{
+  "theme": "<selected>",
+  "symbol_set": "<selected>",
+  "spacing": "<selected>",
+  "style": "rainbow",
+  "separator": "",
+  "head": "<sharp|rounded|slanted>",
+  "tail": "<sharp|rounded|slanted>",
+  "blocks": ["model", "context", "rate_5h", "rate_7d", "directory", "git", "time"],
+  "bar_width": 10,
+  "time_format": "<selected>"
 }
 ```
 
 Write to: `${CLAUDE_PLUGIN_ROOT}/config.json`
 
-Then configure the statusLine setting so Claude Code uses this plugin's script. Run this Bash command:
+Then configure the statusLine setting so Claude Code uses this plugin's script. You MUST resolve `${CLAUDE_PLUGIN_ROOT}` to its actual absolute path before running the command — do NOT pass the variable literal. Run:
 
 ```bash
-claude config set -g statusLine '{"type":"command","command":"bash \"${CLAUDE_PLUGIN_ROOT}/scripts/statusline.sh\""}'
+claude config set -g statusLine "{\"type\":\"command\",\"command\":\"bash \\\"${CLAUDE_PLUGIN_ROOT}/scripts/statusline.sh\\\"\"}"
 ```
 
-Tell the user: "Done! Your status line is now configured. The new theme will appear on the next status line refresh. Run `/cyberpunk-statusline configure` anytime to change settings."
+Tell the user: "Done! Your status line is now configured. Restart the session to see the new theme. Run `/cyberpunk-statusline configure` anytime to change settings."
