@@ -153,11 +153,17 @@ ask_yn() {
   local visual="${2:-}"
   local row=5
 
-  printf '\n'
-  if [ -n "$visual" ]; then
+  if [ -n "$prompt" ]; then
     tput cup $row 0
+    printf '\033[K\033[1m    %s\033[0m\n' "$prompt"
+    row=$((row + 1))
+  fi
+
+  if [ -n "$visual" ]; then
+    printf '\033[K\n'
+    tput cup $((row + 1)) 0
     printf '\033[K%s\n' "$visual"
-    row=$((row + 2))
+    row=$((row + 3))
   fi
 
   tput cup $row 0
@@ -330,12 +336,8 @@ step_font_detect() {
 
   # Q1: Nerd Font test
   draw_header 1 $TOTAL_STEPS "Font detection"
-  tput cup 5 0
-  printf '\033[1m    Does this look like a brain/circuit icon?\033[0m\n'
-  printf '\n'
-  printf '              ---> \033[1;36m󰚩\033[0m <---\n'
 
-  ask_yn "" ""
+  ask_yn "Does this look like a brain/circuit icon?" "              ---> \033[1;36m󰚩\033[0m <---"
   local rc=$?
   if [ $rc -eq 2 ]; then return 2; fi  # restart
   if [ $rc -eq 0 ]; then nerd_ok=true; fi
@@ -343,12 +345,8 @@ step_font_detect() {
   # Q2: Nerd Font spacing test (only if Q1=yes)
   if $nerd_ok; then
     draw_header 1 $TOTAL_STEPS "Font detection — icon spacing"
-    tput cup 5 0
-    printf '\033[1m    Do all these icons fit between the crosses?\033[0m\n'
-    printf '\n'
-    printf '              ---> \033[1mX\033[36m󰚩\033[0;1mX\033[36m󰍛\033[0;1mX\033[36m\033[0;1mX\033[36m\033[0;1mX\033[36m󰔟\033[0;1mX\033[0m <---\n'
 
-    ask_yn "" ""
+    ask_yn "Do all these icons fit between the crosses?" "              ---> \033[1mX\033[36m󰚩\033[0;1mX\033[36m󰍛\033[0;1mX\033[36m\033[0;1mX\033[36m\033[0;1mX\033[36m󰔟\033[0;1mX\033[0m <---"
     rc=$?
     if [ $rc -eq 2 ]; then return 2; fi
     if [ $rc -eq 0 ]; then
@@ -360,12 +358,8 @@ step_font_detect() {
 
   # Q3: Unicode test
   draw_header 1 $TOTAL_STEPS "Font detection — unicode symbols"
-  tput cup 5 0
-  printf '\033[1m    Do these three symbols display correctly?\033[0m\n'
-  printf '\n'
-  printf '              ---> \033[1;33m⬡\033[0m  \033[1;35m◈\033[0m  \033[1;31m⚡\033[0m <---\n'
 
-  ask_yn "" ""
+  ask_yn "Do these three symbols display correctly?" "              ---> \033[1;33m⬡\033[0m  \033[1;35m◈\033[0m  \033[1;31m⚡\033[0m <---"
   rc=$?
   if [ $rc -eq 2 ]; then return 2; fi
   if [ $rc -eq 0 ]; then

@@ -2,6 +2,10 @@
 
 ## 2026-04-03
 
+### 修正：configure wizard Step 1 問題文字被選項蓋掉
+- **問題：** `ask_yn()` 的 prompt/visual 參數傳空字串，問題文字手動印在 row 5 後被 `ask_yn` 從同一行覆蓋，導致只看到 (y)/(n) 卻不知道在問什麼
+- **修正：** 將三個 font detection 問題的文字和圖示改由 `ask_yn()` 的參數傳入，`ask_yn()` 內部依序排版 prompt → visual → 選項，不再互相覆蓋
+
 ### 實作：Configure Wizard v2 — 完整重寫
 - `scripts/configure.sh` 全面重寫為 v2 wizard
   - Step 1: 字型能力偵測（y/n 問答，自動推斷 nerd/unicode/ascii）
