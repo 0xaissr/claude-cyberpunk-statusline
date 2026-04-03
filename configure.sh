@@ -61,16 +61,22 @@ SAMPLE_DATA='{
 if [ -f "$CONFIG" ]; then
   cur_theme=$("$JQ" -r '.theme // "terminal-glitch"' "$CONFIG")
   cur_symbols=$("$JQ" -r '.symbol_set // "unicode"' "$CONFIG")
-  cur_spacing=$("$JQ" -r '.spacing // "normal"' "$CONFIG")
-  cur_separator=$("$JQ" -r '.separator // "│"' "$CONFIG")
+  cur_spacing=$("$JQ" -r '.spacing // "compact"' "$CONFIG")
+  cur_separator=$("$JQ" -r '.separator // ""' "$CONFIG")
+  cur_style=$("$JQ" -r '.style // "rainbow"' "$CONFIG")
+  cur_head=$("$JQ" -r '.head // "sharp"' "$CONFIG")
+  cur_tail=$("$JQ" -r '.tail // "sharp"' "$CONFIG")
   cur_bar_width=$("$JQ" -r '.bar_width // 10' "$CONFIG")
   cur_time_format=$("$JQ" -r '.time_format // "24h"' "$CONFIG")
   cur_blocks=$("$JQ" -r '.blocks // ["model","context","rate_5h","rate_7d","directory","git","time"] | .[]' "$CONFIG")
 else
   cur_theme="terminal-glitch"
   cur_symbols="unicode"
-  cur_spacing="normal"
-  cur_separator="│"
+  cur_spacing="compact"
+  cur_separator=""
+  cur_style="rainbow"
+  cur_head="sharp"
+  cur_tail="sharp"
   cur_bar_width=10
   cur_time_format="24h"
   cur_blocks="model context rate_5h rate_7d directory git time"
@@ -297,9 +303,9 @@ CONF
 }
 
 # Get current style params for preview
-_cur_style() { echo "${sel_style:-classic}"; }
-_cur_head()  { echo "${sel_head:-sharp}"; }
-_cur_tail()  { echo "${sel_tail:-sharp}"; }
+_cur_style() { echo "${sel_style:-${cur_style:-rainbow}}"; }
+_cur_head()  { echo "${sel_head:-${cur_head:-sharp}}"; }
+_cur_tail()  { echo "${sel_tail:-${cur_tail:-sharp}}"; }
 
 # Get a one-line preview string using default theme and current selections
 get_preview_line() {
