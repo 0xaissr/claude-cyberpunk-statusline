@@ -169,28 +169,38 @@ case "$cfg_time_format" in
 esac
 git_branch=$(GIT_OPTIONAL_LOCKS=0 git -C "$cwd" symbolic-ref --short HEAD 2>/dev/null || true)
 
-# ── Daily cost (ccusage cache) ────────────────────────────────────────────
+# ── Daily cost (ccusage cache, optional) ──────────────────────────────────
 COST_CACHE_DIR="$HOME/.cache/cyberpunk-statusline"
 COST_CACHE="$COST_CACHE_DIR/daily-cost"
 COST_CACHE_MAX_AGE=300  # 5 minutes
 daily_cost=""
+CCUSAGE_CMD=""
 
-# Read cached value
-if [ -f "$COST_CACHE" ]; then
-  daily_cost=$(cat "$COST_CACHE" 2>/dev/null)
+# Detect ccusage availability
+if command -v ccusage >/dev/null 2>&1; then
+  CCUSAGE_CMD="ccusage"
+elif command -v npx >/dev/null 2>&1; then
+  CCUSAGE_CMD="npx ccusage@latest"
 fi
 
-# Background refresh if stale or missing
-_refresh_cost() {
-  mkdir -p "$COST_CACHE_DIR"
-  local val
-  val=$(npx ccusage@latest daily --jq '.totals.totalCost' --since "$(date +%Y%m%d)" --offline 2>/dev/null)
-  if [ -n "$val" ]; then
-    printf '%.2f' "$val" > "$COST_CACHE" 2>/dev/null
+if [ -n "$CCUSAGE_CMD" ]; then
+  # Read cached value
+  if [ -f "$COST_CACHE" ]; then
+    daily_cost=$(cat "$COST_CACHE" 2>/dev/null)
   fi
-}
-if [ ! -f "$COST_CACHE" ] || [ $(($(date +%s) - $(stat -f%m "$COST_CACHE" 2>/dev/null || echo 0))) -gt "$COST_CACHE_MAX_AGE" ]; then
-  _refresh_cost &
+
+  # Background refresh if stale or missing
+  _refresh_cost() {
+    mkdir -p "$COST_CACHE_DIR"
+    local val
+    val=$($CCUSAGE_CMD daily --jq '.totals.totalCost' --since "$(date +%Y%m%d)" --offline 2>/dev/null)
+    if [ -n "$val" ]; then
+      printf '%.2f' "$val" > "$COST_CACHE" 2>/dev/null
+    fi
+  }
+  if [ ! -f "$COST_CACHE" ] || [ $(($(date +%s) - $(stat -f%m "$COST_CACHE" 2>/dev/null || echo 0))) -gt "$COST_CACHE_MAX_AGE" ]; then
+    _refresh_cost &
+  fi
 fi
 
 # ── Custom renderer check ─────────────────────────────────────────────────

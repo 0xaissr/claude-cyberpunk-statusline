@@ -427,7 +427,7 @@ step_blocks() {
     "context     — Context window usage %"
     "rate_5h     — 5-hour rate limit %"
     "rate_7d     — 7-day rate limit %"
-    "cost        — Daily cost via ccusage"
+    "cost        — Daily cost (requires ccusage)"
     "directory   — Working directory"
     "git         — Git branch"
     "time        — Current time"
