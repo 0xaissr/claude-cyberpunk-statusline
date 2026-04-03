@@ -540,24 +540,26 @@ step_separator() {
   local blocks_csv="${sel_blocks:-$(echo "$cur_blocks" | tr ' ' '\n' | tr '\n' ',' | sed 's/,$//')}"
   local bw="${sel_bar_width:-$cur_bar_width}"
 
-  local p1 p2 p3 p4 p5
-  p1=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "│" "$blocks_csv" "$bw")
-  p2=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "/" "$blocks_csv" "$bw")
-  p3=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "·" "$blocks_csv" "$bw")
-  p4=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" " " "$blocks_csv" "$bw")
-  p5=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "›" "$blocks_csv" "$bw")
+  local p1 p2 p3 p4 p5 p6
+  p1=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "" "$blocks_csv" "$bw")
+  p2=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "│" "$blocks_csv" "$bw")
+  p3=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "/" "$blocks_csv" "$bw")
+  p4=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "·" "$blocks_csv" "$bw")
+  p5=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" " " "$blocks_csv" "$bw")
+  p6=$(render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "›" "$blocks_csv" "$bw")
 
   ask_choice \
-    "Pipe  │|$p1" \
-    "Slash /|$p2" \
-    "Dot   ·|$p3" \
-    "Space|$p4" \
-    "Arrow ›|$p5"
+    "Powerline  (colored bg + arrow)|$p1" \
+    "Pipe  │|$p2" \
+    "Slash /|$p3" \
+    "Dot   ·|$p4" \
+    "Space|$p5" \
+    "Arrow ›|$p6"
 
   local rc=$?
   if [ $rc -eq 1 ]; then return 2; fi
 
-  local values=("│" "/" "·" " " "›")
+  local values=("" "│" "/" "·" " " "›")
   sel_separator="${values[$((CHOICE_RESULT - 1))]}"
   return 0
 }
