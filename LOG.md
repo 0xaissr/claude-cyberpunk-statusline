@@ -2,9 +2,10 @@
 
 ## 2026-04-03
 
-### 修正：rainbow 模式跳過 bar 但保留 spacing 差異
-- rainbow 模式下 bar 字元（█░）搭配彩色背景會出現黑色夾層
-- statusline.sh: rainbow 時只跳過 bar，保留 label 差異（normal 有 label、compact/ultra 沒有）
+### 修正：rainbow 模式 bar 黑色夾層 — 改用 `·` 取代 `░`
+- rainbow 模式下 `░`（light shade）有透明間隙，在彩色背景上產生黑色夾層
+- statusline.sh: rainbow 時 empty bar 字元從 `░` 改為 `·`，filled `█` 不變
+- 三種 spacing 保持完整差異：normal=icon+label+bar+%、compact=icon+bar+%、ultra=icon+%
 - configure.sh: 預設 spacing 改為 ultra-compact
 
 ### 改善：configure wizard 預設 preview 改為 compact + rainbow
