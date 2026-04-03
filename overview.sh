@@ -91,8 +91,8 @@ _pd=$(mktemp -d)
 ( render_with '{"style":"rainbow","head":"sharp","tail":"sharp","spacing":"ultra-compact","blocks":["model","context","rate_5h","rate_7d","cost","directory","git","time"]}' > "$_pd/rainbow" ) &
 ( render_with '{"style":"classic","separator":"|","spacing":"ultra-compact","blocks":["model","context","rate_5h","rate_7d","cost","directory","git","time"]}' > "$_pd/classic" ) &
 ( render_with '{"style":"rainbow","head":"rounded","tail":"rounded","spacing":"ultra-compact","blocks":["model","context","rate_5h","rate_7d","cost","directory","git","time"]}' > "$_pd/rounded" ) &
-( render_with '{"style":"rainbow","head":"sharp","tail":"sharp","spacing":"compact","blocks":["model","context","rate_5h","cost","time"]}' > "$_pd/compact" ) &
-( render_with '{"style":"rainbow","head":"sharp","tail":"sharp","spacing":"normal","blocks":["model","context","rate_5h","cost","time"]}' > "$_pd/normal" ) &
+( render_with '{"style":"rainbow","head":"sharp","tail":"sharp","spacing":"compact","blocks":["model","context","rate_5h","rate_7d","cost","directory","git","time"]}' > "$_pd/compact" ) &
+( render_with '{"style":"rainbow","head":"sharp","tail":"sharp","spacing":"normal","blocks":["model","context","rate_5h","rate_7d","cost","directory","git","time"]}' > "$_pd/normal" ) &
 wait
 
 echo ""
