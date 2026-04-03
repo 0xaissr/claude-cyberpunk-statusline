@@ -60,6 +60,7 @@ cfg_symbols=$("$JQ" -r '.symbol_set // "unicode"' "$CONFIG")
 cfg_spacing=$("$JQ" -r '.spacing // "normal"' "$CONFIG")
 cfg_separator=$("$JQ" -r '.separator // "│"' "$CONFIG")
 cfg_bar_width=$("$JQ" -r '.bar_width // 10' "$CONFIG")
+cfg_time_format=$("$JQ" -r '.time_format // "24h"' "$CONFIG")
 cfg_blocks=$("$JQ" -r '.blocks // ["model","context","rate_5h","rate_7d","directory","git","time"] | .[]' "$CONFIG")
 
 # ── Resolve theme ──────────────────────────────────────────────────────────
@@ -121,7 +122,12 @@ five_reset=$(echo "$input" | "$JQ" -r '.rate_limits.five_hour.resets_at // empty
 week_pct=$(echo "$input" | "$JQ" -r 'if (.rate_limits.seven_day.used_percentage | type) == "number" then .rate_limits.seven_day.used_percentage else empty end')
 week_reset=$(echo "$input" | "$JQ" -r '.rate_limits.seven_day.resets_at // empty')
 cwd=$(echo "$input" | "$JQ" -r '.workspace.current_dir // .cwd // "?"')
-now=$(date +"%H:%M:%S")
+case "$cfg_time_format" in
+  12h)        now=$(date +"%I:%M:%S %p") ;;
+  24h-no-sec) now=$(date +"%H:%M") ;;
+  12h-no-sec) now=$(date +"%-I:%M %p") ;;
+  *)          now=$(date +"%H:%M:%S") ;;
+esac
 git_branch=$(GIT_OPTIONAL_LOCKS=0 git -C "$cwd" symbolic-ref --short HEAD 2>/dev/null || true)
 
 # ── Custom renderer check ─────────────────────────────────────────────────

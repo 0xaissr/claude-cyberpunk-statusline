@@ -2,6 +2,20 @@
 
 ## 2026-04-03
 
+### 實作：Configure Wizard v2 — 完整重寫
+- `scripts/configure.sh` 全面重寫為 v2 wizard
+  - Step 1: 字型能力偵測（y/n 問答，自動推斷 nerd/unicode/ascii）
+  - Step 2: Blocks 選擇（checkbox toggle + 嵌入式 preview）
+  - Step 3: Spacing + bar_width（數字選擇 + 嵌入式 preview，bar_width 條件觸發）
+  - Step 4: Separator（數字選擇 + 嵌入式 preview）
+  - Step 5: Time format（條件觸發，僅 time block 啟用時顯示）
+  - Step 6: Theme（方向鍵導覽 + 即時 preview，「大揭曉」）
+  - Step 7: 確認儲存（含 plugin cache 同步）
+- 新增 `ask_yn()` 和 `ask_choice()` p10k 風格輸入函式
+- 全域 `r` 鍵 restart 支援
+- `scripts/statusline.sh` 新增 `time_format` 支援（24h/12h/24h-no-sec/12h-no-sec）
+- config.json 新增 `time_format` 和 `bar_width` 可配置欄位
+
 ### 文件：Configure Wizard v2 改進計畫（v2 更新）
 - 更新 `docs/plans/2026-04-03-configure-wizard-v2-plan.md` — 重新 brainstorming
 - 混合輸入模式：字型偵測用 y/n（p10k 風格）、blocks 用 checkbox、其他用數字選擇、theme 用方向鍵
