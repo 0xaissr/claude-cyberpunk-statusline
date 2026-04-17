@@ -179,10 +179,10 @@ if [ -z "$git_branch" ]; then
   git_branch=$(GIT_OPTIONAL_LOCKS=0 git -C "$SCRIPT_DIR" symbolic-ref --short HEAD 2>/dev/null || true)
 fi
 
-# ── Daily cost (cached, background refresh) ──────────────────────────────
+# ── Daily cost (cached, foreground refresh) ───────────────────────────────
 COST_CACHE_DIR="$HOME/.cache/cyberpunk-statusline"
 COST_CACHE="$COST_CACHE_DIR/daily-cost"
-COST_CACHE_MAX_AGE=300  # 5 minutes
+COST_CACHE_MAX_AGE=30  # 30 seconds — short enough to refresh after each chat
 daily_cost=""
 
 # Read cached value
@@ -190,42 +190,49 @@ if [ -f "$COST_CACHE" ]; then
   daily_cost=$(cat "$COST_CACHE" 2>/dev/null)
 fi
 
-# Background refresh if stale or missing
 _refresh_cost() {
   mkdir -p "$COST_CACHE_DIR"
   local val=""
 
-  # Prefer ccusage if available (most accurate)
-  if command -v ccusage >/dev/null 2>&1; then
-    val=$(ccusage daily --jq '.totals.totalCost' --since "$(date +%Y%m%d)" --offline 2>/dev/null)
-  elif command -v npx >/dev/null 2>&1; then
-    val=$(npx ccusage@latest daily --jq '.totals.totalCost' --since "$(date +%Y%m%d)" --offline 2>/dev/null)
-  fi
+  # Primary: calculate from local JSONL files — uses prefix match so new
+  # model IDs (e.g. claude-opus-4-7) are priced correctly without waiting
+  # for ccusage to publish updated pricing tables.
+  local today=$(date +%Y-%m-%d)
+  val=$(find "$HOME/.claude/projects" -name "*.jsonl" -maxdepth 2 2>/dev/null \
+    | xargs grep -h '"type":"assistant"' 2>/dev/null \
+    | "$JQ" -s --arg today "$today" '
+      def price($m):
+        if ($m | startswith("claude-opus")) then {i: 15, o: 75, cw: 18.75, cr: 1.50}
+        elif ($m | startswith("claude-sonnet")) then {i: 3, o: 15, cw: 3.75, cr: 0.30}
+        elif ($m | startswith("claude-haiku")) then {i: 1, o: 5, cw: 1.25, cr: 0.10}
+        else {i: 15, o: 75, cw: 18.75, cr: 1.50} end;
+      [ .[] | select(.timestamp | startswith($today)) |
+        .message as $msg | $msg.usage as $u | price($msg.model) as $p |
+        (($u.input_tokens // 0) * $p.i
+         + ($u.output_tokens // 0) * $p.o
+         + ($u.cache_creation_input_tokens // 0) * $p.cw
+         + ($u.cache_read_input_tokens // 0) * $p.cr) / 1000000
+      ] | add // 0
+    ' 2>/dev/null)
 
-  # Fallback: calculate from local JSONL files with jq
-  if [ -z "$val" ] || [ "$val" = "null" ]; then
-    local today=$(date +%Y-%m-%d)
-    val=$(find "$HOME/.claude/projects" -name "*.jsonl" -maxdepth 2 2>/dev/null \
-      | xargs grep -h '"type":"assistant"' 2>/dev/null \
-      | "$JQ" -s --arg today "$today" '
-        def price($m):
-          if ($m | startswith("claude-opus")) then {i: 15, o: 75}
-          elif ($m | startswith("claude-sonnet")) then {i: 3, o: 15}
-          elif ($m | startswith("claude-haiku")) then {i: 0.80, o: 4}
-          else {i: 15, o: 75} end;
-        [ .[] | select(.timestamp | startswith($today)) |
-          .message as $msg | $msg.usage as $u | price($msg.model) as $p |
-          (($u.input_tokens // 0) * $p.i + ($u.output_tokens // 0) * $p.o) / 1000000
-        ] | add // 0
-      ' 2>/dev/null)
+  # Fallback: ccusage (only if local calc returned nothing)
+  if [ -z "$val" ] || [ "$val" = "null" ] || [ "$val" = "0" ]; then
+    if command -v ccusage >/dev/null 2>&1; then
+      val=$(ccusage daily --jq '.totals.totalCost' --since "$(date +%Y%m%d)" --offline 2>/dev/null)
+    elif command -v npx >/dev/null 2>&1; then
+      val=$(npx ccusage@latest daily --jq '.totals.totalCost' --since "$(date +%Y%m%d)" --offline 2>/dev/null)
+    fi
   fi
 
   if [ -n "$val" ] && [ "$val" != "null" ]; then
     printf '%.2f' "$val" > "$COST_CACHE" 2>/dev/null
   fi
 }
+
+# Foreground refresh when stale — ensures current prompt shows latest cost
 if [ ! -f "$COST_CACHE" ] || [ $(($(date +%s) - $(stat -f%m "$COST_CACHE" 2>/dev/null || echo 0))) -gt "$COST_CACHE_MAX_AGE" ]; then
-  _refresh_cost &
+  _refresh_cost
+  daily_cost=$(cat "$COST_CACHE" 2>/dev/null)
 fi
 
 # ── Custom renderer check ─────────────────────────────────────────────────
@@ -320,6 +327,20 @@ block_text_cost() {
   fi
 }
 
+block_text_turn_usage() {
+  local cache="/tmp/claude-turn-usage.txt"
+  if [ -f "$cache" ]; then
+    local data
+    data=$(cat "$cache" 2>/dev/null)
+    if [ -n "$data" ]; then
+      IFS='|' read -r t_in t_cache t_out t_cost <<< "$data"
+      echo -n " 󰊖 cache:${t_cache} in:${t_in} out:${t_out} \$${t_cost} "
+      return
+    fi
+  fi
+  echo -n " 󰊖 -- "
+}
+
 # ── Classic block renderers ───────────────────────────────────────────────
 render_block_model() {
   local fg=$(hex_to_fg "$(block_color model)")
@@ -408,6 +429,23 @@ render_block_cost() {
   fi
 }
 
+render_block_turn_usage() {
+  local fg=$(hex_to_fg "$(block_color turn_usage)")
+  local bg=$(hex_to_bg "$(block_bg turn_usage)")
+  local cache="/tmp/claude-turn-usage.txt"
+  if [ -f "$cache" ]; then
+    local data
+    data=$(cat "$cache" 2>/dev/null)
+    if [ -n "$data" ]; then
+      IFS='|' read -r t_in t_cache t_out t_cost <<< "$data"
+      echo -n "${bg}${fg}${BOLD} 󰊖 cache:${t_cache} in:${t_in} out:${t_out} \$${t_cost} ${RESET}"
+      return
+    fi
+  fi
+  local dim_fg=$(hex_to_fg "$C_DIM")
+  echo -n "${bg}${dim_fg} 󰊖 -- ${RESET}"
+}
+
 # ── Get block's rainbow bg hex ────────────────────────────────────────────
 get_block_bg_hex() {
   local block="$1"
@@ -492,6 +530,32 @@ else
   done
 fi
 
+# ── Turn usage (second line) ──────────────────────────────────────────────
+turn_line=""
+TERM_KEY="${TERM_SESSION_ID:-${cwd}}"
+TURN_CACHE="$COST_CACHE_DIR/turn-usage-$(echo -n "$TERM_KEY" | md5).txt"
+if [ -f "$TURN_CACHE" ]; then
+  turn_data=$(cat "$TURN_CACHE" 2>/dev/null)
+  if [ -n "$turn_data" ]; then
+    IFS='|' read -r t_in t_cache t_out t_cost <<< "$turn_data"
+    turn_text=" 󰊖 Last Chat cache:${t_cache} in:${t_in} out:${t_out} \$${t_cost} "
+    local_bg_hex=$(block_color turn_usage)
+    local_fg_hex="$C_BG_PRIMARY"
+    local_bg=$(hex_to_bg "$local_bg_hex")
+    local_fg=$(hex_to_fg "$local_fg_hex")
+    if $PL_MODE; then
+      head_fg=$(hex_to_fg "$local_bg_hex")
+      tail_fg=$(hex_to_fg "$local_bg_hex")
+      turn_line="${RESET}${head_fg}${PL_HEAD_OPEN}${RESET}${local_bg}${local_fg}${BOLD}${turn_text}${RESET}${tail_fg}${PL_TAIL_SEP}${RESET}"
+    else
+      turn_line="${local_bg}${local_fg}${BOLD}${turn_text}${RESET}"
+    fi
+  fi
+fi
+
 # Ensure output ends with newline so subsequent prompts start on a new line
 echo -e "$output"
+if [ -n "$turn_line" ]; then
+  echo -e "$turn_line"
+fi
 echo ""
