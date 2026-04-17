@@ -3,9 +3,9 @@
 ## 2026-04-17
 
 ### 修復：cost block 無法正確計算 Claude Opus 4.7 用量
-- 問題：ccusage 18.0.10 尚未支援 `claude-opus-4-7` 模型 ID，將其全部計為 $0，導致使用者升級 4.7 後金額停在舊值不再成長
-- 修改 `_refresh_cost`：改以本地 JSONL 解析為主（透過 `startswith("claude-opus"/"claude-sonnet"/"claude-haiku")` prefix match，新模型 ID 自動沿用家族定價），ccusage 改為備援
-- fallback 計算新增 cache token 定價（cache_creation $18.75/M、cache_read $1.50/M for Opus；Sonnet/Haiku 等比例），與官方價目一致
+- 問題根因：`_refresh_cost` 呼叫 ccusage 時加了 `--offline`，會使用 ccusage 內建（已過期）的定價表，最新版 18.0.10 尚未收錄 `claude-opus-4-7`，把該模型所有用量計為 $0，導致使用者升級 4.7 後金額停在舊值不再成長
+- 修正：移除 `--offline`，讓 ccusage 從 LiteLLM 線上定價表抓取（該表更新較快，已有 4.7 的價錢）— 這個修法與使用者直接 `npx ccusage daily` 所看到的金額一致
+- 同時保留本地 JSONL 解析作為 fallback（ccusage 不可用時才觸發），並加上 `message.id + requestId` dedupe 與 cache token 定價，避免重複計數與短報
 
 ## 2026-04-03
 

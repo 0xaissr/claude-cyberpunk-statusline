@@ -194,34 +194,39 @@ _refresh_cost() {
   mkdir -p "$COST_CACHE_DIR"
   local val=""
 
-  # Primary: calculate from local JSONL files — uses prefix match so new
-  # model IDs (e.g. claude-opus-4-7) are priced correctly without waiting
-  # for ccusage to publish updated pricing tables.
-  local today=$(date +%Y-%m-%d)
-  val=$(find "$HOME/.claude/projects" -name "*.jsonl" -maxdepth 2 2>/dev/null \
-    | xargs grep -h '"type":"assistant"' 2>/dev/null \
-    | "$JQ" -s --arg today "$today" '
-      def price($m):
-        if ($m | startswith("claude-opus")) then {i: 15, o: 75, cw: 18.75, cr: 1.50}
-        elif ($m | startswith("claude-sonnet")) then {i: 3, o: 15, cw: 3.75, cr: 0.30}
-        elif ($m | startswith("claude-haiku")) then {i: 1, o: 5, cw: 1.25, cr: 0.10}
-        else {i: 15, o: 75, cw: 18.75, cr: 1.50} end;
-      [ .[] | select(.timestamp | startswith($today)) |
-        .message as $msg | $msg.usage as $u | price($msg.model) as $p |
-        (($u.input_tokens // 0) * $p.i
-         + ($u.output_tokens // 0) * $p.o
-         + ($u.cache_creation_input_tokens // 0) * $p.cw
-         + ($u.cache_read_input_tokens // 0) * $p.cr) / 1000000
-      ] | add // 0
-    ' 2>/dev/null)
+  # Primary: ccusage (online pricing). Don't pass --offline because the
+  # bundled pricing table lags behind new model IDs like claude-opus-4-7
+  # (prices them as $0). Online mode fetches from LiteLLM's pricing repo
+  # which is updated more quickly.
+  if command -v ccusage >/dev/null 2>&1; then
+    val=$(ccusage daily --jq '.totals.totalCost' --since "$(date +%Y%m%d)" 2>/dev/null)
+  elif command -v npx >/dev/null 2>&1; then
+    val=$(npx ccusage@latest daily --jq '.totals.totalCost' --since "$(date +%Y%m%d)" 2>/dev/null)
+  fi
 
-  # Fallback: ccusage (only if local calc returned nothing)
-  if [ -z "$val" ] || [ "$val" = "null" ] || [ "$val" = "0" ]; then
-    if command -v ccusage >/dev/null 2>&1; then
-      val=$(ccusage daily --jq '.totals.totalCost' --since "$(date +%Y%m%d)" --offline 2>/dev/null)
-    elif command -v npx >/dev/null 2>&1; then
-      val=$(npx ccusage@latest daily --jq '.totals.totalCost' --since "$(date +%Y%m%d)" --offline 2>/dev/null)
-    fi
+  # Fallback: local JSONL calc when ccusage unavailable or fails.
+  # Uses startswith() so new model IDs inherit their family's pricing.
+  if [ -z "$val" ] || [ "$val" = "null" ]; then
+    local today=$(date +%Y-%m-%d)
+    val=$(find "$HOME/.claude/projects" -name "*.jsonl" -maxdepth 2 2>/dev/null \
+      | xargs grep -h '"type":"assistant"' 2>/dev/null \
+      | "$JQ" -s --arg today "$today" '
+        def price($m):
+          if ($m | startswith("claude-opus")) then {i: 15, o: 75, cw: 18.75, cr: 1.50}
+          elif ($m | startswith("claude-sonnet")) then {i: 3, o: 15, cw: 3.75, cr: 0.30}
+          elif ($m | startswith("claude-haiku")) then {i: 1, o: 5, cw: 1.25, cr: 0.10}
+          else {i: 15, o: 75, cw: 18.75, cr: 1.50} end;
+        [ .[] | select(.timestamp | startswith($today)) |
+          select(.message.id != null) |
+          {k: (.message.id + "|" + (.requestId // "")), e: .}
+        ] | group_by(.k) | map(.[0].e) |
+        [ .[] | .message as $msg | $msg.usage as $u | price($msg.model) as $p |
+          (($u.input_tokens // 0) * $p.i
+           + ($u.output_tokens // 0) * $p.o
+           + ($u.cache_creation_input_tokens // 0) * $p.cw
+           + ($u.cache_read_input_tokens // 0) * $p.cr) / 1000000
+        ] | add // 0
+      ' 2>/dev/null)
   fi
 
   if [ -n "$val" ] && [ "$val" != "null" ]; then
