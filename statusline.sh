@@ -161,15 +161,24 @@ fi
 
 # ── Parse stdin JSON ──────────────────────────────────────────────────────
 model=$(echo "$input" | "$JQ" -r '.model.display_name // "UNKNOWN"')
-# Shorten "(1M context)" → "(1M)" to save space
-model="${model//(1M context)/(1M)}"
-# Append effort level from ~/.claude/settings.json (low/medium/high)
+# Read effort level from ~/.claude/settings.json (low/medium/high) and capitalize
 effort_level=""
 if [ -f "$HOME/.claude/settings.json" ]; then
   effort_level=$("$JQ" -r '.effortLevel // empty' "$HOME/.claude/settings.json" 2>/dev/null)
 fi
+effort_cap=""
 if [ -n "$effort_level" ]; then
-  model="${model} · ${effort_level}"
+  effort_cap="$(tr '[:lower:]' '[:upper:]' <<< "${effort_level:0:1}")${effort_level:1}"
+fi
+# Merge effort into the "(1M context)" marker → "(1M.High)"; otherwise append as "(High)"
+if [[ "$model" == *"(1M context)"* ]]; then
+  if [ -n "$effort_cap" ]; then
+    model="${model//(1M context)/(1M.${effort_cap})}"
+  else
+    model="${model//(1M context)/(1M)}"
+  fi
+elif [ -n "$effort_cap" ]; then
+  model="${model} (${effort_cap})"
 fi
 used_pct=$(echo "$input" | "$JQ" -r '.context_window.used_percentage // empty')
 five_pct=$(echo "$input" | "$JQ" -r 'if (.rate_limits.five_hour.used_percentage | type) == "number" then .rate_limits.five_hour.used_percentage else empty end')
