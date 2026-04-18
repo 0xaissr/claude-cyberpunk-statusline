@@ -161,6 +161,16 @@ fi
 
 # ── Parse stdin JSON ──────────────────────────────────────────────────────
 model=$(echo "$input" | "$JQ" -r '.model.display_name // "UNKNOWN"')
+# Shorten "(1M context)" → "(1M)" to save space
+model="${model//(1M context)/(1M)}"
+# Append effort level from ~/.claude/settings.json (low/medium/high)
+effort_level=""
+if [ -f "$HOME/.claude/settings.json" ]; then
+  effort_level=$("$JQ" -r '.effortLevel // empty' "$HOME/.claude/settings.json" 2>/dev/null)
+fi
+if [ -n "$effort_level" ]; then
+  model="${model} · ${effort_level}"
+fi
 used_pct=$(echo "$input" | "$JQ" -r '.context_window.used_percentage // empty')
 five_pct=$(echo "$input" | "$JQ" -r 'if (.rate_limits.five_hour.used_percentage | type) == "number" then .rate_limits.five_hour.used_percentage else empty end')
 five_reset=$(echo "$input" | "$JQ" -r '.rate_limits.five_hour.resets_at // empty')

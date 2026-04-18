@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-04-18
+
+### 新增：model block 顯示 effort 等級 + 縮短 1M context 顯示
+- 問題：目前 status line model 無法看出 effort 是 low / medium / high；另外 `Opus 4.7 (1M context)` 字串太長，`context` 字樣多餘
+- 修正：
+  - 從 `~/.claude/settings.json` 讀取 `effortLevel`，附加到 model 顯示後方，例如 `Opus 4.7 (1M) · high`
+  - 將 display_name 中的 `(1M context)` 以字串取代縮短為 `(1M)`
+- 備註：Claude Code 目前未將 effort 放入 stdin JSON payload（upstream issue #36187 / #38476），因此改從全域 settings 檔讀取，跟 `/effort` 指令實際寫入的位置一致
+
 ## 2026-04-17
 
 ### 修復：cost block 無法正確計算 Claude Opus 4.7 用量
