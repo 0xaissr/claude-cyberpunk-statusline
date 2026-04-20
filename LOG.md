@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-04-20
+
+### 新增：time block 支援 `MM/DD hh:mm` 日期＋時間格式
+- 需求：status line 沒有顯示時間，希望加上 `MM/DD hh:mm` 二十四小時制
+- 修正：
+  - `statusline.sh` 的 `cfg_time_format` switch 新增兩個選項：
+    - `24h-date` → `date +"%m/%d %H:%M"`（例：`04/20 16:23`）
+    - `12h-date` → `date +"%m/%d %-I:%M %p"`（例：`04/20 4:23 PM`）
+  - `configure.sh` 的 time-format wizard 步驟新增上述兩個選項與即時 preview
+  - `config.json`：`blocks` 結尾補回 `"time"`，`time_format` 改為 `"24h-date"`
+
 ## 2026-04-18
 
 ### 新增：model block 顯示 effort 等級 + 縮短 1M context 顯示
