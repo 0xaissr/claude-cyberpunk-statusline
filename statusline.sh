@@ -190,6 +190,8 @@ case "$cfg_time_format" in
   12h)        now=$(date +"%I:%M:%S %p") ;;
   24h-no-sec) now=$(date +"%H:%M") ;;
   12h-no-sec) now=$(date +"%-I:%M %p") ;;
+  24h-date)   now=$(date +"%m/%d %H:%M") ;;
+  12h-date)   now=$(date +"%m/%d %-I:%M %p") ;;
   *)          now=$(date +"%H:%M:%S") ;;
 esac
 git_branch=$(GIT_OPTIONAL_LOCKS=0 git -C "$cwd" symbolic-ref --short HEAD 2>/dev/null || true)

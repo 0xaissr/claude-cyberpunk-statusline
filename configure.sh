@@ -821,24 +821,28 @@ step_time_format() {
   local separator="${sel_separator:-│}"
   local blocks_csv="${sel_blocks}"
 
-  local p1 p2 p3 p4 _pd=$(mktemp -d)
+  local p1 p2 p3 p4 p5 p6 _pd=$(mktemp -d)
   local _sty=$(_cur_style) _hd=$(_cur_head) _tl=$(_cur_tail)
   ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "$separator" "$blocks_csv" "$bw" "24h" "$_sty" "$_hd" "$_tl" > "$_pd/0" ) &
   ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "$separator" "$blocks_csv" "$bw" "12h" "$_sty" "$_hd" "$_tl" > "$_pd/1" ) &
   ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "$separator" "$blocks_csv" "$bw" "24h-no-sec" "$_sty" "$_hd" "$_tl" > "$_pd/2" ) &
   ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "$separator" "$blocks_csv" "$bw" "12h-no-sec" "$_sty" "$_hd" "$_tl" > "$_pd/3" ) &
-  wait; p1=$(cat "$_pd/0"); p2=$(cat "$_pd/1"); p3=$(cat "$_pd/2"); p4=$(cat "$_pd/3"); rm -rf "$_pd"
+  ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "$separator" "$blocks_csv" "$bw" "24h-date" "$_sty" "$_hd" "$_tl" > "$_pd/4" ) &
+  ( render_preview "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" "$sel_spacing" "$separator" "$blocks_csv" "$bw" "12h-date" "$_sty" "$_hd" "$_tl" > "$_pd/5" ) &
+  wait; p1=$(cat "$_pd/0"); p2=$(cat "$_pd/1"); p3=$(cat "$_pd/2"); p4=$(cat "$_pd/3"); p5=$(cat "$_pd/4"); p6=$(cat "$_pd/5"); rm -rf "$_pd"
 
   ask_choice \
     "24-hour          (16:23:42)|$p1" \
     "12-hour          (04:23:42 PM)|$p2" \
     "24-hour (short)  (16:23)|$p3" \
-    "12-hour (short)  (4:23 PM)|$p4"
+    "12-hour (short)  (4:23 PM)|$p4" \
+    "24-hour + date   (04/20 16:23)|$p5" \
+    "12-hour + date   (04/20 4:23 PM)|$p6"
 
   local rc=$?
   if [ $rc -eq 1 ]; then return 2; fi
 
-  local values=("24h" "12h" "24h-no-sec" "12h-no-sec")
+  local values=("24h" "12h" "24h-no-sec" "12h-no-sec" "24h-date" "12h-date")
   sel_time_format="${values[$((CHOICE_RESULT - 1))]}"
   return 0
 }
