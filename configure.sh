@@ -90,6 +90,13 @@ else
   cur_blocks="model context rate_5h rate_7d directory git time"
 fi
 
+# Previous tab_state.enabled — used in apply to decide install/remove
+if [ -f "$CONFIG" ]; then
+  cur_tab_state_enabled=$("$JQ" -r '.tab_state.enabled // false' "$CONFIG" 2>/dev/null)
+else
+  cur_tab_state_enabled="false"
+fi
+
 # Selections (will be filled by each step)
 sel_symbols=""
 sel_theme=""
@@ -1119,11 +1126,33 @@ step_done() {
   "blocks": [$blocks_json],
   "bar_width": $bar_width,${bar_filled_field}${bar_empty_field}
   "show_icons": $sel_show_icons,
-  "time_format": "$time_format"
+  "time_format": "$time_format",
+  "tab_state": {
+    "enabled": $sel_tab_state_enabled,
+    "running": "$sel_tab_state_running",
+    "waiting": "$sel_tab_state_waiting",
+    "idle": "$sel_tab_state_idle",
+    "error": "$sel_tab_state_error"
+  }
 }
 CONF
 )
   echo "$config_content" > "$CONFIG"
+
+  # Apply tab-state hook changes based on enable transition
+  if [ "$sel_tab_state_enabled" = "true" ] && [ "$cur_tab_state_enabled" != "true" ]; then
+    if _install_tab_state_hooks "$SCRIPT_DIR"; then
+      printf '  \033[32m✓\033[0m tab-state hooks installed to ~/.claude/settings.json\n'
+    else
+      printf '  \033[31m✗\033[0m tab-state hooks install failed — check ~/.claude/settings.json\n'
+    fi
+  elif [ "$sel_tab_state_enabled" != "true" ] && [ "$cur_tab_state_enabled" = "true" ]; then
+    if _remove_tab_state_hooks; then
+      printf '  \033[32m✓\033[0m tab-state hooks removed\n'
+    else
+      printf '  \033[31m✗\033[0m tab-state hooks removal failed\n'
+    fi
+  fi
 
   # Show completion screen
   tput clear
@@ -1149,6 +1178,13 @@ CONF
     fi
   fi
   echo -e "\033[2mTime format:\033[0m $time_format"
+  echo -e "\033[2mTab tint:   \033[0m $sel_tab_state_enabled"
+  if [ "$sel_tab_state_enabled" = "true" ]; then
+    echo -e "\033[2m  running:  \033[0m $sel_tab_state_running"
+    echo -e "\033[2m  waiting:  \033[0m $sel_tab_state_waiting"
+    echo -e "\033[2m  idle:     \033[0m $sel_tab_state_idle"
+    echo -e "\033[2m  error:    \033[0m $sel_tab_state_error"
+  fi
   echo ""
   render_preview "$sel_theme" "$sel_symbols" "$sel_spacing" "$sel_separator" \
     "$sel_blocks" "$bar_width" "$time_format" "$sel_style" "$sel_head" "$sel_tail" \
