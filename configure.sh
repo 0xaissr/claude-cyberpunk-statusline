@@ -13,7 +13,8 @@ THEMES_DIR="$SCRIPT_DIR/themes"
 STATUSLINE="$SCRIPT_DIR/statusline.sh"
 JQ=$(command -v jq 2>/dev/null || echo "/opt/homebrew/bin/jq")
 
-TOTAL_STEPS=7
+TOTAL_STEPS=8
+source "$SCRIPT_DIR/_lib_tab_state.sh"
 DEFAULT_THEME="terminal-glitch"
 
 # ── Startup checks ───────────────────────────────────────────────────────
@@ -991,6 +992,58 @@ step_theme() {
       q) cleanup; exit 0 ;;
     esac
   done
+}
+
+# ── Step 8: iTerm2 tab tinting ───────────────────────────────────────────
+step_tab_state() {
+  draw_header 8 $TOTAL_STEPS "iTerm2 tab tinting"
+
+  # Non-iTerm2 → auto-skip
+  if [ "${TERM_PROGRAM:-}" != "iTerm.app" ]; then
+    printf '\n  \033[2mDetected terminal: %s. Tab tinting is iTerm2-only — skipping.\033[0m\n\n' \
+      "${TERM_PROGRAM:-unknown}"
+    sel_tab_state_enabled="false"
+    sel_tab_state_running="accent_1"
+    sel_tab_state_waiting="warning"
+    sel_tab_state_idle="accent_3"
+    sel_tab_state_error="alert"
+    printf '  \033[2mPress any key to continue...\033[0m'
+    read -rsn1
+    return 0
+  fi
+
+  # Foreign hook detection warning
+  local foreign
+  foreign=$(_detect_foreign_tab_state_hooks "$HOME/.claude/scripts/tab-state.sh" 2>/dev/null)
+  if [ -n "$foreign" ]; then
+    printf '\n  \033[33m⚠ Existing tab-state hooks detected:\033[0m\n'
+    printf '%s\n' "$foreign" | sed 's/^/    /'
+    printf '  \033[2mEnabling will append our hooks — recommend removing the other first.\033[0m\n\n'
+  fi
+
+  ask_choice \
+    "Enable|Claude Code hooks will tint your iTerm2 tab background per session state." \
+    "Skip (default)|Leave ~/.claude/settings.json unchanged."
+
+  local rc=$?
+  if [ $rc -eq 1 ]; then return 2; fi
+
+  if [ "$CHOICE_RESULT" = "2" ]; then
+    sel_tab_state_enabled="false"
+    sel_tab_state_running="accent_1"
+    sel_tab_state_waiting="warning"
+    sel_tab_state_idle="accent_3"
+    sel_tab_state_error="alert"
+    return 0
+  fi
+
+  sel_tab_state_enabled="true"
+  # per-state palette picker filled in Task 11 — hard-code defaults for now
+  sel_tab_state_running="accent_1"
+  sel_tab_state_waiting="warning"
+  sel_tab_state_idle="accent_3"
+  sel_tab_state_error="alert"
+  return 0
 }
 
 # ── Step 7: Save config ──────────────────────────────────────────────────
