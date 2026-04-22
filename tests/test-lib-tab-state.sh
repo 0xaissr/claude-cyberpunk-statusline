@@ -141,6 +141,44 @@ test_remove_clears_our_hooks
 test_remove_preserves_other_user_hooks
 test_remove_empty_settings_safe
 
+test_detect_foreign_finds_claude_cli() {
+  echo "▸ test_detect_foreign_finds_claude_cli"
+  setup_env
+  local d="$TEST_TMPDIR"
+  # Simulate an existing claude-cli install: a hook pointing at /some/other/tab-state.sh
+  cat > "$CLAUDE_SETTINGS_OVERRIDE" <<'JSON'
+{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"/other/path/tab-state.sh idle"}]}]}}
+JSON
+  source "$LIB"
+  local our_path="$CLAUDE_SCRIPTS_DIR_OVERRIDE/tab-state.sh"
+  local found; found=$(_detect_foreign_tab_state_hooks "$our_path")
+  if [[ "$found" == *"/other/path/tab-state.sh"* ]]; then
+    pass "foreign hook detected"
+  else
+    fail "detect foreign" "expected /other/path, got: $found"
+  fi
+  rm -rf "$d"
+}
+
+test_detect_foreign_ignores_own() {
+  echo "▸ test_detect_foreign_ignores_own"
+  setup_env
+  local d="$TEST_TMPDIR"
+  source "$LIB"
+  _install_tab_state_hooks "$PROJECT_DIR"
+  local our_path="$CLAUDE_SCRIPTS_DIR_OVERRIDE/tab-state.sh"
+  local found; found=$(_detect_foreign_tab_state_hooks "$our_path")
+  if [ -z "$found" ]; then
+    pass "own hooks not flagged as foreign"
+  else
+    fail "detect foreign" "falsely detected: $found"
+  fi
+  rm -rf "$d"
+}
+
+test_detect_foreign_finds_claude_cli
+test_detect_foreign_ignores_own
+
 echo ""
 if [ "$FAIL" -gt 0 ]; then
   echo "FAIL: $FAIL test(s)"
