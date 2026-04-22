@@ -170,8 +170,8 @@ JSON
   assert_contains "$out" $'\e]6;1;bg;blue;brightness;51\a' "theme switch: blue=51"
 }
 
-test_palette_typo_silent() {
-  echo "▸ test_palette_typo_silent"
+test_palette_typo_no_color() {
+  echo "▸ test_palette_typo_no_color"
   local tmpdir; tmpdir=$(mktemp -d)
   mkdir -p "$tmpdir/themes"
   cat > "$tmpdir/config.json" <<JSON
@@ -182,16 +182,66 @@ JSON
   out=$(TAB_STATE_OUT=/dev/stdout TERM_PROGRAM=iTerm.app \
     CYBERPUNK_STATUSLINE_REPO_DIR="$tmpdir" bash "$TAB_STATE" running 2>&1)
   rm -rf "$tmpdir"
-  if [ -z "$out" ]; then
-    pass "typo palette name: no output"
+  if [[ "$out" != *"brightness;"* && "$out" != *"*;default"* ]]; then
+    pass "typo palette: no bg color emitted"
   else
-    fail "typo palette" "expected empty, got: $(printf '%q' "$out")"
+    fail "typo palette" "expected no bg escape; got: $(printf '%q' "$out")"
   fi
+}
+
+test_emits_tab_title() {
+  echo "▸ test_emits_tab_title"
+  local out; out=$(run_state running)
+  if [[ "$out" == *$'\e]1;'*$'\a'* ]]; then
+    pass "running emits tab title escape (\\e]1;...\\a)"
+  else
+    fail "tab title" "no \\e]1;...\\a in output: $(printf '%q' "$out")"
+  fi
+}
+
+test_idle_default_none_resets() {
+  echo "▸ test_idle_default_none_resets"
+  local tmpdir; tmpdir=$(mktemp -d)
+  mkdir -p "$tmpdir/themes"
+  # enabled=true but no idle key → _default_palette returns 'none'
+  cat > "$tmpdir/config.json" <<JSON
+{"theme":"test-theme","tab_state":{"enabled":true}}
+JSON
+  cp "$SCRIPT_DIR/fixtures/tab-state/themes/test-theme.json" "$tmpdir/themes/"
+  local out
+  out=$(TAB_STATE_OUT=/dev/stdout TERM_PROGRAM=iTerm.app \
+    CYBERPUNK_STATUSLINE_REPO_DIR="$tmpdir" bash "$TAB_STATE" idle 2>&1)
+  rm -rf "$tmpdir"
+  assert_contains "$out" $'\e]6;1;bg;*;default\a' "idle default (none): reset emitted"
+  if [[ "$out" != *"brightness;"* ]]; then
+    pass "idle default (none): no RGB emitted"
+  else
+    fail "idle default RGB" "expected no brightness; got: $(printf '%q' "$out")"
+  fi
+}
+
+test_waiting_none_still_attention() {
+  echo "▸ test_waiting_none_still_attention"
+  local tmpdir; tmpdir=$(mktemp -d)
+  mkdir -p "$tmpdir/themes"
+  cat > "$tmpdir/config.json" <<JSON
+{"theme":"test-theme","tab_state":{"enabled":true,"waiting":"none"}}
+JSON
+  cp "$SCRIPT_DIR/fixtures/tab-state/themes/test-theme.json" "$tmpdir/themes/"
+  local out
+  out=$(TAB_STATE_OUT=/dev/stdout TERM_PROGRAM=iTerm.app \
+    CYBERPUNK_STATUSLINE_REPO_DIR="$tmpdir" bash "$TAB_STATE" waiting 2>&1)
+  rm -rf "$tmpdir"
+  assert_contains "$out" $'\e]1337;RequestAttention=yes\a' "waiting+none: attention still sent"
+  assert_contains "$out" $'\e]6;1;bg;*;default\a' "waiting+none: reset emitted"
 }
 
 test_missing_state_uses_default
 test_theme_switch_changes_rgb
-test_palette_typo_silent
+test_palette_typo_no_color
+test_emits_tab_title
+test_idle_default_none_resets
+test_waiting_none_still_attention
 
 echo ""
 if [ "$FAIL" -gt 0 ]; then

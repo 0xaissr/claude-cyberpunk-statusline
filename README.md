@@ -73,7 +73,10 @@ The **cost** block shows today's total spending across all Claude models and ses
 
 cyberpunk-statusline can tint your iTerm2 tab background based on Claude Code
 session state (running / waiting / idle / error). Colors are pulled from your
-chosen theme's palette, so switching theme retints tabs automatically.
+chosen theme's palette, so switching theme retints tabs automatically. On every
+state change the tab title is also set to the current project directory's
+basename, so narrow tabs stay identifiable (you see `cyber…` instead of
+`…sline` when 8 tabs are cramped together).
 
 Enable it via the configure wizard Step 8 — only visible when `$TERM_PROGRAM`
 is `iTerm.app`. Selecting Enable writes 6 hooks into `~/.claude/settings.json`
@@ -81,12 +84,18 @@ is `iTerm.app`. Selecting Enable writes 6 hooks into `~/.claude/settings.json`
 and a symlink at `~/.claude/scripts/tab-state.sh`. A timestamped backup of
 settings.json is created before any modification.
 
-| State   | Default palette | Triggers                     |
-|---------|-----------------|------------------------------|
-| running | accent_1        | UserPromptSubmit, PreToolUse |
-| waiting | warning         | Notification (+ attention)   |
-| idle    | accent_3        | SessionStart, Stop           |
-| error   | alert           | (reserved, not auto-fired)   |
+| State   | Default palette      | Triggers                     |
+|---------|----------------------|------------------------------|
+| running | accent_1             | UserPromptSubmit, PreToolUse |
+| waiting | warning              | Notification (+ attention)   |
+| idle    | none (iTerm default) | SessionStart, Stop           |
+| error   | alert                | (reserved, not auto-fired)   |
+
+**Why `none` for idle:** iTerm2 dims inactive tabs, so a coloured idle tint
+fades into the background and all idle sessions look identical. Leaving idle
+tabs on the terminal's native colour keeps them visually distinct and makes
+running / waiting tabs genuinely stand out. Pick any named palette in the
+wizard if you prefer a solid idle colour.
 
 **Plugin users:** after upgrading to a new cyberpunk-statusline version, rerun
 `/cyberpunk-statusline configure` so the symlink points at the new plugin

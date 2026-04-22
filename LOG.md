@@ -2,6 +2,19 @@
 
 ## 2026-04-22
 
+### 強化：tab-state 新增 tab title 顯示 + idle 預設改為不上色
+- 問題：開多個 iTerm2 tab 跑 `claude` 時，tab 寬度被擠窄後只剩「…sline」看不出是哪個專案；另外 inactive tab 本來 iTerm2 就會壓暗，idle 色（預設 `accent_3`）在壓暗後幾乎融進背景，每個 idle tab 都看起來一樣分不出來
+- 修正：
+  - `tab-state.sh` 於 `running|waiting|idle|error` hook 時多送 `\e]1;<basename>\a` iTerm2 escape，把 tab 標題設為當前專案 basename（從 hook stdin JSON 的 `.cwd` / `.workspace.current_dir` 讀，fallback `$PWD`）
+  - 新增 `none` 這個特殊 palette 值，解析到時送 `\e]6;1;bg;*;default\a` reset 而非 RGB，等同於「不上色」
+  - `_default_palette` 的 idle 預設從 `accent_3` 改為 `none`
+  - `configure.sh` 的 `step_tab_state` palette picker 新增 `none` 作為第 7 個選項，顯示 `(no tint — iTerm default)`，idle 的預設 highlight 改為 `none`
+  - `waiting` 如果設為 `none` 仍會送 `RequestAttention=yes`
+- 行為效益：
+  - 多 tab 環境下每個 tab 都顯示自己的專案名，不怕被截
+  - idle tab 回到終端機原生色（不上色），inactive 時看得見；running / waiting 才上色，自然凸顯「需要注意」的 tab
+  - 既有 config 若 idle 已選過其他 palette 照常工作；重跑 wizard 才會寫入新預設
+
 ### 修正：rainbow 模式停用 block 後底色不再連貫
 - 問題：rainbow 模式下每個 block 的底色（accent_1/2/3 三色循環）原本是 theme 檔案裡每個 block 各自寫死的 `pl_bg`，當使用者停用中間某個 block 時，剩下的顏色序列會跳色（例：藍紅黃藍紅黃 → 停用其一變藍紅黃紅黃）
 - 修正：`statusline.sh` 的 rainbow assembly 改用**當前 enabled blocks 的位置 index 做 3 色循環**（`PL_CYCLE=(accent_1 accent_2 accent_3)`），不看 theme 個別 block 的 pl_bg。不管怎麼增減 blocks，顏色都會是 accent_1 → 2 → 3 → 1 → 2 → 3 … 連續循環
