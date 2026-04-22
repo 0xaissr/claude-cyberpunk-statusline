@@ -133,6 +133,66 @@ test_clear_resets() {
 test_waiting_emits_attention
 test_clear_resets
 
+test_missing_state_uses_default() {
+  echo "▸ test_missing_state_uses_default"
+  local tmpdir; tmpdir=$(mktemp -d)
+  mkdir -p "$tmpdir/themes"
+  # tab_state enabled but no 'running' key → should fall back to DEFAULTS[running]=accent_1
+  cat > "$tmpdir/config.json" <<JSON
+{"theme":"test-theme","tab_state":{"enabled":true}}
+JSON
+  cp "$SCRIPT_DIR/fixtures/tab-state/themes/test-theme.json" "$tmpdir/themes/"
+  local out
+  out=$(TAB_STATE_OUT=/dev/stdout TERM_PROGRAM=iTerm.app \
+    CYBERPUNK_STATUSLINE_REPO_DIR="$tmpdir" bash "$TAB_STATE" running 2>&1)
+  rm -rf "$tmpdir"
+  # accent_1 = #28783C → (40, 120, 60)
+  assert_contains "$out" $'\e]6;1;bg;red;brightness;40\a' "fallback: running uses accent_1"
+}
+
+test_theme_switch_changes_rgb() {
+  echo "▸ test_theme_switch_changes_rgb"
+  local tmpdir; tmpdir=$(mktemp -d)
+  mkdir -p "$tmpdir/themes"
+  cat > "$tmpdir/config.json" <<JSON
+{"theme":"alt-theme","tab_state":{"enabled":true,"running":"accent_1"}}
+JSON
+  # alt theme: accent_1 = #112233 → (17, 34, 51)
+  cat > "$tmpdir/themes/alt-theme.json" <<'JSON'
+{"colors":{"accent_1":"#112233"}}
+JSON
+  local out
+  out=$(TAB_STATE_OUT=/dev/stdout TERM_PROGRAM=iTerm.app \
+    CYBERPUNK_STATUSLINE_REPO_DIR="$tmpdir" bash "$TAB_STATE" running 2>&1)
+  rm -rf "$tmpdir"
+  assert_contains "$out" $'\e]6;1;bg;red;brightness;17\a'  "theme switch: red=17"
+  assert_contains "$out" $'\e]6;1;bg;green;brightness;34\a' "theme switch: green=34"
+  assert_contains "$out" $'\e]6;1;bg;blue;brightness;51\a' "theme switch: blue=51"
+}
+
+test_palette_typo_silent() {
+  echo "▸ test_palette_typo_silent"
+  local tmpdir; tmpdir=$(mktemp -d)
+  mkdir -p "$tmpdir/themes"
+  cat > "$tmpdir/config.json" <<JSON
+{"theme":"test-theme","tab_state":{"enabled":true,"running":"nonexistent"}}
+JSON
+  cp "$SCRIPT_DIR/fixtures/tab-state/themes/test-theme.json" "$tmpdir/themes/"
+  local out
+  out=$(TAB_STATE_OUT=/dev/stdout TERM_PROGRAM=iTerm.app \
+    CYBERPUNK_STATUSLINE_REPO_DIR="$tmpdir" bash "$TAB_STATE" running 2>&1)
+  rm -rf "$tmpdir"
+  if [ -z "$out" ]; then
+    pass "typo palette name: no output"
+  else
+    fail "typo palette" "expected empty, got: $(printf '%q' "$out")"
+  fi
+}
+
+test_missing_state_uses_default
+test_theme_switch_changes_rgb
+test_palette_typo_silent
+
 echo ""
 if [ "$FAIL" -gt 0 ]; then
   echo "FAIL: $FAIL test(s) failed"
