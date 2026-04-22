@@ -1,0 +1,12 @@
+{
+  "colors": {
+    "accent_1": "#28783C",
+    "accent_2": "#FF2DD1",
+    "accent_3": "#285C8C",
+    "warning":  "#C89600",
+    "alert":    "#A02828",
+    "dim":      "#666666",
+    "bg_primary": "#0A0E1A",
+    "bg_panel":   "#141824"
+  }
+}

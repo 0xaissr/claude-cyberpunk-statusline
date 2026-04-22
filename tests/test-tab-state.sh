@@ -52,6 +52,42 @@ test_invalid_state() {
 test_non_iterm_silent
 test_invalid_state
 
+test_disabled_silent() {
+  echo "▸ test_disabled_silent"
+  local tmpdir; tmpdir=$(mktemp -d)
+  mkdir -p "$tmpdir/themes"
+  cat > "$tmpdir/config.json" <<JSON
+{"theme":"test-theme","tab_state":{"enabled":false,"running":"accent_1"}}
+JSON
+  cp "$SCRIPT_DIR/fixtures/tab-state/themes/test-theme.json" "$tmpdir/themes/"
+  local out
+  out=$(TAB_STATE_OUT=/dev/stdout TERM_PROGRAM=iTerm.app \
+    CYBERPUNK_STATUSLINE_REPO_DIR="$tmpdir" bash "$TAB_STATE" running 2>&1)
+  rm -rf "$tmpdir"
+  if [ -z "$out" ]; then
+    pass "enabled=false produces no output"
+  else
+    fail "enabled=false" "expected empty, got: $(printf '%q' "$out")"
+  fi
+}
+
+test_missing_config_silent() {
+  echo "▸ test_missing_config_silent"
+  local tmpdir; tmpdir=$(mktemp -d)
+  local out
+  out=$(TAB_STATE_OUT=/dev/stdout TERM_PROGRAM=iTerm.app \
+    CYBERPUNK_STATUSLINE_REPO_DIR="$tmpdir" bash "$TAB_STATE" running 2>&1)
+  rm -rf "$tmpdir"
+  if [ -z "$out" ]; then
+    pass "missing config produces no output"
+  else
+    fail "missing config" "expected empty, got: $(printf '%q' "$out")"
+  fi
+}
+
+test_disabled_silent
+test_missing_config_silent
+
 echo ""
 if [ "$FAIL" -gt 0 ]; then
   echo "FAIL: $FAIL test(s) failed"
