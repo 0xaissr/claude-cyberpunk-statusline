@@ -79,12 +79,14 @@ case "$state" in
     enabled=$("$JQ" -r '.tab_state.enabled // false' "$CONFIG" 2>/dev/null)
     [[ "$enabled" != "true" ]] && exit 0
 
-    # Tab title → "<emoji> <basename>" so narrow inactive tabs stay identifiable
+    # Tab title → "<basename> <emoji>" (emoji suffix, not prefix).
+    # Narrow iTerm2 tabs truncate from the START, so emoji goes to the END
+    # where it survives truncation (e.g. "…tusline 🟡").
     stdin_input=$(_read_stdin)
     cwd=$(_resolve_cwd "$stdin_input")
     title=$(basename "$cwd")
     emoji=$(_state_emoji "$state")
-    printf '\e]1;%s %s\a' "$emoji" "$title" > "$TAB_STATE_OUT"
+    printf '\e]1;%s %s\a' "$title" "$emoji" > "$TAB_STATE_OUT"
 
     # Resolve palette name
     palette=$("$JQ" -r --arg s "$state" '.tab_state[$s] // empty' "$CONFIG" 2>/dev/null)
