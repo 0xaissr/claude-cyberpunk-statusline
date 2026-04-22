@@ -67,6 +67,30 @@ cd ~/claude-cyberpunk-statusline && ./configure.sh
 
 **cost 區塊**會顯示今日所有 Claude 模型與 session 的總花費。若有安裝 [ccusage](https://github.com/ryoppippi/ccusage) 會使用其精確統計，否則自動以內建 JSONL 計算。資料每 5 分鐘在背景更新快取。
 
+### iTerm2 Tab Tinting（選用）
+
+cyberpunk-statusline 可依 Claude Code session 狀態（running / waiting / idle /
+error）改變 iTerm2 tab 底色。顏色從當前 theme palette 取得，換 theme 自動重染。
+
+在 configure wizard 的 Step 8 啟用 — 只有 `$TERM_PROGRAM` 是 `iTerm.app` 時才會
+出現。選擇 Enable 會在 `~/.claude/settings.json` 寫入 6 個 hooks
+（SessionStart / UserPromptSubmit / PreToolUse / Notification / Stop / SessionEnd）
+並在 `~/.claude/scripts/tab-state.sh` 建 symlink。所有修改前會先產生
+settings.json 的時間戳備份。
+
+| State   | 預設 palette | 觸發時機                     |
+|---------|--------------|------------------------------|
+| running | accent_1     | UserPromptSubmit、PreToolUse |
+| waiting | warning      | Notification（附 attention） |
+| idle    | accent_3     | SessionStart、Stop           |
+| error   | alert        | （保留欄位，目前不自動觸發） |
+
+**Plugin 使用者：** 升級 cyberpunk-statusline 版本後請重跑
+`/cyberpunk-statusline configure`，讓 symlink 指向新版 plugin cache 目錄。
+
+要停用時重跑 configure 並在 Step 8 選 Skip — hooks 會自動移除。
+`./uninstall.sh` 也會一併清除。
+
 ### 預覽與編輯主題
 
 ```bash
