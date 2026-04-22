@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-04-22
+
+### 修正：rainbow 模式停用 block 後底色不再連貫
+- 問題：rainbow 模式下每個 block 的底色（accent_1/2/3 三色循環）原本是 theme 檔案裡每個 block 各自寫死的 `pl_bg`，當使用者停用中間某個 block 時，剩下的顏色序列會跳色（例：藍紅黃藍紅黃 → 停用其一變藍紅黃紅黃）
+- 修正：`statusline.sh` 的 rainbow assembly 改用**當前 enabled blocks 的位置 index 做 3 色循環**（`PL_CYCLE=(accent_1 accent_2 accent_3)`），不看 theme 個別 block 的 pl_bg。不管怎麼增減 blocks，顏色都會是 accent_1 → 2 → 3 → 1 → 2 → 3 … 連續循環
+- 影響：theme 檔案中的 `pl_bg` 欄位在 rainbow 模式下不再被讀取（pl_fg 仍沿用作為前景色），theme 作者無需為每個 block 指定配色
+
+## 2026-04-22
+
+### 新增：iTerm2 tab tinting 整合（Step 8）
+- 需求：把 claude-cli 的 tab 底色切換搬進 cyberpunk-statusline，讓顏色跟 theme palette 綁定並可在 wizard 自訂
+- 新檔：
+  - `tab-state.sh` — runtime 腳本，每次 hook 觸發時讀 config.json + theme 解析 palette → hex → RGB，送 iTerm2 OSC escape sequence
+  - `_lib_tab_state.sh` — `_install_tab_state_hooks` / `_remove_tab_state_hooks` / `_detect_foreign_tab_state_hooks` 三個共用 helper，供 configure.sh 與 uninstall.sh source
+  - `tests/test-tab-state.sh` / `tests/test-lib-tab-state.sh` — 單元測試
+- 修改：
+  - `configure.sh` — TOTAL_STEPS 7 → 8；新增 `step_tab_state`（非 iTerm2 auto-skip、Enable/Skip、4 × palette 選擇 + swatch preview）；`step_done` 寫 `tab_state` 欄位並依啟用轉態呼叫 install/remove
+  - `uninstall.sh` — 偵測既有 tab-state hooks 與 symlink 後呼叫 `_remove_tab_state_hooks`
+- 行為：
+  - 換 theme 後下次 hook 觸發 tab 底色自動更新（script 每次重讀 config + theme）
+  - config.json 沒 `tab_state` 欄位 / `enabled:false` → script 直接 exit 0 靜默
+  - 非 iTerm2 終端機 wizard 自動跳過、script 自己也會靜默 exit
+  - 偵測到其他來源（例如 claude-cli 那份）的 tab-state hooks 時印警告
+- 相容性 notes：
+  - 為了 macOS `/bin/bash` 3.2 相容，`tab-state.sh` 原本計畫用的 `declare -A DEFAULTS` 改為 `_default_palette()` case function；`configure.sh` 的 palette swatch 用平行 indexed array 取代 `local -A`
+
 ## 2026-04-20
 
 ### 新增：time block 支援 `MM/DD hh:mm` 日期＋時間格式
