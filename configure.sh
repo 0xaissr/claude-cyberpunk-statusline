@@ -1012,7 +1012,7 @@ step_tab_state() {
     sel_tab_state_enabled="false"
     sel_tab_state_running="accent_1"
     sel_tab_state_waiting="warning"
-    sel_tab_state_idle="none"
+    sel_tab_state_idle="accent_3"
     sel_tab_state_error="alert"
     printf '  \033[2mPress any key to continue...\033[0m'
     read -rsn1
@@ -1039,7 +1039,7 @@ step_tab_state() {
     sel_tab_state_enabled="false"
     sel_tab_state_running="accent_1"
     sel_tab_state_waiting="warning"
-    sel_tab_state_idle="none"
+    sel_tab_state_idle="accent_3"
     sel_tab_state_error="alert"
     return 0
   fi
@@ -1095,7 +1095,7 @@ step_tab_state() {
 
   _tab_state_ask_palette "Running (UserPromptSubmit / PreToolUse)" accent_1 sel_tab_state_running || return 2
   _tab_state_ask_palette "Waiting (Notification)"                  warning  sel_tab_state_waiting || return 2
-  _tab_state_ask_palette "Idle (Stop / SessionStart)"              none     sel_tab_state_idle    || return 2
+  _tab_state_ask_palette "Idle (Stop / SessionStart)"              accent_3 sel_tab_state_idle    || return 2
   _tab_state_ask_palette "Error"                                   alert    sel_tab_state_error   || return 2
   return 0
 }

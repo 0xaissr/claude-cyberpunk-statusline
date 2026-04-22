@@ -18,7 +18,7 @@ _default_palette() {
   case "$1" in
     running) echo accent_1 ;;
     waiting) echo warning  ;;
-    idle)    echo none     ;;
+    idle)    echo accent_3 ;;
     error)   echo alert    ;;
   esac
 }
