@@ -199,24 +199,24 @@ test_emits_tab_title() {
   fi
 }
 
-test_idle_default_none_resets() {
-  echo "▸ test_idle_default_none_resets"
+test_explicit_none_resets() {
+  echo "▸ test_explicit_none_resets"
   local tmpdir; tmpdir=$(mktemp -d)
   mkdir -p "$tmpdir/themes"
-  # enabled=true but no idle key → _default_palette returns 'none'
+  # Explicit palette=none → must emit reset, not RGB
   cat > "$tmpdir/config.json" <<JSON
-{"theme":"test-theme","tab_state":{"enabled":true}}
+{"theme":"test-theme","tab_state":{"enabled":true,"idle":"none"}}
 JSON
   cp "$SCRIPT_DIR/fixtures/tab-state/themes/test-theme.json" "$tmpdir/themes/"
   local out
   out=$(TAB_STATE_OUT=/dev/stdout TERM_PROGRAM=iTerm.app \
     CYBERPUNK_STATUSLINE_REPO_DIR="$tmpdir" bash "$TAB_STATE" idle 2>&1)
   rm -rf "$tmpdir"
-  assert_contains "$out" $'\e]6;1;bg;*;default\a' "idle default (none): reset emitted"
+  assert_contains "$out" $'\e]6;1;bg;*;default\a' "explicit none: reset emitted"
   if [[ "$out" != *"brightness;"* ]]; then
-    pass "idle default (none): no RGB emitted"
+    pass "explicit none: no RGB emitted"
   else
-    fail "idle default RGB" "expected no brightness; got: $(printf '%q' "$out")"
+    fail "explicit none RGB" "expected no brightness; got: $(printf '%q' "$out")"
   fi
 }
 
@@ -240,7 +240,7 @@ test_missing_state_uses_default
 test_theme_switch_changes_rgb
 test_palette_typo_no_color
 test_emits_tab_title
-test_idle_default_none_resets
+test_explicit_none_resets
 test_waiting_none_still_attention
 
 echo ""
