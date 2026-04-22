@@ -118,6 +118,21 @@ test_error_emits_rgb() {
 test_running_emits_rgb
 test_error_emits_rgb
 
+test_waiting_emits_attention() {
+  echo "▸ test_waiting_emits_attention"
+  local out; out=$(run_state waiting)
+  assert_contains "$out" $'\e]1337;RequestAttention=yes\a' "waiting: RequestAttention"
+}
+
+test_clear_resets() {
+  echo "▸ test_clear_resets"
+  local out; out=$(run_state clear)
+  assert_contains "$out" $'\e]6;1;bg;*;default\a' "clear: reset"
+}
+
+test_waiting_emits_attention
+test_clear_resets
+
 echo ""
 if [ "$FAIL" -gt 0 ]; then
   echo "FAIL: $FAIL test(s) failed"

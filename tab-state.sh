@@ -47,9 +47,10 @@ case "$state" in
     printf '\e]6;1;bg;red;brightness;%d\a'   "$r" > "$TAB_STATE_OUT"
     printf '\e]6;1;bg;green;brightness;%d\a' "$g" > "$TAB_STATE_OUT"
     printf '\e]6;1;bg;blue;brightness;%d\a'  "$b" > "$TAB_STATE_OUT"
+    [[ "$state" == "waiting" ]] && printf '\e]1337;RequestAttention=yes\a' > "$TAB_STATE_OUT"
     ;;
   clear)
-    : # handled in next task
+    printf '\e]6;1;bg;*;default\a' > "$TAB_STATE_OUT"
     ;;
   *)
     echo "usage: $0 {running|waiting|idle|error|clear}" >&2
