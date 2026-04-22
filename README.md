@@ -74,9 +74,11 @@ The **cost** block shows today's total spending across all Claude models and ses
 cyberpunk-statusline can tint your iTerm2 tab background based on Claude Code
 session state (running / waiting / idle / error). Colors are pulled from your
 chosen theme's palette, so switching theme retints tabs automatically. On every
-state change the tab title is also set to the current project directory's
-basename, so narrow tabs stay identifiable (you see `cyber…` instead of
-`…sline` when 8 tabs are cramped together).
+state change the tab title is also set to `<emoji> <basename>` (🟢 running /
+🟡 waiting / 🔵 idle / 🔴 error), so narrow tabs stay identifiable — the emoji
+prefix doesn't fade on inactive tabs. Dim palette colors are automatically
+boosted (each channel scaled so the brightest component hits 200) so iTerm2's
+inactive-tab dimming doesn't wash them out.
 
 Enable it via the configure wizard Step 8 — only visible when `$TERM_PROGRAM`
 is `iTerm.app`. Selecting Enable writes 6 hooks into `~/.claude/settings.json`

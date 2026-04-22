@@ -23,6 +23,33 @@ _default_palette() {
   esac
 }
 
+# Per-state emoji prefix for the tab title. iTerm2 fades inactive tab
+# backgrounds so emoji in the title gives a state signal that survives.
+_state_emoji() {
+  case "$1" in
+    running) echo "🟢" ;;
+    waiting) echo "🟡" ;;
+    idle)    echo "🔵" ;;
+    error)   echo "🔴" ;;
+  esac
+}
+
+# Lift dim RGB colors so iTerm's inactive-tab dimming doesn't wash them out.
+# If max(r,g,b) < 200 we scale all three channels proportionally until the
+# brightest one hits 200, preserving hue. Bright colors pass through unchanged.
+_boost_rgb() {
+  awk -v r="$1" -v g="$2" -v b="$3" 'BEGIN{
+    max=r; if(g>max) max=g; if(b>max) max=b;
+    if (max>=200) { printf "%d %d %d", r, g, b; exit }
+    if (max==0)   { printf "0 0 0"; exit }
+    f = 200 / max;
+    nr = int(r*f + 0.5); if (nr>255) nr=255;
+    ng = int(g*f + 0.5); if (ng>255) ng=255;
+    nb = int(b*f + 0.5); if (nb>255) nb=255;
+    printf "%d %d %d", nr, ng, nb
+  }'
+}
+
 # Read hook stdin JSON once (if present) so we can extract cwd for tab title.
 # Hooks pipe JSON with fields like .cwd / .workspace.current_dir; if stdin is
 # empty or not JSON we silently fall back to $PWD.
@@ -52,11 +79,12 @@ case "$state" in
     enabled=$("$JQ" -r '.tab_state.enabled // false' "$CONFIG" 2>/dev/null)
     [[ "$enabled" != "true" ]] && exit 0
 
-    # Tab title → project basename (works regardless of tab width)
+    # Tab title → "<emoji> <basename>" so narrow inactive tabs stay identifiable
     stdin_input=$(_read_stdin)
     cwd=$(_resolve_cwd "$stdin_input")
     title=$(basename "$cwd")
-    printf '\e]1;%s\a' "$title" > "$TAB_STATE_OUT"
+    emoji=$(_state_emoji "$state")
+    printf '\e]1;%s %s\a' "$emoji" "$title" > "$TAB_STATE_OUT"
 
     # Resolve palette name
     palette=$("$JQ" -r --arg s "$state" '.tab_state[$s] // empty' "$CONFIG" 2>/dev/null)
@@ -78,6 +106,7 @@ case "$state" in
     r=$((16#${hex:1:2}))
     g=$((16#${hex:3:2}))
     b=$((16#${hex:5:2}))
+    read r g b <<<"$(_boost_rgb "$r" "$g" "$b")"
     printf '\e]6;1;bg;red;brightness;%d\a'   "$r" > "$TAB_STATE_OUT"
     printf '\e]6;1;bg;green;brightness;%d\a' "$g" > "$TAB_STATE_OUT"
     printf '\e]6;1;bg;blue;brightness;%d\a'  "$b" > "$TAB_STATE_OUT"
