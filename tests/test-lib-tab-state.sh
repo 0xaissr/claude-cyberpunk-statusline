@@ -75,6 +75,72 @@ test_install_merges_six_hooks
 test_install_preserves_existing_hooks
 test_install_creates_symlink
 
+test_remove_clears_our_hooks() {
+  echo "▸ test_remove_clears_our_hooks"
+  setup_env
+  local d="$TEST_TMPDIR"
+  source "$LIB"
+  _install_tab_state_hooks "$PROJECT_DIR"
+  _remove_tab_state_hooks
+  local total
+  total=$("$JQ" '[.hooks // {} | to_entries[] | .value[] | .hooks[]? | .command | select(contains("tab-state.sh"))] | length' "$CLAUDE_SETTINGS_OVERRIDE")
+  if [ "$total" = "0" ]; then
+    pass "no tab-state commands remain"
+  else
+    fail "remove" "still $total tab-state hook(s) present"
+  fi
+  if [ ! -L "$CLAUDE_SCRIPTS_DIR_OVERRIDE/tab-state.sh" ]; then
+    pass "symlink removed"
+  else
+    fail "symlink" "still present after remove"
+  fi
+  rm -rf "$d"
+}
+
+test_remove_preserves_other_user_hooks() {
+  echo "▸ test_remove_preserves_other_user_hooks"
+  setup_env
+  local d="$TEST_TMPDIR"
+  cat > "$CLAUDE_SETTINGS_OVERRIDE" <<'JSON'
+{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"echo userA"}]}]}}
+JSON
+  source "$LIB"
+  _install_tab_state_hooks "$PROJECT_DIR"
+  _remove_tab_state_hooks
+  local count; count=$("$JQ" '.hooks.Stop | length' "$CLAUDE_SETTINGS_OVERRIDE")
+  if [ "$count" = "1" ]; then
+    pass "user's Stop hook still there"
+  else
+    fail "remove preserve" "expected 1 Stop hook, got $count"
+  fi
+  local cmd; cmd=$("$JQ" -r '.hooks.Stop[0].hooks[0].command' "$CLAUDE_SETTINGS_OVERRIDE")
+  if [ "$cmd" = "echo userA" ]; then
+    pass "user's command untouched"
+  else
+    fail "remove preserve" "wrong command: $cmd"
+  fi
+  rm -rf "$d"
+}
+
+test_remove_empty_settings_safe() {
+  echo "▸ test_remove_empty_settings_safe"
+  setup_env
+  local d="$TEST_TMPDIR"
+  source "$LIB"
+  _remove_tab_state_hooks
+  local rc=$?
+  if [ "$rc" = "0" ]; then
+    pass "remove on empty settings is no-op"
+  else
+    fail "remove empty" "exited nonzero: $rc"
+  fi
+  rm -rf "$d"
+}
+
+test_remove_clears_our_hooks
+test_remove_preserves_other_user_hooks
+test_remove_empty_settings_safe
+
 echo ""
 if [ "$FAIL" -gt 0 ]; then
   echo "FAIL: $FAIL test(s)"
