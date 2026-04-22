@@ -69,6 +69,32 @@ The setup wizard will guide you through:
 
 The **cost** block shows today's total spending across all Claude models and sessions. It uses [ccusage](https://github.com/ryoppippi/ccusage) for accurate tracking if installed, otherwise falls back to built-in JSONL calculation. Data is cached and refreshed every 5 minutes in the background.
 
+### iTerm2 Tab Tinting (optional)
+
+cyberpunk-statusline can tint your iTerm2 tab background based on Claude Code
+session state (running / waiting / idle / error). Colors are pulled from your
+chosen theme's palette, so switching theme retints tabs automatically.
+
+Enable it via the configure wizard Step 8 — only visible when `$TERM_PROGRAM`
+is `iTerm.app`. Selecting Enable writes 6 hooks into `~/.claude/settings.json`
+(SessionStart / UserPromptSubmit / PreToolUse / Notification / Stop / SessionEnd)
+and a symlink at `~/.claude/scripts/tab-state.sh`. A timestamped backup of
+settings.json is created before any modification.
+
+| State   | Default palette | Triggers                     |
+|---------|-----------------|------------------------------|
+| running | accent_1        | UserPromptSubmit, PreToolUse |
+| waiting | warning         | Notification (+ attention)   |
+| idle    | accent_3        | SessionStart, Stop           |
+| error   | alert           | (reserved, not auto-fired)   |
+
+**Plugin users:** after upgrading to a new cyberpunk-statusline version, rerun
+`/cyberpunk-statusline configure` so the symlink points at the new plugin
+cache directory.
+
+To disable, rerun configure and choose Skip at Step 8 — hooks are removed
+automatically. `./uninstall.sh` also tears them down.
+
 ### Preview & Edit Themes
 
 ```bash
