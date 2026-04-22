@@ -37,7 +37,7 @@ test_requires_tty() {
 test_step_functions() {
   echo "▸ test_step_functions"
   local missing=0
-  for fn in step_symbols step_theme step_blocks step_spacing step_separator step_done; do
+  for fn in step_symbols step_theme step_blocks step_spacing step_separator step_tab_state step_done; do
     if grep -q "^${fn}()" "$CONFIGURE"; then
       pass "$fn exists"
     else
