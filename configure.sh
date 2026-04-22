@@ -1314,7 +1314,16 @@ while true; do
         fi
       fi
       ;;
-    7) # Done
+    7) # Tab state (iTerm2 tinting)
+      step_tab_state
+      rc=$?
+      if [ $rc -eq 2 ]; then
+        restart_wizard
+      elif [ $rc -eq 0 ]; then
+        current_step=8
+      fi
+      ;;
+    8) # Done
       step_done
       break
       ;;
