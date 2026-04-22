@@ -490,10 +490,16 @@ if $PL_MODE; then
   block_list=()
   for b in $cfg_blocks; do block_list+=("$b"); done
 
+  # Cycle bg through accent_1 → accent_2 → accent_3 based on the block's
+  # position in the ACTIVE list, so colors stay sequential even when some
+  # blocks are disabled. Individual block pl_bg entries in theme files are
+  # ignored here; pl_fg still falls back to bg_primary via pl_block_fg.
+  PL_CYCLE=("$C_ACCENT_1" "$C_ACCENT_2" "$C_ACCENT_3")
+
   prev_bg_hex=""
   for idx in "${!block_list[@]}"; do
     block="${block_list[$idx]}"
-    cur_bg_hex=$(pl_block_bg "$block")
+    cur_bg_hex="${PL_CYCLE[$((idx % 3))]}"
     cur_fg_hex=$(pl_block_fg "$block")
     cur_bg=$(hex_to_bg "$cur_bg_hex")
     cur_fg=$(hex_to_fg "$cur_fg_hex")
