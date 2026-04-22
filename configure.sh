@@ -1038,11 +1038,45 @@ step_tab_state() {
   fi
 
   sel_tab_state_enabled="true"
-  # per-state palette picker filled in Task 11 — hard-code defaults for now
-  sel_tab_state_running="accent_1"
-  sel_tab_state_waiting="warning"
-  sel_tab_state_idle="accent_3"
-  sel_tab_state_error="alert"
+
+  # Theme palette we allow for tab tinting (exclude bg_primary/bg_panel)
+  local palettes=(accent_1 accent_2 accent_3 warning alert dim)
+
+  # Read current theme's color hex values for swatch display (parallel arrays)
+  local theme_file="$SCRIPT_DIR/themes/${sel_theme}.json"
+  local hex_vals=()
+  for p in "${palettes[@]}"; do
+    hex_vals+=("$("$JQ" -r --arg k "$p" '.colors[$k] // ""' "$theme_file")")
+  done
+
+  _tab_state_ask_palette() {
+    local state_label="$1" default_palette="$2" out_var="$3"
+    draw_header 8 $TOTAL_STEPS "Tab tinting — ${state_label}"
+
+    local swatches=()
+    local default_idx=1
+    local i=0
+    for p in "${palettes[@]}"; do
+      i=$((i + 1))
+      local hex="${hex_vals[$((i - 1))]}"
+      # ANSI 24-bit swatch block (four ████ chars in the palette color)
+      local r=$((16#${hex:1:2})) g=$((16#${hex:3:2})) b=$((16#${hex:5:2}))
+      local swatch; swatch=$(printf '\033[38;2;%d;%d;%dm████\033[0m' "$r" "$g" "$b")
+      local label; label=$(printf '%-10s %s  %s' "$p" "$swatch" "$hex")
+      swatches+=("$label|")
+      [ "$p" = "$default_palette" ] && default_idx=$i
+    done
+
+    ask_choice "${swatches[@]}"
+    local rc=$?
+    if [ $rc -eq 1 ]; then return 1; fi
+    printf -v "$out_var" '%s' "${palettes[$((CHOICE_RESULT - 1))]}"
+  }
+
+  _tab_state_ask_palette "Running (UserPromptSubmit / PreToolUse)" accent_1 sel_tab_state_running || return 2
+  _tab_state_ask_palette "Waiting (Notification)"                  warning  sel_tab_state_waiting || return 2
+  _tab_state_ask_palette "Idle (Stop / SessionStart)"              accent_3 sel_tab_state_idle    || return 2
+  _tab_state_ask_palette "Error"                                   alert    sel_tab_state_error   || return 2
   return 0
 }
 
