@@ -2,6 +2,11 @@
 
 ## 2026-04-22
 
+### 修正：emoji 從 tab title 前綴改後綴，避免 iTerm 窄 tab 截掉
+- 問題：使用者截圖顯示 14 個 tab 並排時每個 tab 非常窄，iTerm2 對 tab title 做「頭截尾留」的截斷（顯示成 `…tusline`），導致原本放在前綴的 🟢🟡🔵🔴 emoji 整個被砍掉，使用者看不到 state
+- 修正：`tab-state.sh` 把 title 格式從 `<emoji> <basename>` 改成 `<basename> <emoji>`——emoji 跟到尾端，即使 tab 再窄也會變 `…tusline 🟡` 這樣保留 emoji
+- 測試更新為 suffix 斷言（ends with vs. begins with）
+
 ### 強化：tab-state 加 emoji state 前綴 + 暗色自動 boost
 - 問題：iTerm2 會把 inactive tab 底色壓暗，且沒有使用者設定可以關閉這個行為——即使使用者挑了明確的 palette 色，inactive tab 仍然糊成一片難分辨
 - 修正（A + B 合併）：

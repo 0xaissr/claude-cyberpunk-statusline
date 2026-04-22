@@ -197,11 +197,12 @@ test_emits_tab_title() {
   else
     fail "tab title" "no \\e]1;...\\a in output: $(printf '%q' "$out")"
   fi
-  # Per-state emoji prefix
-  assert_contains "$(run_state running)" $'\e]1;🟢 '  "running title has 🟢 prefix"
-  assert_contains "$(run_state waiting)" $'\e]1;🟡 '  "waiting title has 🟡 prefix"
-  assert_contains "$(run_state idle)"    $'\e]1;🔵 '  "idle title has 🔵 prefix"
-  assert_contains "$(run_state error)"   $'\e]1;🔴 '  "error title has 🔴 prefix"
+  # Per-state emoji suffix (not prefix — narrow iTerm tabs truncate from start,
+  # so emoji at the end survives the "…" truncation).
+  assert_contains "$(run_state running)" $' 🟢\a'  "running title ends with 🟢"
+  assert_contains "$(run_state waiting)" $' 🟡\a'  "waiting title ends with 🟡"
+  assert_contains "$(run_state idle)"    $' 🔵\a'  "idle title ends with 🔵"
+  assert_contains "$(run_state error)"   $' 🔴\a'  "error title ends with 🔴"
 }
 
 test_boost_keeps_bright_colors() {
