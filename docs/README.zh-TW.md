@@ -71,6 +71,8 @@ cd ~/claude-cyberpunk-statusline && ./configure.sh
 
 cyberpunk-statusline 可依 Claude Code session 狀態（running / waiting / idle /
 error）改變 iTerm2 tab 底色。顏色從當前 theme palette 取得，換 theme 自動重染。
+同時每次狀態變動也會把 tab 標題設為當前專案目錄 basename，這樣就算 tab 寬度被
+擠到只剩幾個字元，你還是看得到「cyber…」而非「…sline」。
 
 在 configure wizard 的 Step 8 啟用 — 只有 `$TERM_PROGRAM` 是 `iTerm.app` 時才會
 出現。選擇 Enable 會在 `~/.claude/settings.json` 寫入 6 個 hooks
@@ -78,12 +80,17 @@ error）改變 iTerm2 tab 底色。顏色從當前 theme palette 取得，換 th
 並在 `~/.claude/scripts/tab-state.sh` 建 symlink。所有修改前會先產生
 settings.json 的時間戳備份。
 
-| State   | 預設 palette | 觸發時機                     |
-|---------|--------------|------------------------------|
-| running | accent_1     | UserPromptSubmit、PreToolUse |
-| waiting | warning      | Notification（附 attention） |
-| idle    | accent_3     | SessionStart、Stop           |
-| error   | alert        | （保留欄位，目前不自動觸發） |
+| State   | 預設 palette           | 觸發時機                     |
+|---------|------------------------|------------------------------|
+| running | accent_1               | UserPromptSubmit、PreToolUse |
+| waiting | warning                | Notification（附 attention） |
+| idle    | none（iTerm 原生底色） | SessionStart、Stop           |
+| error   | alert                  | （保留欄位，目前不自動觸發） |
+
+**idle 為何預設 `none`：** iTerm2 會把 inactive tab 壓暗，若 idle 上色會跟背景融在
+一起，每個 idle session 看起來都長一樣。讓 idle 回到終端機原生底色反而能讓每個
+tab 互相區分，也讓 running / waiting 的 tab 真正跳出來吸引注意。如果你偏好上色，
+wizard 裡仍可任意挑 palette。
 
 **Plugin 使用者：** 升級 cyberpunk-statusline 版本後請重跑
 `/cyberpunk-statusline configure`，讓 symlink 指向新版 plugin cache 目錄。

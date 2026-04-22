@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Claude Code session state → iTerm2 tab background
+# Claude Code session state → iTerm2 tab background + title
 # Usage: tab-state.sh {running|waiting|idle|error|clear}
 
 [[ "$TERM_PROGRAM" != "iTerm.app" ]] && exit 0
@@ -18,9 +18,28 @@ _default_palette() {
   case "$1" in
     running) echo accent_1 ;;
     waiting) echo warning  ;;
-    idle)    echo accent_3 ;;
+    idle)    echo none     ;;
     error)   echo alert    ;;
   esac
+}
+
+# Read hook stdin JSON once (if present) so we can extract cwd for tab title.
+# Hooks pipe JSON with fields like .cwd / .workspace.current_dir; if stdin is
+# empty or not JSON we silently fall back to $PWD.
+_read_stdin() {
+  if [ -t 0 ]; then
+    echo ""
+  else
+    cat 2>/dev/null || true
+  fi
+}
+
+_resolve_cwd() {
+  local input="$1" cwd=""
+  if [ -n "$input" ]; then
+    cwd=$("$JQ" -r '.cwd // .workspace.current_dir // empty' <<<"$input" 2>/dev/null)
+  fi
+  echo "${cwd:-$PWD}"
 }
 
 : "${TAB_STATE_OUT:=/dev/tty}"
@@ -33,8 +52,23 @@ case "$state" in
     enabled=$("$JQ" -r '.tab_state.enabled // false' "$CONFIG" 2>/dev/null)
     [[ "$enabled" != "true" ]] && exit 0
 
+    # Tab title → project basename (works regardless of tab width)
+    stdin_input=$(_read_stdin)
+    cwd=$(_resolve_cwd "$stdin_input")
+    title=$(basename "$cwd")
+    printf '\e]1;%s\a' "$title" > "$TAB_STATE_OUT"
+
+    # Resolve palette name
     palette=$("$JQ" -r --arg s "$state" '.tab_state[$s] // empty' "$CONFIG" 2>/dev/null)
     palette="${palette:-$(_default_palette "$state")}"
+
+    # 'none' → reset tab bg to iTerm default; skip RGB lookup
+    if [ "$palette" = "none" ]; then
+      printf '\e]6;1;bg;*;default\a' > "$TAB_STATE_OUT"
+      [[ "$state" == "waiting" ]] && printf '\e]1337;RequestAttention=yes\a' > "$TAB_STATE_OUT"
+      exit 0
+    fi
+
     theme=$("$JQ" -r '.theme // "terminal-glitch"' "$CONFIG" 2>/dev/null)
     theme_file="$REPO_DIR/themes/$theme.json"
     [[ -f "$theme_file" ]] || exit 0

@@ -1012,7 +1012,7 @@ step_tab_state() {
     sel_tab_state_enabled="false"
     sel_tab_state_running="accent_1"
     sel_tab_state_waiting="warning"
-    sel_tab_state_idle="accent_3"
+    sel_tab_state_idle="none"
     sel_tab_state_error="alert"
     printf '  \033[2mPress any key to continue...\033[0m'
     read -rsn1
@@ -1039,21 +1039,29 @@ step_tab_state() {
     sel_tab_state_enabled="false"
     sel_tab_state_running="accent_1"
     sel_tab_state_waiting="warning"
-    sel_tab_state_idle="accent_3"
+    sel_tab_state_idle="none"
     sel_tab_state_error="alert"
     return 0
   fi
 
   sel_tab_state_enabled="true"
 
-  # Theme palette we allow for tab tinting (exclude bg_primary/bg_panel)
-  local palettes=(accent_1 accent_2 accent_3 warning alert dim)
+  # Theme palettes we allow (exclude bg_primary/bg_panel so the tint doesn't
+  # blend into iTerm's base bg). 'none' is a virtual palette meaning "no tint
+  # — reset to iTerm default bg"; used as idle default so inactive idle tabs
+  # stay readable.
+  local palettes=(accent_1 accent_2 accent_3 warning alert dim none)
 
-  # Read current theme's color hex values for swatch display (parallel arrays)
+  # Read current theme's color hex values for swatch display (parallel arrays).
+  # For 'none' we leave the slot empty and render a special "(default)" label.
   local theme_file="$SCRIPT_DIR/themes/${sel_theme}.json"
   local hex_vals=()
   for p in "${palettes[@]}"; do
-    hex_vals+=("$("$JQ" -r --arg k "$p" '.colors[$k] // ""' "$theme_file")")
+    if [ "$p" = "none" ]; then
+      hex_vals+=("")
+    else
+      hex_vals+=("$("$JQ" -r --arg k "$p" '.colors[$k] // ""' "$theme_file")")
+    fi
   done
 
   _tab_state_ask_palette() {
@@ -1065,11 +1073,16 @@ step_tab_state() {
     local i=0
     for p in "${palettes[@]}"; do
       i=$((i + 1))
-      local hex="${hex_vals[$((i - 1))]}"
-      # ANSI 24-bit swatch block (four ████ chars in the palette color)
-      local r=$((16#${hex:1:2})) g=$((16#${hex:3:2})) b=$((16#${hex:5:2}))
-      local swatch; swatch=$(printf '\033[38;2;%d;%d;%dm████\033[0m' "$r" "$g" "$b")
-      local label; label=$(printf '%-10s %s  %s' "$p" "$swatch" "$hex")
+      local label
+      if [ "$p" = "none" ]; then
+        # No color swatch; explain behavior so users aren't confused
+        label=$(printf '%-10s      %s' "$p" "(no tint — iTerm default)")
+      else
+        local hex="${hex_vals[$((i - 1))]}"
+        local r=$((16#${hex:1:2})) g=$((16#${hex:3:2})) b=$((16#${hex:5:2}))
+        local swatch; swatch=$(printf '\033[38;2;%d;%d;%dm████\033[0m' "$r" "$g" "$b")
+        label=$(printf '%-10s %s  %s' "$p" "$swatch" "$hex")
+      fi
       swatches+=("$label|")
       [ "$p" = "$default_palette" ] && default_idx=$i
     done
@@ -1082,7 +1095,7 @@ step_tab_state() {
 
   _tab_state_ask_palette "Running (UserPromptSubmit / PreToolUse)" accent_1 sel_tab_state_running || return 2
   _tab_state_ask_palette "Waiting (Notification)"                  warning  sel_tab_state_waiting || return 2
-  _tab_state_ask_palette "Idle (Stop / SessionStart)"              accent_3 sel_tab_state_idle    || return 2
+  _tab_state_ask_palette "Idle (Stop / SessionStart)"              none     sel_tab_state_idle    || return 2
   _tab_state_ask_palette "Error"                                   alert    sel_tab_state_error   || return 2
   return 0
 }
