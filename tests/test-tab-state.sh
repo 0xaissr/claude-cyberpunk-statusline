@@ -88,6 +88,36 @@ test_missing_config_silent() {
 test_disabled_silent
 test_missing_config_silent
 
+assert_contains() {
+  local output="$1" expected="$2" name="$3"
+  if [[ "$output" == *"$expected"* ]]; then
+    pass "$name"
+  else
+    fail "$name" "missing literal: $(printf '%q' "$expected")"
+  fi
+}
+
+test_running_emits_rgb() {
+  echo "▸ test_running_emits_rgb"
+  local out; out=$(run_state running)
+  # accent_1 = #28783C → (40, 120, 60)
+  assert_contains "$out" $'\e]6;1;bg;red;brightness;40\a'   "running: red=40"
+  assert_contains "$out" $'\e]6;1;bg;green;brightness;120\a' "running: green=120"
+  assert_contains "$out" $'\e]6;1;bg;blue;brightness;60\a'  "running: blue=60"
+}
+
+test_error_emits_rgb() {
+  echo "▸ test_error_emits_rgb"
+  local out; out=$(run_state error)
+  # alert = #A02828 → (160, 40, 40)
+  assert_contains "$out" $'\e]6;1;bg;red;brightness;160\a'  "error: red=160"
+  assert_contains "$out" $'\e]6;1;bg;green;brightness;40\a' "error: green=40"
+  assert_contains "$out" $'\e]6;1;bg;blue;brightness;40\a'  "error: blue=40"
+}
+
+test_running_emits_rgb
+test_error_emits_rgb
+
 echo ""
 if [ "$FAIL" -gt 0 ]; then
   echo "FAIL: $FAIL test(s) failed"
