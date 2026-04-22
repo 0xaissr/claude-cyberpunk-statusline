@@ -88,3 +88,18 @@ _remove_tab_state_hooks() {
   rmdir "$scripts_dir" 2>/dev/null || true
   return 0
 }
+
+_detect_foreign_tab_state_hooks() {
+  local self_path="$1"
+  local settings; settings=$(_tab_state_settings_path)
+  local jq_bin; jq_bin=$(command -v jq) || return 1
+  [ -f "$settings" ] || return 0
+
+  "$jq_bin" -r --arg self "$self_path" '
+    [ .hooks // {} | to_entries[] | .value[]? | .hooks[]?
+      | (.command // "")
+      | select(contains("tab-state.sh"))
+      | select(contains($self) | not)
+    ] | unique | .[]
+  ' "$settings" 2>/dev/null
+}
