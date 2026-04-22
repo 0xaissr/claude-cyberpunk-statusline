@@ -2,6 +2,17 @@
 
 ## 2026-04-22
 
+### 強化：tab-state 加 emoji state 前綴 + 暗色自動 boost
+- 問題：iTerm2 會把 inactive tab 底色壓暗，且沒有使用者設定可以關閉這個行為——即使使用者挑了明確的 palette 色，inactive tab 仍然糊成一片難分辨
+- 修正（A + B 合併）：
+  - **Title emoji 前綴**：`tab-state.sh` 的 tab title emit 改成 `<emoji> <basename>`，依 state 固定對應 🟢 running / 🟡 waiting / 🔵 idle / 🔴 error。Emoji 是 Unicode 文字不受 iTerm tab 壓暗影響，inactive 一樣鮮明
+  - **RGB 自動 boost**：新增 `_boost_rgb` helper（awk 實作）。hex → RGB 轉完後若 max channel < 200，等比例放大到 200 保留色相；max ≥ 200 則不動。例 `#28783C` (40,120,60) → (67,200,100)；`#00F5FF` 已達 255 不變
+  - 不影響 `none` palette（繼續送 reset，不走 boost）、`waiting` RequestAttention、`clear` reset
+- 測試：33/33 綠
+  - 既有 RGB 斷言改為 boost 後期望值
+  - 新增 `test_boost_keeps_bright_colors` / `test_boost_lifts_dim_colors` 兩個 boost 行為測試
+  - `test_emits_tab_title` 擴充為 per-state emoji 前綴驗證（🟢 / 🟡 / 🔵 / 🔴）
+
 ### 強化：tab-state 新增 tab title 顯示 + 新增 `none` palette 選項
 - 問題：開多個 iTerm2 tab 跑 `claude` 時，tab 寬度被擠窄後只剩「…sline」看不出是哪個專案；另外有些使用者希望 idle 時直接回到 iTerm 原生底色而非自訂色
 - 修正：
