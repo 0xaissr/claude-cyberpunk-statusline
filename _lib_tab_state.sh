@@ -56,3 +56,35 @@ JSON
   "$jq_bin" empty "$tmp" 2>/dev/null || { rm -f "$tmp"; return 1; }
   mv "$tmp" "$settings"
 }
+
+_remove_tab_state_hooks() {
+  local settings; settings=$(_tab_state_settings_path)
+  local scripts_dir; scripts_dir=$(_tab_state_scripts_dir)
+  local jq_bin; jq_bin=$(command -v jq) || return 1
+
+  if [ -f "$settings" ]; then
+    cp "$settings" "$settings.bak.$(date +%Y%m%d-%H%M%S)" 2>/dev/null || true
+    local tmp; tmp=$(mktemp)
+    "$jq_bin" '
+      if (.hooks // null) == null then .
+      else
+        .hooks = (
+          .hooks | to_entries | map(
+            .value = (
+              .value | map(
+                .hooks = (.hooks | map(select((.command // "") | contains("tab-state.sh") | not)))
+              ) | map(select((.hooks | length) > 0))
+            )
+          ) | map(select((.value | length) > 0)) | from_entries
+        )
+      end
+    ' "$settings" > "$tmp" || { rm -f "$tmp"; return 1; }
+
+    "$jq_bin" empty "$tmp" 2>/dev/null || { rm -f "$tmp"; return 1; }
+    mv "$tmp" "$settings"
+  fi
+
+  rm -f "$scripts_dir/tab-state.sh"
+  rmdir "$scripts_dir" 2>/dev/null || true
+  return 0
+}
