@@ -281,6 +281,7 @@ fi
 # Read whatever the cache currently holds (may be from a previous render).
 acct_type="unknown"
 spend_used_cents="" spend_limit_cents="" spend_pct="" spend_currency="" spend_reset=""
+credit_pct="" credit_reset=""
 if [ -f "$USAGE_CACHE" ]; then
   acct_type=$("$JQ" -r '.account_type // "unknown"' "$USAGE_CACHE" 2>/dev/null || echo unknown)
   spend_used_cents=$("$JQ" -r '.spend.used_cents // empty' "$USAGE_CACHE" 2>/dev/null)
@@ -288,6 +289,8 @@ if [ -f "$USAGE_CACHE" ]; then
   spend_pct=$("$JQ" -r '.spend.utilization // empty' "$USAGE_CACHE" 2>/dev/null)
   spend_currency=$("$JQ" -r '.spend.currency // "USD"' "$USAGE_CACHE" 2>/dev/null)
   spend_reset=$("$JQ" -r '.spend.resets_at // empty' "$USAGE_CACHE" 2>/dev/null)
+  credit_pct=$("$JQ" -r '.credit.utilization // empty' "$USAGE_CACHE" 2>/dev/null)
+  credit_reset=$("$JQ" -r '.credit.resets_at // empty' "$USAGE_CACHE" 2>/dev/null)
 fi
 
 # Effective account type: config override wins over detection.
