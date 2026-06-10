@@ -19,6 +19,22 @@ check "quota: utilization"   "24"    "$(echo "$out" | jq -r '.spend.utilization 
 check "quota: currency"      "USD"   "$(echo "$out" | jq -r '.spend.currency')"
 check "quota: resets_at>now" "yes"   "$([ "$(echo "$out" | jq -r '.spend.resets_at')" -gt "$(date +%s)" ] && echo yes || echo no)"
 
+# quota + one-time credit (cinder_cove)
+out=$(USAGE_FIXTURE="$FIX/usage-quota-credit.json" bash "$FETCH")
+check "credit: account_type"   "quota" "$(echo "$out" | jq -r '.account_type')"
+check "credit: utilization"    "8"     "$(echo "$out" | jq -r '.credit.utilization | round')"
+check "credit: resets_at>now"  "yes"   "$([ "$(echo "$out" | jq -r '.credit.resets_at')" -gt "$(date +%s)" ] && echo yes || echo no)"
+check "credit: spend retained" "12156" "$(echo "$out" | jq -r '.spend.used_cents')"
+
+# quota WITHOUT credit → no .credit key
+out=$(USAGE_FIXTURE="$FIX/usage-quota.json" bash "$FETCH")
+check "no-credit: key absent" "null" "$(echo "$out" | jq -r '.credit // "null"')"
+
+# credit present but resets_at null → utilization kept, resets_at null
+out=$(USAGE_FIXTURE="$FIX/usage-quota-credit-noreset.json" bash "$FETCH")
+check "credit-noreset: utilization" "8"    "$(echo "$out" | jq -r '.credit.utilization | round')"
+check "credit-noreset: resets null" "null" "$(echo "$out" | jq -r '.credit.resets_at')"
+
 out=$(USAGE_FIXTURE="$FIX/usage-subscription.json" bash "$FETCH")
 check "subscription: account_type" "subscription" "$(echo "$out" | jq -r '.account_type')"
 

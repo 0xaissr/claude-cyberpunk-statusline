@@ -1,0 +1,16 @@
+{
+  "five_hour": null,
+  "seven_day": null,
+  "cinder_cove": {
+    "utilization": 7.8261234,
+    "resets_at": "2026-09-07T12:53:42.383812+00:00"
+  },
+  "extra_usage": {
+    "is_enabled": true,
+    "monthly_limit": 50000,
+    "used_credits": 12156.0,
+    "utilization": 24.312,
+    "currency": "USD",
+    "disabled_reason": null
+  }
+}

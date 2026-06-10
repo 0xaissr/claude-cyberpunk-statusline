@@ -199,6 +199,34 @@ test_subscription_keeps_rate() {
   fi
 }
 
+test_credit_block_quota() {
+  local cfg=$(mktemp) cache=$(mktemp)
+  printf '{"theme":"terminal-glitch","symbol_set":"nerd","spacing":"normal","style":"classic","separator":"|","blocks":["model","rate_5h","rate_7d","time"],"bar_width":6,"show_icons":false,"account_type":"auto"}' > "$cfg"
+  printf '{"account_type":"quota","credit":{"utilization":8,"resets_at":%s},"spend":{"used_cents":12156,"limit_cents":50000,"utilization":24,"currency":"USD","resets_at":%s}}' "$(($(date +%s)+7776000))" "$(($(date +%s)+1814400))" > "$cache"
+  local out=$(cat "$SAMPLE" | CONFIG_OVERRIDE="$cfg" USAGE_CACHE_OVERRIDE="$cache" bash "$STATUSLINE" 2>/dev/null || true)
+  rm -f "$cfg" "$cache"
+  local cr_pos=$(echo "$out" | grep -bo 'CR' | head -1 | cut -d: -f1)
+  local sp_pos=$(echo "$out" | grep -bo '122/' | head -1 | cut -d: -f1)
+  if echo "$out" | grep -q 'CR' && echo "$out" | grep -q '8%' && [ -n "$cr_pos" ] && [ -n "$sp_pos" ] && [ "$cr_pos" -lt "$sp_pos" ]; then
+    echo "✓ test_credit_block_quota: credit 區塊顯示且在 spend 左側"; ((PASS++))
+  else
+    echo "✗ test_credit_block_quota: credit 未顯示或順序錯誤 — got: $out"; ((FAIL++))
+  fi
+}
+
+test_credit_absent_hidden() {
+  local cfg=$(mktemp) cache=$(mktemp)
+  printf '{"theme":"terminal-glitch","symbol_set":"nerd","spacing":"normal","style":"classic","separator":"|","blocks":["model","rate_5h","rate_7d","time"],"bar_width":6,"show_icons":false,"account_type":"auto"}' > "$cfg"
+  printf '{"account_type":"quota","spend":{"used_cents":12156,"limit_cents":50000,"utilization":24,"currency":"USD","resets_at":%s}}' "$(($(date +%s)+1814400))" > "$cache"
+  local out=$(cat "$SAMPLE" | CONFIG_OVERRIDE="$cfg" USAGE_CACHE_OVERRIDE="$cache" bash "$STATUSLINE" 2>/dev/null || true)
+  rm -f "$cfg" "$cache"
+  if echo "$out" | grep -q 'CR'; then
+    echo "✗ test_credit_absent_hidden: 無 credit 時仍出現 CR — got: $out"; ((FAIL++))
+  else
+    echo "✓ test_credit_absent_hidden: 無 credit 時隱藏 credit 區塊"; ((PASS++))
+  fi
+}
+
 main() {
   echo "Running cyberpunk-statusline tests..."
   echo "======================================"
@@ -212,6 +240,8 @@ main() {
   test_spend_replaces_rate
   test_spend_degraded
   test_subscription_keeps_rate
+  test_credit_block_quota
+  test_credit_absent_hidden
 
   echo "======================================"
   echo "Results: $PASS passed, $FAIL failed"

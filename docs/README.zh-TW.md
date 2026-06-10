@@ -61,6 +61,7 @@ cd ~/claude-cyberpunk-statusline && ./configure.sh
 | rate_5h | 5 小時速率限制 % |
 | rate_7d | 7 天速率限制 % |
 | spend | 企業版／配額制帳號的本月 spend 用量（自動取代速率限制區塊） |
+| credit | 配額制帳號的一次性 Claude Code／Cowork credit 用量（顯示於 spend 左側，存在時才出現） |
 | cost | 今日跨 session 花費 |
 | directory | 工作目錄 |
 | git | Git 分支 |
@@ -83,6 +84,20 @@ $122/$500 24% ↻21d0h
 若 `account_type` 強制設為 `quota` 但無法取得用量資料，spend 區塊顯示 `$--`；在預設的 `auto` 模式下，取得失敗會被視為未知帳號而保留速率限制區塊。兩種情況下 statusline 都永不阻塞。
 
 資料取自 Claude Code 自身使用的 usage 端點，腳本僅讀取本機 OAuth 憑證來查詢**使用者自己的**用量，**不會外傳至任何第三方**。結果快取 60 秒並在背景刷新。
+
+#### 一次性 Credit 區塊
+
+配額制帳號若擁有**一次性 Claude Code／Cowork credit**（`cinder_cove` 欄位 — 即網頁介面中顯示的「Claude Code and Cowork credit / Included credit」），會在 **spend 區塊左側**顯示 `CR` 區塊：
+
+```
+CR ████░ 8% ↻89d  $122/$500 ████░ 24% ↻21d
+```
+
+- **`pct%`** — 一次性 credit 已用百分比（此 credit 類型僅提供百分比，**不提供金額**）
+- **進度條** — 與 `rate_5h` / `rate_7d` 相同樣式
+- **`↻…`** — 距 credit 到期的倒數
+
+帳號**無此 credit 時自動隱藏**，無需任何設定。此區塊僅適用於配額制帳號，訂閱制帳號不受影響。
 
 #### `account_type` 設定
 

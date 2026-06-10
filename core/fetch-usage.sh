@@ -54,6 +54,19 @@ echo "$raw" | "$JQ" -c --argjson reset "$reset_epoch" '
         resets_at:   $reset
       }
     }
+    + (if (.cinder_cove.utilization | type) == "number" then
+        {
+          credit: {
+            utilization: .cinder_cove.utilization,
+            resets_at: (
+              .cinder_cove.resets_at
+              | if type == "string"
+                then (try (sub("\\.[0-9]+";"") | sub("([+-][0-9]{2}:[0-9]{2})$";"Z") | fromdateiso8601) catch null)
+                else null end
+            )
+          }
+        }
+      else {} end)
   elif (.five_hour != null) or (.seven_day != null) then
     {account_type: "subscription"}
   else

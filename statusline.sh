@@ -113,10 +113,12 @@ S_BAR_EMPTY=$(sym bar_empty)
 S_COST=$(sym cost)
 S_SPEND=$(sym spend)
 [ "$S_SPEND" = "?" ] && S_SPEND="$S_COST"
+S_CREDIT=$(sym credit)
+[ "$S_CREDIT" = "?" ] && S_CREDIT="$S_SPEND"
 
 # Clear icons if show_icons is disabled
 if [ "$cfg_show_icons" = "false" ]; then
-  S_MODEL="" S_CTX="" S_5H="" S_7D="" S_DIR="" S_GIT="" S_TIME="" S_COST="" S_SPEND=""
+  S_MODEL="" S_CTX="" S_5H="" S_7D="" S_DIR="" S_GIT="" S_TIME="" S_COST="" S_SPEND="" S_CREDIT=""
 fi
 
 # ── Read block color mappings ─────────────────────────────────────────────
@@ -281,6 +283,7 @@ fi
 # Read whatever the cache currently holds (may be from a previous render).
 acct_type="unknown"
 spend_used_cents="" spend_limit_cents="" spend_pct="" spend_currency="" spend_reset=""
+credit_pct="" credit_reset=""
 if [ -f "$USAGE_CACHE" ]; then
   acct_type=$("$JQ" -r '.account_type // "unknown"' "$USAGE_CACHE" 2>/dev/null || echo unknown)
   spend_used_cents=$("$JQ" -r '.spend.used_cents // empty' "$USAGE_CACHE" 2>/dev/null)
@@ -288,6 +291,8 @@ if [ -f "$USAGE_CACHE" ]; then
   spend_pct=$("$JQ" -r '.spend.utilization // empty' "$USAGE_CACHE" 2>/dev/null)
   spend_currency=$("$JQ" -r '.spend.currency // "USD"' "$USAGE_CACHE" 2>/dev/null)
   spend_reset=$("$JQ" -r '.spend.resets_at // empty' "$USAGE_CACHE" 2>/dev/null)
+  credit_pct=$("$JQ" -r '.credit.utilization // empty' "$USAGE_CACHE" 2>/dev/null)
+  credit_reset=$("$JQ" -r '.credit.resets_at // empty' "$USAGE_CACHE" 2>/dev/null)
 fi
 
 # Effective account type: config override wins over detection.
@@ -405,6 +410,10 @@ block_text_spend() {
   echo -n " ${S_SPEND} ${cur}${used}/${cur}${limit} ${pct_int}%${reset_str} "
 }
 
+block_text_credit() {
+  block_text_pct "rate_7d" "$S_CREDIT" "CR" "$credit_pct" "$credit_reset"
+}
+
 block_text_turn_usage() {
   local cache="/tmp/claude-turn-usage.txt"
   if [ -f "$cache" ]; then
@@ -470,6 +479,7 @@ render_pct_block() {
 render_block_context()  { render_pct_block "context" "$S_CTX" "CTX" "$used_pct"; }
 render_block_rate_5h()  { render_pct_block "rate_5h" "$S_5H"  "5H"  "$five_pct" "$five_reset"; }
 render_block_rate_7d()  { render_pct_block "rate_7d" "$S_7D"  "7D"  "$week_pct" "$week_reset"; }
+render_block_credit() { render_pct_block "rate_7d" "$S_CREDIT" "CR" "$credit_pct" "$credit_reset"; }
 
 render_block_directory() {
   local fg=$(hex_to_fg "$(block_color directory)")
@@ -591,6 +601,19 @@ if [ "$eff_account_type" = "quota" ]; then
     done
     $_spend_added || eff_blocks+=("spend")
   fi
+  # one-time credit 區塊：存在時插在第一個 spend 之前（credit → spend）
+  if [ -n "$credit_pct" ]; then
+    _tmp_blocks=()
+    _cr_inserted=false
+    for b in "${eff_blocks[@]}"; do
+      if [ "$b" = "spend" ] && ! $_cr_inserted; then
+        _tmp_blocks+=("credit")
+        _cr_inserted=true
+      fi
+      _tmp_blocks+=("$b")
+    done
+    eff_blocks=("${_tmp_blocks[@]}")
+  fi
 else
   for b in $cfg_blocks; do eff_blocks+=("$b"); done
 fi
@@ -640,6 +663,7 @@ if $PL_MODE; then
       time)      text=$(block_text_time) ;;
       cost)      text=$(block_text_cost) ;;
       spend)     text=$(block_text_spend) ;;
+      credit)    text=$(block_text_credit) ;;
     esac
     output+="${cur_bg}${cur_fg}${BOLD}${text}${RESET}"
 
@@ -670,6 +694,7 @@ else
       time)      output+=$(render_block_time) ;;
       cost)      output+=$(render_block_cost) ;;
       spend)     output+=$(render_block_spend) ;;
+      credit)    output+=$(render_block_credit) ;;
     esac
   done
 fi
