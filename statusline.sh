@@ -601,6 +601,19 @@ if [ "$eff_account_type" = "quota" ]; then
     done
     $_spend_added || eff_blocks+=("spend")
   fi
+  # one-time credit 區塊：存在時插在第一個 spend 之前（credit → spend）
+  if [ -n "$credit_pct" ]; then
+    _tmp_blocks=()
+    _cr_inserted=false
+    for b in "${eff_blocks[@]}"; do
+      if [ "$b" = "spend" ] && ! $_cr_inserted; then
+        _tmp_blocks+=("credit")
+        _cr_inserted=true
+      fi
+      _tmp_blocks+=("$b")
+    done
+    eff_blocks=("${_tmp_blocks[@]}")
+  fi
 else
   for b in $cfg_blocks; do eff_blocks+=("$b"); done
 fi
@@ -650,6 +663,7 @@ if $PL_MODE; then
       time)      text=$(block_text_time) ;;
       cost)      text=$(block_text_cost) ;;
       spend)     text=$(block_text_spend) ;;
+      credit)    text=$(block_text_credit) ;;
     esac
     output+="${cur_bg}${cur_fg}${BOLD}${text}${RESET}"
 
@@ -680,6 +694,7 @@ else
       time)      output+=$(render_block_time) ;;
       cost)      output+=$(render_block_cost) ;;
       spend)     output+=$(render_block_spend) ;;
+      credit)    output+=$(render_block_credit) ;;
     esac
   done
 fi
