@@ -147,6 +147,58 @@ EOF
   done
 }
 
+test_spend_block_quota() {
+  local cfg=$(mktemp) cache=$(mktemp)
+  printf '{"theme":"terminal-glitch","symbol_set":"nerd","spacing":"ultra-compact","style":"classic","separator":"|","blocks":["model","rate_5h","rate_7d","time"],"bar_width":6,"show_icons":true,"account_type":"auto"}' > "$cfg"
+  printf '{"account_type":"quota","spend":{"used_cents":12156,"limit_cents":50000,"utilization":24,"currency":"USD","resets_at":%s}}' "$(($(date +%s)+1814400))" > "$cache"
+  local out=$(cat "$SAMPLE" | CONFIG_OVERRIDE="$cfg" USAGE_CACHE_OVERRIDE="$cache" bash "$STATUSLINE" 2>/dev/null || true)
+  rm -f "$cfg" "$cache"
+  if echo "$out" | grep -q '\$122/\$500' && echo "$out" | grep -q '24%'; then
+    echo "✓ test_spend_block_quota: spend block 顯示金額與百分比"; ((PASS++))
+  else
+    echo "✗ test_spend_block_quota: 未顯示 spend 金額/百分比 — got: $out"; ((FAIL++))
+  fi
+}
+
+test_spend_replaces_rate() {
+  local cfg=$(mktemp) cache=$(mktemp)
+  printf '{"theme":"terminal-glitch","symbol_set":"nerd","spacing":"normal","style":"classic","separator":"|","blocks":["model","rate_5h","rate_7d","time"],"bar_width":6,"show_icons":false,"account_type":"auto"}' > "$cfg"
+  printf '{"account_type":"quota","spend":{"used_cents":12156,"limit_cents":50000,"utilization":24,"currency":"USD","resets_at":%s}}' "$(($(date +%s)+1814400))" > "$cache"
+  local out=$(cat "$SAMPLE" | CONFIG_OVERRIDE="$cfg" USAGE_CACHE_OVERRIDE="$cache" bash "$STATUSLINE" 2>/dev/null || true)
+  rm -f "$cfg" "$cache"
+  if echo "$out" | grep -qE '5H|7D'; then
+    echo "✗ test_spend_replaces_rate: quota 模式仍出現 5H/7D — got: $out"; ((FAIL++))
+  else
+    echo "✓ test_spend_replaces_rate: quota 模式已移除 5H/7D"; ((PASS++))
+  fi
+}
+
+test_spend_degraded() {
+  local cfg=$(mktemp) cache=$(mktemp)
+  printf '{"theme":"terminal-glitch","symbol_set":"nerd","spacing":"ultra-compact","style":"classic","separator":"|","blocks":["model","rate_5h","time"],"bar_width":6,"show_icons":true,"account_type":"quota"}' > "$cfg"
+  printf '{"account_type":"unknown"}' > "$cache"
+  local out=$(cat "$SAMPLE" | CONFIG_OVERRIDE="$cfg" USAGE_CACHE_OVERRIDE="$cache" bash "$STATUSLINE" 2>/dev/null || true)
+  rm -f "$cfg" "$cache"
+  if echo "$out" | grep -q '\$--'; then
+    echo "✓ test_spend_degraded: 無資料時顯示 \$-- 占位"; ((PASS++))
+  else
+    echo "✗ test_spend_degraded: 未顯示 \$-- 占位 — got: $out"; ((FAIL++))
+  fi
+}
+
+test_subscription_keeps_rate() {
+  local cfg=$(mktemp) cache=$(mktemp)
+  printf '{"theme":"terminal-glitch","symbol_set":"nerd","spacing":"normal","style":"classic","separator":"|","blocks":["model","rate_5h","rate_7d","time"],"bar_width":6,"show_icons":false,"account_type":"auto"}' > "$cfg"
+  printf '{"account_type":"subscription"}' > "$cache"
+  local out=$(cat "$SAMPLE" | CONFIG_OVERRIDE="$cfg" USAGE_CACHE_OVERRIDE="$cache" bash "$STATUSLINE" 2>/dev/null || true)
+  rm -f "$cfg" "$cache"
+  if echo "$out" | grep -qE '5H|7D'; then
+    echo "✓ test_subscription_keeps_rate: 訂閱制維持 5H/7D"; ((PASS++))
+  else
+    echo "✗ test_subscription_keeps_rate: 訂閱制遺失 5H/7D — got: $out"; ((FAIL++))
+  fi
+}
+
 main() {
   echo "Running cyberpunk-statusline tests..."
   echo "======================================"
@@ -156,6 +208,10 @@ main() {
   test_theme_json
   test_each_theme
   test_spacing_modes
+  test_spend_block_quota
+  test_spend_replaces_rate
+  test_spend_degraded
+  test_subscription_keeps_rate
 
   echo "======================================"
   echo "Results: $PASS passed, $FAIL failed"
