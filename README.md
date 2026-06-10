@@ -63,6 +63,7 @@ The setup wizard will guide you through:
 | rate_5h | 5-hour rate limit % |
 | rate_7d | 7-day rate limit % |
 | spend | Monthly spend for Enterprise/quota accounts (replaces rate blocks) |
+| credit | One-time Claude Code/Cowork credit usage for quota accounts (shown left of spend, when present) |
 | cost | Daily cost across all sessions |
 | directory | Working directory |
 | git | Git branch |
@@ -85,6 +86,20 @@ $122/$500 24% ↻21d0h
 If `account_type` is forced to `quota` but the usage data cannot be fetched, the spend block displays `$--`. In the default `auto` mode a fetch failure is treated as an unknown account, so the rate blocks are kept instead. Either way the statusline never blocks.
 
 Data is fetched via the same usage endpoint that Claude Code itself uses. The script reads only your **local OAuth credentials** to query your own usage — no data is sent to any third party. Results are cached for 60 seconds and refreshed in the background.
+
+#### One-time Credit Block
+
+When a quota-based account has a **one-time Claude Code / Cowork credit** (the `cinder_cove` field — shown as "Claude Code and Cowork credit / Included credit" in the web UI), a `CR` block appears immediately to the **left of the spend block**:
+
+```
+CR 8% ████░ ↻14d3h  $122/$500 24% ↻21d0h
+```
+
+- **`pct%`** — percentage of the one-time credit consumed (only a percentage is available; no dollar amount is exposed for this credit type)
+- **progress bar** — same style as the `rate_5h` / `rate_7d` bars
+- **`↻…`** — countdown until the credit expires
+
+The credit block is **automatically hidden** when the account has no such credit — no configuration needed. It appears only for quota-based accounts; subscription accounts are unaffected.
 
 #### `account_type` Setting
 
