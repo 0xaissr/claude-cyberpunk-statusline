@@ -61,7 +61,7 @@ echo "$raw" | "$JQ" -c --argjson reset "$reset_epoch" '
             resets_at: (
               .cinder_cove.resets_at
               | if type == "string"
-                then (try (sub("\\.[0-9]+";"") | sub("\\+00:00$";"Z") | fromdateiso8601) catch null)
+                then (try (sub("\\.[0-9]+";"") | sub("([+-][0-9]{2}:[0-9]{2})$";"Z") | fromdateiso8601) catch null)
                 else null end
             )
           }
