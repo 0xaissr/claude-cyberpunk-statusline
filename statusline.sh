@@ -67,6 +67,7 @@ cfg_bar_filled=$("$JQ" -r '.bar_filled // ""' "$CONFIG")
 cfg_bar_empty=$("$JQ" -r '.bar_empty // ""' "$CONFIG")
 cfg_show_icons=$("$JQ" -r 'if .show_icons == false then "false" else "true" end' "$CONFIG")
 cfg_time_format=$("$JQ" -r '.time_format // "24h"' "$CONFIG")
+cfg_account_type=$("$JQ" -r '.account_type // "auto"' "$CONFIG")
 cfg_blocks=$("$JQ" -r '.blocks // ["model","context","rate_5h","rate_7d","directory","git","time"] | .[]' "$CONFIG")
 
 # ── Resolve theme ──────────────────────────────────────────────────────────
@@ -260,6 +261,38 @@ if [ ! -f "$COST_CACHE" ] || [ $(($(date +%s) - $(stat -f%m "$COST_CACHE" 2>/dev
   _refresh_cost
   daily_cost=$(cat "$COST_CACHE" 2>/dev/null)
 fi
+
+# ── Usage / spend (cached, background refresh) ────────────────────────────
+USAGE_CACHE="${USAGE_CACHE_OVERRIDE:-$COST_CACHE_DIR/usage.json}"
+USAGE_CACHE_MAX_AGE=60
+
+# Background-refresh when stale (skip entirely when a test override is set —
+# the override supplies a fixed cache and must not trigger a network call).
+if [ -z "${USAGE_CACHE_OVERRIDE:-}" ]; then
+  if [ ! -f "$USAGE_CACHE" ] || [ $(($(date +%s) - $(stat -f%m "$USAGE_CACHE" 2>/dev/null || echo 0))) -gt "$USAGE_CACHE_MAX_AGE" ]; then
+    mkdir -p "$COST_CACHE_DIR"
+    ( "$SCRIPT_DIR/core/fetch-usage.sh" > "$USAGE_CACHE.tmp" 2>/dev/null && mv -f "$USAGE_CACHE.tmp" "$USAGE_CACHE" ) &
+    disown 2>/dev/null || true
+  fi
+fi
+
+# Read whatever the cache currently holds (may be from a previous render).
+acct_type="unknown"
+spend_used_cents="" spend_limit_cents="" spend_pct="" spend_currency="" spend_reset=""
+if [ -f "$USAGE_CACHE" ]; then
+  acct_type=$("$JQ" -r '.account_type // "unknown"' "$USAGE_CACHE" 2>/dev/null || echo unknown)
+  spend_used_cents=$("$JQ" -r '.spend.used_cents // empty' "$USAGE_CACHE" 2>/dev/null)
+  spend_limit_cents=$("$JQ" -r '.spend.limit_cents // empty' "$USAGE_CACHE" 2>/dev/null)
+  spend_pct=$("$JQ" -r '.spend.utilization // empty' "$USAGE_CACHE" 2>/dev/null)
+  spend_currency=$("$JQ" -r '.spend.currency // "USD"' "$USAGE_CACHE" 2>/dev/null)
+  spend_reset=$("$JQ" -r '.spend.resets_at // empty' "$USAGE_CACHE" 2>/dev/null)
+fi
+
+# Effective account type: config override wins over detection.
+case "$cfg_account_type" in
+  subscription|quota) eff_account_type="$cfg_account_type" ;;
+  *)                  eff_account_type="$acct_type" ;;
+esac
 
 # ── Custom renderer check ─────────────────────────────────────────────────
 if [ -d "$THEME_DIR/$cfg_theme" ] && [ -f "$THEME_DIR/$cfg_theme/render.sh" ]; then
