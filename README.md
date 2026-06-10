@@ -92,7 +92,7 @@ Data is fetched via the same usage endpoint that Claude Code itself uses. The sc
 When a quota-based account has a **one-time Claude Code / Cowork credit** (the `cinder_cove` field — shown as "Claude Code and Cowork credit / Included credit" in the web UI), a `CR` block appears immediately to the **left of the spend block**:
 
 ```
-CR 8% ████░ ↻14d3h  $122/$500 24% ↻21d0h
+CR ████░ 8% ↻89d  $122/$500 ████░ 24% ↻21d
 ```
 
 - **`pct%`** — percentage of the one-time credit consumed (only a percentage is available; no dollar amount is exposed for this credit type)

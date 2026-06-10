@@ -90,7 +90,7 @@ $122/$500 24% ↻21d0h
 配額制帳號若擁有**一次性 Claude Code／Cowork credit**（`cinder_cove` 欄位 — 即網頁介面中顯示的「Claude Code and Cowork credit / Included credit」），會在 **spend 區塊左側**顯示 `CR` 區塊：
 
 ```
-CR 8% ████░ ↻14d3h  $122/$500 24% ↻21d0h
+CR ████░ 8% ↻89d  $122/$500 ████░ 24% ↻21d
 ```
 
 - **`pct%`** — 一次性 credit 已用百分比（此 credit 類型僅提供百分比，**不提供金額**）
