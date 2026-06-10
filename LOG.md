@@ -5,7 +5,7 @@
 ### 新增：一次性 Claude Code／Cowork credit（cinder_cove）顯示區塊
 - 功能：配額制帳號若有一次性 Claude Code／Cowork credit（`cinder_cove`），statusline 在 spend 區塊左側自動插入 `CR` 區塊，顯示已用百分比、進度條與到期倒數（`↻…`）；此 credit 僅提供百分比，**無金額**；帳號無此 credit 時自動隱藏，無需任何設定
 - 訂閱制帳號不受影響
-- 資料層：`core/fetch-usage.sh` 在 quota 契約解析時新增 `credit` 物件（包含 `pct`、`bar`、`resets_at`，`resets_at` 由 ISO 格式轉換為 epoch）
+- 資料層：`core/fetch-usage.sh` 在 quota 契約解析時新增 `credit` 物件（包含 `utilization`、`resets_at`，`resets_at` 由 ISO 格式轉換為 epoch；僅在 `cinder_cove.utilization` 為數字時才輸出）
 - 顯示層：重用 `rate_7d` 區塊色彩，不需修改 theme 檔案
 - 文件：同步更新 `README.md`（英文）與 `docs/README.zh-TW.md`（繁中），新增 credit 欄位說明於區塊表格與 Spend 區塊章節
 
