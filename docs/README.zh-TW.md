@@ -60,12 +60,39 @@ cd ~/claude-cyberpunk-statusline && ./configure.sh
 | context | 上下文視窗用量 % |
 | rate_5h | 5 小時速率限制 % |
 | rate_7d | 7 天速率限制 % |
+| spend | 企業版／配額制帳號的本月 spend 用量（自動取代速率限制區塊） |
 | cost | 今日跨 session 花費 |
 | directory | 工作目錄 |
 | git | Git 分支 |
 | time | 目前時間 |
 
 **cost 區塊**會顯示今日所有 Claude 模型與 session 的總花費。若有安裝 [ccusage](https://github.com/ryoppippi/ccusage) 會使用其精確統計，否則自動以內建 JSONL 計算。資料每 5 分鐘在背景更新快取。
+
+#### 企業版／配額制帳號：Spend 區塊
+
+當 statusline 偵測到**企業版或配額制 Claude 帳號**（即無個人速率限制）時，`rate_5h` 與 `rate_7d` 區塊會自動替換為 **spend 區塊**，顯示本月用量：
+
+```
+$122/$500 24% ↻21d0h
+```
+
+- **`$used/$limit`** — 本月已用金額／配額上限
+- **`pct%`** — 配額使用百分比
+- **`↻…`** — 距配額重置（下月 1 日）的倒數
+
+若 `account_type` 強制設為 `quota` 但無法取得用量資料，spend 區塊顯示 `$--`；在預設的 `auto` 模式下，取得失敗會被視為未知帳號而保留速率限制區塊。兩種情況下 statusline 都永不阻塞。
+
+資料取自 Claude Code 自身使用的 usage 端點，腳本僅讀取本機 OAuth 憑證來查詢**使用者自己的**用量，**不會外傳至任何第三方**。結果快取 60 秒並在背景刷新。
+
+#### `account_type` 設定
+
+你可以在 `config.json` 中以 `account_type` 選項覆蓋自動偵測行為：
+
+| 值 | 行為 |
+|---|---|
+| `auto`（預設） | 自動偵測帳號類型；企業版／配額制帳號顯示 spend 區塊，否則顯示速率限制區塊 |
+| `subscription` | 強制顯示 `rate_5h` / `rate_7d` 區塊（個人 Pro/Max 方案） |
+| `quota` | 強制顯示 spend 區塊（企業版／配額制方案） |
 
 ### 預覽與編輯主題
 

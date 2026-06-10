@@ -317,7 +317,8 @@ render_preview() {
   "blocks": [$blocks_json],
   "bar_width": $bar_width,${bar_fields}
   "show_icons": $show_icons,
-  "time_format": "$time_format"
+  "time_format": "$time_format",
+  "account_type": "auto"
 }
 CONF
 
@@ -1032,7 +1033,8 @@ step_done() {
   "blocks": [$blocks_json],
   "bar_width": $bar_width,${bar_filled_field}${bar_empty_field}
   "show_icons": $sel_show_icons,
-  "time_format": "$time_format"
+  "time_format": "$time_format",
+  "account_type": "auto"
 }
 CONF
 )

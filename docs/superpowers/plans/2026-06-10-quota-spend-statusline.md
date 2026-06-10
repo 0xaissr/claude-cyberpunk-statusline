@@ -135,7 +135,7 @@ out=$(USAGE_FIXTURE="$FIX/usage-quota.json" bash "$FETCH")
 check "quota: account_type"  "quota" "$(echo "$out" | jq -r '.account_type')"
 check "quota: used_cents"    "12156" "$(echo "$out" | jq -r '.spend.used_cents')"
 check "quota: limit_cents"   "50000" "$(echo "$out" | jq -r '.spend.limit_cents')"
-check "quota: utilization"   "24"    "$(echo "$out" | jq -r '.spend.utilization')"
+check "quota: utilization"   "24"    "$(echo "$out" | jq -r '.spend.utilization | round')"
 check "quota: currency"      "USD"   "$(echo "$out" | jq -r '.spend.currency')"
 check "quota: resets_at>now" "yes"   "$([ "$(echo "$out" | jq -r '.spend.resets_at')" -gt "$(date +%s)" ] && echo yes || echo no)"
 
@@ -211,8 +211,8 @@ echo "$raw" | "$JQ" -c --argjson reset "$reset_epoch" '
     {
       account_type: "quota",
       spend: {
-        used_cents:  (.extra_usage.used_credits // 0),
-        limit_cents: (.extra_usage.monthly_limit),
+        used_cents:  (.extra_usage.used_credits // 0 | round),
+        limit_cents: (.extra_usage.monthly_limit | round),
         utilization: (.extra_usage.utilization // 0),
         currency:    (.extra_usage.currency // "USD"),
         resets_at:   $reset
