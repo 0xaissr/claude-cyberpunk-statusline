@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-06-10
+
+### 新增：配額制帳號 spend 顯示與帳號類型自動偵測（account_type）
+- 功能：偵測到企業版／配額制 Claude 帳號（無個人速率限制）時，statusline 自動將 `rate_5h` / `rate_7d` 區塊替換為本月 spend 用量區塊，格式為 `$used/$limit pct% ↻Xd`
+- 新增 `account_type` 設定欄位：
+  - `auto`（預設）— 自動偵測帳號類型，有速率限制顯示 5H/7D，無則顯示 spend
+  - `subscription` — 強制顯示 5H/7D 速率限制區塊（個人 Pro/Max 方案）
+  - `quota` — 強制顯示 spend 區塊（企業版／配額制方案）
+- 資料來源：Claude Code 自身使用的 usage 端點；腳本僅以本機 OAuth 憑證查詢**使用者自己的**用量，**不外傳至任何第三方**；查詢失敗時 spend 區塊顯示 `$--`，statusline 永不阻塞
+- 結果快取 60 秒，背景刷新，不影響 statusline 渲染速度
+- 新增 `core/fetch-usage.sh` 模組，負責呼叫 usage 端點、解析 JSON 回應並正規化輸出
+- 文件：同步更新 `README.md`（英文）與 `docs/README.zh-TW.md`（繁中），加入 spend 區塊說明、`account_type` 設定說明及安全性聲明
+
 ## 2026-04-22
 
 ### 修正：rainbow 模式停用 block 後底色不再連貫
