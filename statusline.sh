@@ -111,10 +111,12 @@ S_TIME=$(sym time)
 S_BAR_FILLED=$(sym bar_filled)
 S_BAR_EMPTY=$(sym bar_empty)
 S_COST=$(sym cost)
+S_SPEND=$(sym spend)
+[ "$S_SPEND" = "?" ] && S_SPEND="$S_COST"
 
 # Clear icons if show_icons is disabled
 if [ "$cfg_show_icons" = "false" ]; then
-  S_MODEL="" S_CTX="" S_5H="" S_7D="" S_DIR="" S_GIT="" S_TIME="" S_COST=""
+  S_MODEL="" S_CTX="" S_5H="" S_7D="" S_DIR="" S_GIT="" S_TIME="" S_COST="" S_SPEND=""
 fi
 
 # ── Read block color mappings ─────────────────────────────────────────────
@@ -321,6 +323,12 @@ format_countdown() {
   fi
 }
 
+# ── Spend formatting helpers ──────────────────────────────────────────────
+# Round cents → whole-dollar integer.
+spend_dollars() { local c="${1:-0}"; echo $(( (c + 50) / 100 )); }
+# Currency prefix: "$" for USD, otherwise "<CODE> ".
+spend_cur() { if [ "${1:-USD}" = "USD" ] || [ -z "${1:-}" ]; then echo -n "\$"; else echo -n "${1} "; fi; }
+
 # ── Build separator ────────────────────────────────────────────────────────
 if ! $PL_MODE; then
   SEP_FG=$(hex_to_fg "$C_SEP")
@@ -384,6 +392,17 @@ block_text_cost() {
   else
     echo -n " \$-- "
   fi
+}
+
+block_text_spend() {
+  if [ -z "$spend_limit_cents" ]; then echo -n " ${S_SPEND} \$-- "; return; fi
+  local cur=$(spend_cur "$spend_currency")
+  local used=$(spend_dollars "$spend_used_cents")
+  local limit=$(spend_dollars "$spend_limit_cents")
+  local pct_int=$(printf "%.0f" "$spend_pct")
+  local countdown=$(format_countdown "$spend_reset")
+  local reset_str=""; [ -n "$countdown" ] && reset_str=" ${countdown}"
+  echo -n " ${S_SPEND} ${cur}${used}/${cur}${limit} ${pct_int}%${reset_str} "
 }
 
 block_text_turn_usage() {
@@ -488,6 +507,40 @@ render_block_cost() {
   fi
 }
 
+render_block_spend() {
+  local fg_hex=$(block_color rate_5h)
+  local bg_hex=$(block_bg rate_5h)
+  local fg=$(hex_to_fg "$fg_hex")
+  local bg=$(hex_to_bg "$bg_hex")
+  local bar_bg=$(hex_to_bg "$C_BG_PRIMARY")
+  local dim_fg=$(hex_to_fg "$C_DIM")
+
+  if [ -z "$spend_limit_cents" ]; then
+    echo -n "${bg}${dim_fg} ${S_SPEND} \$-- ${RESET}"
+    return
+  fi
+
+  local cur=$(spend_cur "$spend_currency")
+  local used=$(spend_dollars "$spend_used_cents")
+  local limit=$(spend_dollars "$spend_limit_cents")
+  local pct_int=$(printf "%.0f" "$spend_pct")
+  local col=$(neon_colour "$pct_int" "$fg_hex" "$C_WARNING" "$C_ALERT")
+  local countdown=$(format_countdown "$spend_reset")
+  local reset_str=""; [ -n "$countdown" ] && reset_str=" ${dim_fg}${countdown}${RESET}"
+  local amt="${cur}${used}/${cur}${limit}"
+
+  case "$cfg_spacing" in
+    ultra-compact)
+      echo -n "${bar_bg}${col} ${S_SPEND} ${BOLD}${amt} ${pct_int}%${reset_str} ${RESET}"
+      ;;
+    *)
+      local c_bar_f="${cfg_bar_filled:-$S_BAR_FILLED}" c_bar_e="${cfg_bar_empty:-$S_BAR_EMPTY}"
+      local bar=$(make_bar "$pct_int" "$cfg_bar_width" "$c_bar_f" "$c_bar_e")
+      echo -n "${bg}${fg}${BOLD} ${S_SPEND} ${RESET}${bar_bg}${col} ${amt} ${bar} ${BOLD}${pct_int}%${reset_str} ${RESET}"
+      ;;
+  esac
+}
+
 render_block_turn_usage() {
   local fg=$(hex_to_fg "$(block_color turn_usage)")
   local bg=$(hex_to_bg "$(block_bg turn_usage)")
@@ -518,10 +571,34 @@ get_block_bg_hex() {
 # ── Assemble ───────────────────────────────────────────────────────────────
 output=""
 
+# When the effective account type is quota, replace the rate_5h/rate_7d slot
+# with a single spend block (first rate block becomes spend, the other drops).
+eff_blocks=()
+if [ "$eff_account_type" = "quota" ]; then
+  _spend_added=false
+  for b in $cfg_blocks; do
+    if [ "$b" = "rate_5h" ] || [ "$b" = "rate_7d" ]; then
+      if ! $_spend_added; then eff_blocks+=("spend"); _spend_added=true; fi
+      continue
+    fi
+    eff_blocks+=("$b")
+  done
+  if ! $_spend_added; then
+    eff_blocks=()
+    for b in $cfg_blocks; do
+      eff_blocks+=("$b")
+      [ "$b" = "context" ] && eff_blocks+=("spend") && _spend_added=true
+    done
+    $_spend_added || eff_blocks+=("spend")
+  fi
+else
+  for b in $cfg_blocks; do eff_blocks+=("$b"); done
+fi
+
 if $PL_MODE; then
   # ── Rainbow assembly ───────────────────────────────────────────────────
   block_list=()
-  for b in $cfg_blocks; do block_list+=("$b"); done
+  for b in "${eff_blocks[@]}"; do block_list+=("$b"); done
 
   # Cycle bg through accent_1 → accent_2 → accent_3 based on the block's
   # position in the ACTIVE list, so colors stay sequential even when some
@@ -562,6 +639,7 @@ if $PL_MODE; then
       git)       text=$(block_text_git) ;;
       time)      text=$(block_text_time) ;;
       cost)      text=$(block_text_cost) ;;
+      spend)     text=$(block_text_spend) ;;
     esac
     output+="${cur_bg}${cur_fg}${BOLD}${text}${RESET}"
 
@@ -576,7 +654,7 @@ if $PL_MODE; then
 else
   # ── Classic assembly ───────────────────────────────────────────────────
   first=true
-  for block in $cfg_blocks; do
+  for block in "${eff_blocks[@]}"; do
     if [ "$first" = true ]; then
       first=false
     else
@@ -591,6 +669,7 @@ else
       git)       output+=$(render_block_git) ;;
       time)      output+=$(render_block_time) ;;
       cost)      output+=$(render_block_cost) ;;
+      spend)     output+=$(render_block_spend) ;;
     esac
   done
 fi
