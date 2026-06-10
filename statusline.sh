@@ -113,10 +113,12 @@ S_BAR_EMPTY=$(sym bar_empty)
 S_COST=$(sym cost)
 S_SPEND=$(sym spend)
 [ "$S_SPEND" = "?" ] && S_SPEND="$S_COST"
+S_CREDIT=$(sym credit)
+[ "$S_CREDIT" = "?" ] && S_CREDIT="$S_SPEND"
 
 # Clear icons if show_icons is disabled
 if [ "$cfg_show_icons" = "false" ]; then
-  S_MODEL="" S_CTX="" S_5H="" S_7D="" S_DIR="" S_GIT="" S_TIME="" S_COST="" S_SPEND=""
+  S_MODEL="" S_CTX="" S_5H="" S_7D="" S_DIR="" S_GIT="" S_TIME="" S_COST="" S_SPEND="" S_CREDIT=""
 fi
 
 # ── Read block color mappings ─────────────────────────────────────────────
@@ -408,6 +410,10 @@ block_text_spend() {
   echo -n " ${S_SPEND} ${cur}${used}/${cur}${limit} ${pct_int}%${reset_str} "
 }
 
+block_text_credit() {
+  block_text_pct "rate_7d" "$S_CREDIT" "CR" "$credit_pct" "$credit_reset"
+}
+
 block_text_turn_usage() {
   local cache="/tmp/claude-turn-usage.txt"
   if [ -f "$cache" ]; then
@@ -473,6 +479,7 @@ render_pct_block() {
 render_block_context()  { render_pct_block "context" "$S_CTX" "CTX" "$used_pct"; }
 render_block_rate_5h()  { render_pct_block "rate_5h" "$S_5H"  "5H"  "$five_pct" "$five_reset"; }
 render_block_rate_7d()  { render_pct_block "rate_7d" "$S_7D"  "7D"  "$week_pct" "$week_reset"; }
+render_block_credit() { render_pct_block "rate_7d" "$S_CREDIT" "CR" "$credit_pct" "$credit_reset"; }
 
 render_block_directory() {
   local fg=$(hex_to_fg "$(block_color directory)")
