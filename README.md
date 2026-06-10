@@ -75,14 +75,14 @@ The **cost** block shows today's total spending across all Claude models and ses
 When the statusline detects an **Enterprise or quota-based Claude account** (i.e. no personal rate limits exist), the `rate_5h` and `rate_7d` blocks are automatically replaced with a **spend block** showing monthly usage:
 
 ```
-$122/$500 24% ↻21d
+$122/$500 24% ↻21d0h
 ```
 
 - **`$used/$limit`** — amount spent this month vs. your quota limit
 - **`pct%`** — percentage of quota consumed
-- **`↻Xd`** — days until the quota resets (1st of next month)
+- **`↻…`** — countdown until the quota resets (1st of next month)
 
-If the usage data cannot be fetched, the block displays `$--` and the statusline never blocks.
+If `account_type` is forced to `quota` but the usage data cannot be fetched, the spend block displays `$--`. In the default `auto` mode a fetch failure is treated as an unknown account, so the rate blocks are kept instead. Either way the statusline never blocks.
 
 Data is fetched via the same usage endpoint that Claude Code itself uses. The script reads only your **local OAuth credentials** to query your own usage — no data is sent to any third party. Results are cached for 60 seconds and refreshed in the background.
 

@@ -30,6 +30,11 @@ else
     "https://api.anthropic.com/api/oauth/usage" 2>/dev/null)
 fi
 
+# Empty/whitespace-only response (e.g. curl offline/timeout) is a failure:
+# jq empty treats no-input as valid (exit 0), so guard it explicitly. This
+# preserves the {"account_type":"unknown"} contract and avoids writing a
+# 0-byte cache whose fresh mtime would suppress retries for 60s.
+[ -z "${raw//[[:space:]]/}" ] && fail
 echo "$raw" | "$JQ" empty >/dev/null 2>&1 || fail
 
 reset_epoch=$(date -v1d -v+1m -v0H -v0M -v0S +%s 2>/dev/null)

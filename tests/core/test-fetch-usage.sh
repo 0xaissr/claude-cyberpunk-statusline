@@ -27,4 +27,11 @@ check "empty: account_type" "unknown" "$(echo "$out" | jq -r '.account_type')"
 out=$(echo 'not json' > /tmp/cyberpunk-bad.json; USAGE_FIXTURE="/tmp/cyberpunk-bad.json" bash "$FETCH"; rm -f /tmp/cyberpunk-bad.json)
 check "bad json: account_type" "unknown" "$(echo "$out" | jq -r '.account_type')"
 
+# Empty / whitespace-only response (simulates curl offline/timeout) must still
+# emit the unknown contract — not an empty string.
+out=$(printf '' > /tmp/cyberpunk-empty.txt; USAGE_FIXTURE="/tmp/cyberpunk-empty.txt" bash "$FETCH"; rm -f /tmp/cyberpunk-empty.txt)
+check "empty response: account_type" "unknown" "$(echo "$out" | jq -r '.account_type // "MISSING"')"
+out=$(printf '   \n' > /tmp/cyberpunk-ws.txt; USAGE_FIXTURE="/tmp/cyberpunk-ws.txt" bash "$FETCH"; rm -f /tmp/cyberpunk-ws.txt)
+check "whitespace response: account_type" "unknown" "$(echo "$out" | jq -r '.account_type // "MISSING"')"
+
 echo "---"; echo "PASS=$PASS FAIL=$FAIL"; [ "$FAIL" -eq 0 ]
