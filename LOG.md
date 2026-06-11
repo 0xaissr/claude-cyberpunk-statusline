@@ -18,6 +18,12 @@
 - **記錄器去重改鍵**：由 `(utilization, resets_at)` 改為 `(metric, utilization)`。因 resets_at 漂移會讓 util 未變卻每次 render 都寫一筆而爆量（實測 1 小時 78 筆）；reset 本質是 util 下降，仍會被記錄，視窗邊界不漏
 - **資料修復**：清理開發測試期間混入真實 history 的 fixture 殘留（util 8/24/33 等多 metric 雜訊），備份為 `usage-history.jsonl.bak.*`
 
+### 調整：burn 顯示改為「預估耗盡天數/重置天數」
+
+- 原顯示 `actual/sustainable%/d`（兩個 %/day 數字）不易解讀。改為 `Xd/Yd`：以目前速度預估約 `X` 天用完，距實際重置還有 `Y` 天；`X < Y` 時告警色。例：`󱐋 0.8d/89d`
+- 新增 `_burn_days`（awk）將 actual/sustainable/remaining 換算成天數字串；無近期消耗顯示 `∞`，資料不足顯示 `--/--`
+- 同步 README（中英）與測試（改驗 `Xd/Yd` 格式）
+
 ## 2026-06-10
 
 ### 新增：一次性 Claude Code／Cowork credit（cinder_cove）顯示區塊

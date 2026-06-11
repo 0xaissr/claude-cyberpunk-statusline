@@ -438,11 +438,23 @@ block_text_credit() {
   block_text_pct "rate_7d" "$S_CREDIT" "CR" "$credit_pct" "$credit_reset"
 }
 
+# burn：把 actual/sustainable(%/day) + remaining(%) 換算成「預估耗盡天數/重置天數」字串。
+# 例：剩 40%、實際 20%/d → 2 天用完；健康 10%/d → 4 天重置 → "2.0d/4.0d"。
+_burn_days() {
+  awk -v a="$1" -v s="$2" -v rem="$3" '
+    function fmt(v){ if(v>99) return ">99d"; if(v<10) return sprintf("%.1fd",v); return sprintf("%.0fd",v) }
+    BEGIN{
+      ex = (a+0>0)? fmt(rem/a) : "∞";
+      rs = (s!="" && s+0>0)? fmt(rem/s) : "?";
+      printf "%s/%s", ex, rs
+    }'
+}
+
 block_text_burn() {
   local _ba _bs _btf _bc _br
   IFS='|' read -r _ba _bs _btf _bc _br <<< "$(burn_rate_calc)"
   if [ -z "$_ba" ]; then echo -n " ${S_BURN} --/-- "; return; fi
-  echo -n " ${S_BURN} ${_ba}/${_bs}%/d "
+  echo -n " ${S_BURN} $(_burn_days "$_ba" "$_bs" "$_br") "
 }
 
 block_text_turn_usage() {
@@ -523,7 +535,7 @@ render_block_burn() {
   fi
   # burn 是速率比值（actual vs sustainable），用二元 alert 判斷而非 neon_colour 的百分比三段色
   local col; if [ "$_btf" = "yes" ]; then col=$(hex_to_fg "$C_ALERT"); else col=$(hex_to_fg "$fg_hex"); fi
-  echo -n "${bg}${col}${BOLD} ${S_BURN} ${_ba}/${_bs}%/d ${RESET}"
+  echo -n "${bg}${col}${BOLD} ${S_BURN} $(_burn_days "$_ba" "$_bs" "$_br") ${RESET}"
 }
 
 render_block_directory() {

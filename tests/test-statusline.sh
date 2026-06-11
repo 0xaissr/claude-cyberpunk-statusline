@@ -255,8 +255,9 @@ test_burn_block_renders_rate() {
   OUT=$(echo '{"model":{"display_name":"Opus"},"workspace":{"current_dir":"/tmp"},"rate_limits":{"seven_day":{"used_percentage":60,"resets_at":'"$R2"'}}}' \
     | HISTORY_FILE="$HTMP2" USAGE_CACHE_OVERRIDE="$SCRIPT_DIR/core/fixtures/usage-subscription.json" CONFIG_OVERRIDE="$CFG2" bash "$STATUSLINE" 2>/dev/null)
   rm -f "$HTMP2" "$CFG2"
-  check "burn block renders rate" "yes" "$(echo "$OUT" | grep -qE '[0-9]+(\.[0-9]+)?/[0-9]+(\.[0-9]+)?%/d' && echo yes || echo no)"
-  check "burn block shows 20/10" "yes" "$(echo "$OUT" | grep -qE '20/10%/d' && echo yes || echo no)"
+  # 新格式：預估耗盡天數/重置天數（剩 40% ÷ 實際 20%/d = 2d 用完；÷ 健康 10%/d = 4d 重置）
+  check "burn block renders days" "yes" "$(echo "$OUT" | grep -qE '[0-9]+(\.[0-9]+)?d/[0-9]+(\.[0-9]+)?d' && echo yes || echo no)"
+  check "burn block shows 2.0d/4.0d" "yes" "$(echo "$OUT" | grep -qE '2\.0d/4\.0d' && echo yes || echo no)"
 }
 
 test_burn_history_subscription() {
