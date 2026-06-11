@@ -9,6 +9,16 @@ SAMPLE="$SCRIPT_DIR/sample-input.json"
 PASS=0
 FAIL=0
 
+# check <label> <expected> <actual>
+check() {
+  local label="$1" expected="$2" actual="$3"
+  if [[ "$actual" == "$expected" ]]; then
+    echo "✓ $label"; ((PASS++))
+  else
+    echo "✗ $label — expected: $expected, got: $actual"; ((FAIL++))
+  fi
+}
+
 test_exists() {
   if [[ -f "$STATUSLINE" ]] && [[ -x "$STATUSLINE" ]]; then
     echo "✓ test_exists: statusline.sh exists and is executable"
@@ -245,11 +255,8 @@ test_burn_block_renders_rate() {
   OUT=$(echo '{"model":{"display_name":"Opus"},"workspace":{"current_dir":"/tmp"},"rate_limits":{"seven_day":{"used_percentage":60,"resets_at":'"$R2"'}}}' \
     | HISTORY_FILE="$HTMP2" USAGE_CACHE_OVERRIDE="$SCRIPT_DIR/core/fixtures/usage-subscription.json" CONFIG_OVERRIDE="$CFG2" bash "$STATUSLINE" 2>/dev/null)
   rm -f "$HTMP2" "$CFG2"
-  if echo "$OUT" | grep -q '20'; then
-    echo "✓ test_burn_block_renders_rate: burn 區塊輸出含速率數字 20"; ((PASS++))
-  else
-    echo "✗ test_burn_block_renders_rate: burn 區塊未顯示速率數字 20 — got: $OUT"; ((FAIL++))
-  fi
+  check "burn block renders rate" "yes" "$(echo "$OUT" | grep -qE '[0-9]+(\.[0-9]+)?/[0-9]+(\.[0-9]+)?%/d' && echo yes || echo no)"
+  check "burn block shows 20/10" "yes" "$(echo "$OUT" | grep -qE '20/10%/d' && echo yes || echo no)"
 }
 
 test_burn_history_subscription() {
