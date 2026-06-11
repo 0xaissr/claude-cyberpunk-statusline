@@ -62,15 +62,18 @@
 
 被 statusline 與 overview.sh 共用，避免重複計算邏輯。
 
-#### 視窗起點與天數的處理
+#### 視窗起點與天數的處理（實作修正）
 
-「視窗已過天數」需要視窗起點時間：
+> 註：原設計打算用「history 中相異 `resets_at` 推算視窗長度」來定位視窗起點。
+> 實作後以真實資料驗證發現：**API 每次 render 回傳的 `resets_at` 會隨現在時間漂移**
+> （每筆差幾秒～幾天），並非穩定的視窗識別碼，該推算法會算出落在未來的起點而失效。
+> 故改為下列做法。
 
-- 主路徑：`視窗起點 = resets_at − 視窗長度`
-- 視窗長度推算：從 history 中相鄰兩次 `resets_at` 的差推得；推不出時用 fallback：
-  - 7D → 7 天
-  - credit / spend → 依該額度實際週期（從 history 觀察到的 reset 間隔，初期無資料時用保守預設）
-- 若 history 起步較晚、缺少視窗起點附近的 snapshot，則以「本視窗第一筆 snapshot 的時間與 utilization」做近似起點，並接受初期估計偏差（資料累積後自動修正）
+- **先依當前指標過濾**：取最後一筆的 `metric`，只用同 metric 的列計算，避免 credit / spend / seven_day 混算。
+- **視窗起點 = 最後一次 utilization 下降（reset）之後的那一筆**；若整段同 metric 序列無下降，則為第一筆。
+  - reset 會把 utilization 歸零，所以「utilization 下降」就是視窗邊界的可靠訊號，不需依賴漂移的 `resets_at`。
+- **剩餘天數（days_left）** 直接用最新一筆的 `resets_at`（漂移幾秒對天級尺度無感）。
+- 視窗資料很少時（例如剛開始累積數十分鐘），平均速率會偏高，屬可接受的初期偏差，隨資料累積到整天即收斂。
 
 ### 3. 顯示層
 

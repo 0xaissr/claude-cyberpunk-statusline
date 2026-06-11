@@ -81,5 +81,40 @@ DR=$(date -u -r "$NOW" +%Y-%m-%d 2>/dev/null || date -u -d "@$NOW" +%Y-%m-%d)
 DAILY=$(burn_rate_daily)
 check "daily clamp negative→0" "0" "$(echo "$DAILY" | awk -v d="$DR" '$1==d{print $2}')"
 
+# ── Regression：resets_at 每筆漂移時，視窗起點不可用 resets_at 推算 ──
+# util 10→20→30 over 2d，resets_at 每筆 +100s 漂移，reset 遠在未來。
+# 視窗無 util 下降 → 起點為首筆 → actual=(30-10)/2d=10/day，必須非空（舊碼會算出未來起點→空）。
+DRIFT=$(( NOW + 5*DAY ))
+{
+  mkrow $(( NOW - 2*DAY )) 10 "$DRIFT"
+  mkrow $(( NOW - 1*DAY )) 20 "$(( DRIFT + 100 ))"
+  mkrow "$NOW"             30 "$(( DRIFT + 200 ))"
+} > "$TMP"
+OUT=$(burn_rate_calc "$NOW"); IFS='|' read -r a s tf c r <<< "$OUT"
+check "drift actual not blank" "10" "$a"
+check "drift too_fast no"      "no" "$tf"
+
+# ── metric 過濾：混入其他 metric 的雜訊列不應汙染當前 metric 計算 ──
+# 當前（最後一筆）為 seven_day；插入 credit/spend 雜訊 → 只用 seven_day：(30-10)/2d=10
+{
+  mkrow $(( NOW - 2*DAY )) 10 "$DRIFT"
+  "$JQ" -cn --argjson t $(( NOW - 2*DAY )) '{ts:$t,account_type:"quota",metric:"credit",utilization:99,resets_at:1}'
+  "$JQ" -cn --argjson t $(( NOW - 1*DAY )) '{ts:$t,account_type:"quota",metric:"spend",utilization:1,resets_at:2}'
+  mkrow "$NOW"             30 "$DRIFT"
+} > "$TMP"
+OUT=$(burn_rate_calc "$NOW"); IFS='|' read -r a s tf c r <<< "$OUT"
+check "metric-filter actual" "10" "$a"
+
+# ── reset（util 下降）偵測：視窗起點在最後一次下降之後 ──
+# util 10,80,5,25：最後下降 80→5，視窗從 5（NOW-2d）起 → actual=(25-5)/2d=10
+{
+  mkrow $(( NOW - 4*DAY )) 10 "$RESET"
+  mkrow $(( NOW - 3*DAY )) 80 "$RESET"
+  mkrow $(( NOW - 2*DAY )) 5  "$RESET"
+  mkrow "$NOW"             25 "$RESET"
+} > "$TMP"
+OUT=$(burn_rate_calc "$NOW"); IFS='|' read -r a s tf c r <<< "$OUT"
+check "reset-detect actual" "10" "$a"
+
 rm -f "$TMP"
 echo "---"; echo "PASS=$PASS FAIL=$FAIL"; [ "$FAIL" -eq 0 ]

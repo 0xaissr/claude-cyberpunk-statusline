@@ -11,6 +11,13 @@
 - **overview.sh DAILY BURN TREND 區塊**：`overview.sh` 新增每日趨勢段落，顯示各天已消耗%／剩餘% 及當前速率預測（pace hint）
 - **文件同步**：`README.md`（英文）與 `docs/README.zh-TW.md`（繁中）的可用區塊表格新增 `burn` 說明
 
+### 修正：burn 區塊永遠顯示 `--/--`（視窗起點計算錯誤）
+
+- **根本原因**：實際資料顯示 API 每次 render 回傳的 `resets_at` 會隨「現在時間」漂移（每筆差幾秒～幾天），並非穩定的視窗識別碼。原 `burn_rate_calc` 用「history 中相異 resets_at 推算視窗長度」（`reset − resets[-2]`），在漂移與多 metric 混雜下會算出**落在未來的視窗起點** → `elapsed_days` 為負 → `actual` 為 null → 顯示 `--/--`
+- **修正**：`burn_rate_calc` / `burn_rate_daily` 改為 (1) 先依「當前指標」（最後一筆 metric）過濾，避免 credit/spend/seven_day 混算；(2) 視窗起點改用「最後一次 utilization 下降（reset）之後」偵測，不再用 resets_at 推算；(3) `days_left` 直接用最新 `resets_at`
+- **記錄器去重改鍵**：由 `(utilization, resets_at)` 改為 `(metric, utilization)`。因 resets_at 漂移會讓 util 未變卻每次 render 都寫一筆而爆量（實測 1 小時 78 筆）；reset 本質是 util 下降，仍會被記錄，視窗邊界不漏
+- **資料修復**：清理開發測試期間混入真實 history 的 fixture 殘留（util 8/24/33 等多 metric 雜訊），備份為 `usage-history.jsonl.bak.*`
+
 ## 2026-06-10
 
 ### 新增：一次性 Claude Code／Cowork credit（cinder_cove）顯示區塊

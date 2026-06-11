@@ -13,22 +13,26 @@ burn_rate_calc() {
   local now="${1:-$(date +%s)}"
   if [ ! -s "$file" ]; then printf '||na||\n'; return 0; fi
 
+  # 設計：API 每次 render 回傳的 resets_at 會隨「現在時間」漂移（每筆差幾秒～幾天），
+  # 不是穩定的視窗識別碼，故不可用 resets_at 推算視窗起點。改採：
+  #   1. 依「當前指標」（最後一筆的 metric）過濾，避免混合 credit/spend/seven_day。
+  #   2. 視窗起點 = 最後一次 utilization 下降（reset）之後的那一筆；無下降則為首筆。
+  #   3. days_left 直接用最新 resets_at（漂移幾秒對天級尺度無感）。
   "$_BR_JQ" -rs --argjson now "$now" '
     if (length == 0) then "||na||"
     else
-      (.[-1]) as $last
+      (.[-1].metric) as $m
+      | [ .[] | select(.metric == $m) ] as $s
+      | ($s[-1]) as $last
       | $last.resets_at as $reset
       | $last.utilization as $current
       | (100 - $current) as $remaining
-      | [ .[] | select(.resets_at == $reset) ] as $win
-      | ([ .[] | .resets_at ] | unique | sort) as $resets
-      | (if ($resets | length) >= 2
-           then $reset - $resets[-2]
-           else null end) as $winlen
-      | (if $winlen != null then ($reset - $winlen) else $win[0].ts end) as $start
-      | (($now - $start) / 86400) as $elapsed_d
+      | (reduce range(1; ($s|length)) as $i (0;
+           if $s[$i].utilization < $s[$i-1].utilization then $i else . end)) as $si
+      | $s[$si] as $startrow
+      | (($now - $startrow.ts) / 86400) as $elapsed_d
       | (($reset - $now) / 86400) as $left_d
-      | (if $elapsed_d > 0 then ($current / $elapsed_d) else null end) as $actual
+      | (if $elapsed_d > 0 then (($current - $startrow.utilization) / $elapsed_d) else null end) as $actual
       | (if $left_d > 0 then ($remaining / $left_d) else null end) as $sustainable
       | (if ($actual != null and $sustainable != null)
            then (if $actual > $sustainable then "yes" else "no" end)
@@ -47,7 +51,11 @@ burn_rate_daily() {
   local file; file="$(_br_file)"
   [ ! -s "$file" ] && return 0
   "$_BR_JQ" -rs '
-    map(. + {day: (.ts | strftime("%Y-%m-%d"))})
+    if length == 0 then empty
+    else
+    (.[-1].metric) as $m
+    | map(select(.metric == $m))
+    | map(. + {day: (.ts | strftime("%Y-%m-%d"))})
     | group_by(.day)
     | map(
         (sort_by(.ts)) as $g
@@ -57,5 +65,6 @@ burn_rate_daily() {
       )
     | sort_by(.day)[]
     | "\(.day)\t\(.consumed)\t\(.remaining)"
+    end
   ' "$file" 2>/dev/null
 }

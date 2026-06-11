@@ -26,9 +26,13 @@ check "same value skipped" "1" "$(wc -l < "$HISTORY_FILE" | tr -d ' ')"
 history_append subscription seven_day 12 "$RESET" "$(( NOW + 120 ))"
 check "changed value written" "2" "$(wc -l < "$HISTORY_FILE" | tr -d ' ')"
 
-# 跨重置：resets_at 改變即使 util 相同也視為新視窗 → 寫入
+# resets_at 漂移但 util 與 metric 相同 → 跳過（避免每次 render 漂移都寫一筆）
 history_append subscription seven_day 12 "$(( RESET + 7*86400 ))" "$(( NOW + 180 ))"
-check "reset change written" "3" "$(wc -l < "$HISTORY_FILE" | tr -d ' ')"
+check "drift same-util skipped" "2" "$(wc -l < "$HISTORY_FILE" | tr -d ' ')"
+
+# metric 不同即使 util 相同 → 寫入（reset 本質是 util 下降，會被當作 util 改變記錄）
+history_append quota spend 12 "$RESET" "$(( NOW + 181 ))"
+check "diff metric written" "3" "$(wc -l < "$HISTORY_FILE" | tr -d ' ')"
 
 # 空 util 或空 resets_at → 不寫
 history_append subscription seven_day "" "$RESET" "$(( NOW + 240 ))"

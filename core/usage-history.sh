@@ -21,14 +21,17 @@ history_append() {
   local file; file="$(_history_file)"
   mkdir -p "$(dirname "$file")" 2>/dev/null || true
 
-  # 去重：與最後一筆比對 util 與 resets_at；兩者皆相同才跳過。
+  # 去重：與最後一筆比對 metric 與 utilization；兩者皆相同才跳過。
+  # 不比對 resets_at — API 的 resets_at 每次 render 都會隨現在時間漂移，
+  # 若納入比對會導致 util 沒變卻每次都寫一筆而爆量。reset 本質是 util 下降，
+  # 仍會被當作 util 改變而記錄，故視窗邊界不會漏。
   if [ -f "$file" ]; then
     local last; last="$(tail -n1 "$file" 2>/dev/null)"
     if [ -n "$last" ]; then
       local same
       same=$(echo "$last" | "$_HIST_JQ" -r \
-        --argjson u "$util" --argjson r "$reset" \
-        'if (.utilization == $u and .resets_at == $r) then "yes" else "no" end' 2>/dev/null)
+        --arg m "$metric" --argjson u "$util" \
+        'if (.metric == $m and .utilization == $u) then "yes" else "no" end' 2>/dev/null)
       [ "$same" = "yes" ] && return 0
     fi
   fi
