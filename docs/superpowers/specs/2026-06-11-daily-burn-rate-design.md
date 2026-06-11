@@ -19,7 +19,7 @@
 不論帳號類型，追蹤的指標統一抽象成兩個共通屬性：
 
 - `utilization`：0~100% 的累積使用率，在視窗內單調遞增，到 `resets_at` 歸零
-- `resets_at`：視窗重置時間（ISO8601）
+- `resets_at`：視窗重置時間（epoch 秒）
 
 追蹤的指標依帳號類型決定（重用 statusline 現有「依帳號類型挑指標」邏輯）：
 
@@ -37,7 +37,7 @@
 - 檔案：`~/.cache/cyberpunk-statusline/usage-history.jsonl`（沿用現有 cache 目錄）
 - 每筆 JSON：
   ```json
-  {"ts": "2026-06-11T10:30:00+08:00", "account_type": "subscription", "metric": "seven_day", "utilization": 42.5, "resets_at": "2026-06-15T00:00:00Z"}
+  {"ts": 1749600000, "account_type": "subscription", "metric": "seven_day", "utilization": 42.5, "resets_at": 1749945600}
   ```
 - **寫入策略：依數值變化寫入**
   - 讀 history 最後一筆；若 `utilization` 與上一筆**相同**則不寫，**不同**才 append 一筆

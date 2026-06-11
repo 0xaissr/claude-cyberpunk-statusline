@@ -52,8 +52,8 @@ burn_rate_daily() {
     | map(
         (sort_by(.ts)) as $g
         | { day: $g[0].day,
-            consumed: (($g[-1].utilization - $g[0].utilization) | if . < 0 then 0 else . end),
-            remaining: (100 - $g[-1].utilization) }
+            consumed: ((($g[-1].utilization - $g[0].utilization) | if . < 0 then 0 else . end) * 10 | round / 10),
+            remaining: ((100 - $g[-1].utilization) * 10 | round / 10) }
       )
     | sort_by(.day)[]
     | "\(.day)\t\(.consumed)\t\(.remaining)"
