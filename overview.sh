@@ -6,6 +6,7 @@ CONFIG="$SCRIPT_DIR/config.json"
 STATUSLINE="$SCRIPT_DIR/statusline.sh"
 THEMES_DIR="$SCRIPT_DIR/themes"
 JQ=$(command -v jq 2>/dev/null || echo "/opt/homebrew/bin/jq")
+source "$SCRIPT_DIR/core/burn-rate.sh"
 
 # ── Colors ────────────────────────────────────────────────────────────────
 C='\033[1;36m'  # cyan bold
@@ -38,11 +39,14 @@ _7d=$(( $(date +%s) + 4*86400 + 21*3600 ))
 SAMPLE='{"model":{"display_name":"Opus 4.6 (1M)"},"workspace":{"current_dir":"'"$SCRIPT_DIR"'"},"context_window":{"used_percentage":58},"rate_limits":{"five_hour":{"used_percentage":76,"resets_at":'"$_5h"'},"seven_day":{"used_percentage":33,"resets_at":'"$_7d"'}}}'
 
 # ── Helper: render with config overrides ──────────────────────────────────
+# _OVERVIEW_SCRATCH: isolated scratch file so overview previews don't pollute HISTORY_FILE
+_OVERVIEW_SCRATCH=$(mktemp)
+trap 'rm -f "$_OVERVIEW_SCRATCH"' EXIT
 render_with() {
   local overrides="$1"
   local tmp=$(mktemp)
   echo "$overrides" | "$JQ" -s '.[0] * .[1]' "$CONFIG" - > "$tmp"
-  echo "$SAMPLE" | CONFIG_OVERRIDE="$tmp" bash "$STATUSLINE" 2>/dev/null
+  echo "$SAMPLE" | CONFIG_OVERRIDE="$tmp" HISTORY_FILE="$_OVERVIEW_SCRATCH" bash "$STATUSLINE" 2>/dev/null
   rm -f "$tmp"
 }
 
@@ -58,7 +62,7 @@ echo -e "  ${Y}YOUR STATUSLINE${R}"
 echo -e "  ${D}----------------------------------------------------${R}"
 if [ -f "$CONFIG" ]; then
   printf "  "
-  echo "$SAMPLE" | bash "$STATUSLINE" 2>/dev/null
+  echo "$SAMPLE" | HISTORY_FILE="$_OVERVIEW_SCRATCH" bash "$STATUSLINE" 2>/dev/null
   echo ""
 else
   echo -e "  ${D}(not configured -- run ./install.sh)${R}"
@@ -79,6 +83,26 @@ if [ -f "$CONFIG" ]; then
   printf "  ${B}%-14s${R} %s\n" "Blocks:" "$cfg_blocks/8 enabled"
 else
   echo -e "  ${D}No config found.${R}"
+fi
+echo ""
+
+# ── Daily burn trend ──────────────────────────────────────────────────────
+echo -e "  ${Y}DAILY BURN TREND${R}"
+echo -e "  ${D}----------------------------------------------------${R}"
+_daily=$(burn_rate_daily)
+if [ -n "$_daily" ]; then
+  printf "  ${B}%-12s %10s %10s${R}\n" "DATE" "CONSUMED" "REMAINING"
+  while IFS=$'\t' read -r _d _c _rem; do
+    printf "  %-12s %9s%% %9s%%\n" "$_d" "$_c" "$_rem"
+  done <<< "$_daily"
+  IFS='|' read -r _a _s _tf _ _ <<< "$(burn_rate_calc)"
+  if [ "$_tf" = "yes" ]; then
+    echo -e "  ${M}► 速率偏快：目前 ${_a}%/day，剛好用完應為 ${_s}%/day${R}"
+  elif [ "$_tf" = "no" ]; then
+    echo -e "  ${G}► 速率正常：目前 ${_a}%/day ≤ 可持續 ${_s}%/day${R}"
+  fi
+else
+  echo -e "  ${D}尚無消耗紀錄（statusline 執行幾次後即會累積）${R}"
 fi
 echo ""
 
@@ -167,3 +191,5 @@ echo -e "  Full reconfigure:  ${C}./configure.sh${R}"
 echo -e "  Edit theme colors: ${C}./configure-theme.sh tokyo-night${R}"
 echo -e "  Update:            ${C}git pull${R}"
 echo ""
+
+rm -f "$_OVERVIEW_SCRATCH"

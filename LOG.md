@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-06-11
+
+### 新增：burn 單日消耗速率區塊 + 使用率歷史記錄 + overview 每日趨勢
+
+- **使用率歷史記錄（usage-history logger）**：每次 statusline render 時將當前使用率（utilization%）與 resets_at 寫入 `~/.cache/cyberpunk-statusline/usage-history.jsonl`；採依數值去重（utilization 未改變時不重複寫入），自動保留最近 30 天資料
+- **Burn rate 計算器**：從歷史記錄計算「平均每日消耗速率（avg %/day）」與「剛好在重置前用完的可持續速率（sustainable %/day）」；歷史資料不足時回傳 `--/--`
+- **`burn` statusline 區塊**：格式為 `󱐋 avg/sustainable%/d`（例：`󱐋 20/10%/d`）；當平均速率超過可持續速率（即以目前速度會在重置前提早耗盡）時自動轉為告警色；`burn` 已加入預設 blocks 清單（位於 `cost` 之後）
+- **統一 utilization 模型**：metric 依帳號類型跟隨既有邏輯 — quota 帳號取 credit 或 spend（以使用中的為準）；subscription 帳號取 7D 速率限制；統一以 utilization% + resets_at 表示，不需個別處理
+- **overview.sh DAILY BURN TREND 區塊**：`overview.sh` 新增每日趨勢段落，顯示各天已消耗%／剩餘% 及當前速率預測（pace hint）
+- **文件同步**：`README.md`（英文）與 `docs/README.zh-TW.md`（繁中）的可用區塊表格新增 `burn` 說明
+
+### 修正：burn 區塊永遠顯示 `--/--`（視窗起點計算錯誤）
+
+- **根本原因**：實際資料顯示 API 每次 render 回傳的 `resets_at` 會隨「現在時間」漂移（每筆差幾秒～幾天），並非穩定的視窗識別碼。原 `burn_rate_calc` 用「history 中相異 resets_at 推算視窗長度」（`reset − resets[-2]`），在漂移與多 metric 混雜下會算出**落在未來的視窗起點** → `elapsed_days` 為負 → `actual` 為 null → 顯示 `--/--`
+- **修正**：`burn_rate_calc` / `burn_rate_daily` 改為 (1) 先依「當前指標」（最後一筆 metric）過濾，避免 credit/spend/seven_day 混算；(2) 視窗起點改用「最後一次 utilization 下降（reset）之後」偵測，不再用 resets_at 推算；(3) `days_left` 直接用最新 `resets_at`
+- **記錄器去重改鍵**：由 `(utilization, resets_at)` 改為 `(metric, utilization)`。因 resets_at 漂移會讓 util 未變卻每次 render 都寫一筆而爆量（實測 1 小時 78 筆）；reset 本質是 util 下降，仍會被記錄，視窗邊界不漏
+- **資料修復**：清理開發測試期間混入真實 history 的 fixture 殘留（util 8/24/33 等多 metric 雜訊），備份為 `usage-history.jsonl.bak.*`
+
+### 調整：burn 顯示改為「實際 〈關係符〉 健康」
+
+- 顯示格式定為 `actual <op> sustainable`（例 `87.6 > 0.8`）：目前每日速度對比「剛好撐到重置」的每日速度，關係符 `>`/`<`/`=` 直接表達關係，`>` 代表太快並轉告警色；數字取一位小數，資料不足顯示 `--`
+- 新增 `_burn_fmt`（awk；注意 function 須定義於 BEGIN 之外）產生顯示字串
+- 同步 README（中英）與測試（改驗 `actual <op> sustainable` 格式）
+
+### 修正：單點離群讀數被誤判為 reset 導致速率爆量
+
+- 現象：history 混入一筆瞬間異常的低 utilization（如 28 之間夾一筆 8），reset 偵測把它當成重置 → 視窗只剩數秒 → actual 算出數萬 %/day
+- 修正：utilization 是累積量、視窗內只增不減，故 reset 偵測忽略「下降後下一筆又彈回到跌前水準」的 V 形單點離群；無下一筆或下一筆仍低於跌前才算真重置
+- 補回歸測試 `outlier dip ignored`
+
 ## 2026-06-10
 
 ### 新增：一次性 Claude Code／Cowork credit（cinder_cove）顯示區塊

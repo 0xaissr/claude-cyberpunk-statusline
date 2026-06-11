@@ -63,6 +63,7 @@ cd ~/claude-cyberpunk-statusline && ./configure.sh
 | spend | 企業版／配額制帳號的本月 spend 用量（自動取代速率限制區塊） |
 | credit | 配額制帳號的一次性 Claude Code／Cowork credit 用量（顯示於 spend 左側，存在時才出現） |
 | cost | 今日跨 session 花費 |
+| burn | 單日消耗速率，格式 `實際 〈關係符〉 健康`（例 `87.6 > 0.8`）——目前每日速度（%/day）對比「剛好撐到重置」的每日速度。關係符（`>`/`<`/`=`）直接表達兩者關係；`>` 代表會提早用完並轉為告警色。歷史資料不足時顯示 `--`。資料來自每次 render 的使用率歷史記錄（`~/.cache/cyberpunk-statusline/usage-history.jsonl`，依 (metric, 數值) 去重、保留 30 天；單點離群下降會被忽略，避免把瞬間的異常讀數誤判為重置）。初期因資料少，數字會偏高且跳動，隨資料累積會趨於穩定。 |
 | directory | 工作目錄 |
 | git | Git 分支 |
 | time | 目前時間 |

@@ -9,6 +9,16 @@ SAMPLE="$SCRIPT_DIR/sample-input.json"
 PASS=0
 FAIL=0
 
+# check <label> <expected> <actual>
+check() {
+  local label="$1" expected="$2" actual="$3"
+  if [[ "$actual" == "$expected" ]]; then
+    echo "✓ $label"; ((PASS++))
+  else
+    echo "✗ $label — expected: $expected, got: $actual"; ((FAIL++))
+  fi
+}
+
 test_exists() {
   if [[ -f "$STATUSLINE" ]] && [[ -x "$STATUSLINE" ]]; then
     echo "✓ test_exists: statusline.sh exists and is executable"
@@ -227,6 +237,55 @@ test_credit_absent_hidden() {
   fi
 }
 
+test_burn_block_renders_rate() {
+  # burn 區塊：too_fast 歷史，確認輸出含速率數字（actual ≈ 20）
+  local HTMP2; HTMP2=$(mktemp)
+  local NOW2; NOW2=$(date +%s)
+  local R2=$(( NOW2 + 4*86400 ))
+  local PR2=$(( R2 - 7*86400 ))
+  jq -cn --argjson t $(( NOW2 - 7*86400 )) --argjson r $PR2 \
+    '{ts:$t,account_type:"subscription",metric:"seven_day",utilization:90,resets_at:$r}' > "$HTMP2"
+  jq -cn --argjson t $(( NOW2 - 3*86400 )) --argjson r $R2 \
+    '{ts:$t,account_type:"subscription",metric:"seven_day",utilization:0,resets_at:$r}' >> "$HTMP2"
+  jq -cn --argjson t $NOW2 --argjson r $R2 \
+    '{ts:$t,account_type:"subscription",metric:"seven_day",utilization:60,resets_at:$r}' >> "$HTMP2"
+  local CFG2; CFG2=$(mktemp)
+  echo '{"blocks":["model","burn"],"style":"classic","separator":"|","account_type":"subscription"}' > "$CFG2"
+  local OUT
+  OUT=$(echo '{"model":{"display_name":"Opus"},"workspace":{"current_dir":"/tmp"},"rate_limits":{"seven_day":{"used_percentage":60,"resets_at":'"$R2"'}}}' \
+    | HISTORY_FILE="$HTMP2" USAGE_CACHE_OVERRIDE="$SCRIPT_DIR/core/fixtures/usage-subscription.json" CONFIG_OVERRIDE="$CFG2" bash "$STATUSLINE" 2>/dev/null)
+  rm -f "$HTMP2" "$CFG2"
+  # 格式：實際 〈關係符〉 健康（實際 20%/d > 健康 10%/d → "20.0 > 10.0"）
+  check "burn block renders rate" "yes" "$(echo "$OUT" | grep -qE '[0-9]+(\.[0-9]+)? [><=] [0-9]+(\.[0-9]+)?' && echo yes || echo no)"
+  check "burn block shows 20.0 > 10.0" "yes" "$(echo "$OUT" | grep -qE '20\.0 > 10\.0' && echo yes || echo no)"
+}
+
+test_burn_history_subscription() {
+  # burn history：subscription 輸入跑一次 statusline 後，history 檔應有一筆 seven_day 列
+  local HTMP; HTMP=$(mktemp); rm -f "$HTMP"
+  local SAMPLE_7D=$(( $(date +%s) + 4*86400 ))
+  local cfg=$(mktemp) cache=$(mktemp)
+  printf '{"theme":"terminal-glitch","symbol_set":"unicode","spacing":"normal","style":"classic","separator":"|","blocks":["model","rate_5h","rate_7d","time"],"bar_width":6,"show_icons":false,"account_type":"auto"}' > "$cfg"
+  printf '{"account_type":"subscription"}' > "$cache"
+  echo '{"model":{"display_name":"Opus"},"workspace":{"current_dir":"/tmp"},"context_window":{"used_percentage":50},"rate_limits":{"seven_day":{"used_percentage":33,"resets_at":'"$SAMPLE_7D"'}}}' \
+    | HISTORY_FILE="$HTMP" USAGE_CACHE_OVERRIDE="$cache" CONFIG_OVERRIDE="$cfg" bash "$STATUSLINE" >/dev/null 2>&1
+  rm -f "$cfg" "$cache"
+  local got_metric got_util
+  got_metric=$(tail -n1 "$HTMP" 2>/dev/null | jq -r '.metric // "none"')
+  got_util=$(tail -n1 "$HTMP" 2>/dev/null | jq -r '.utilization')
+  rm -f "$HTMP"
+  if [ "$got_metric" = "seven_day" ]; then
+    echo "✓ test_burn_history_subscription: history 有 seven_day 列"; ((PASS++))
+  else
+    echo "✗ test_burn_history_subscription: metric 應為 seven_day，實際得到 '$got_metric'"; ((FAIL++))
+  fi
+  if [ "$got_util" = "33" ]; then
+    echo "✓ test_burn_history_subscription: utilization=33"; ((PASS++))
+  else
+    echo "✗ test_burn_history_subscription: utilization 應為 33，實際得到 '$got_util'"; ((FAIL++))
+  fi
+}
+
 main() {
   echo "Running cyberpunk-statusline tests..."
   echo "======================================"
@@ -242,6 +301,8 @@ main() {
   test_subscription_keeps_rate
   test_credit_block_quota
   test_credit_absent_hidden
+  test_burn_history_subscription
+  test_burn_block_renders_rate
 
   echo "======================================"
   echo "Results: $PASS passed, $FAIL failed"
