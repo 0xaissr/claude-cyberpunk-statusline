@@ -227,6 +227,31 @@ test_credit_absent_hidden() {
   fi
 }
 
+test_burn_block_renders_rate() {
+  # burn 區塊：too_fast 歷史，確認輸出含速率數字（actual ≈ 20）
+  local HTMP2; HTMP2=$(mktemp)
+  local NOW2; NOW2=$(date +%s)
+  local R2=$(( NOW2 + 4*86400 ))
+  local PR2=$(( R2 - 7*86400 ))
+  jq -cn --argjson t $(( NOW2 - 7*86400 )) --argjson r $PR2 \
+    '{ts:$t,account_type:"subscription",metric:"seven_day",utilization:90,resets_at:$r}' > "$HTMP2"
+  jq -cn --argjson t $(( NOW2 - 3*86400 )) --argjson r $R2 \
+    '{ts:$t,account_type:"subscription",metric:"seven_day",utilization:0,resets_at:$r}' >> "$HTMP2"
+  jq -cn --argjson t $NOW2 --argjson r $R2 \
+    '{ts:$t,account_type:"subscription",metric:"seven_day",utilization:60,resets_at:$r}' >> "$HTMP2"
+  local CFG2; CFG2=$(mktemp)
+  echo '{"blocks":["model","burn"],"style":"classic","separator":"|","account_type":"subscription"}' > "$CFG2"
+  local OUT
+  OUT=$(echo '{"model":{"display_name":"Opus"},"workspace":{"current_dir":"/tmp"},"rate_limits":{"seven_day":{"used_percentage":60,"resets_at":'"$R2"'}}}' \
+    | HISTORY_FILE="$HTMP2" USAGE_CACHE_OVERRIDE="$SCRIPT_DIR/core/fixtures/usage-subscription.json" CONFIG_OVERRIDE="$CFG2" bash "$STATUSLINE" 2>/dev/null)
+  rm -f "$HTMP2" "$CFG2"
+  if echo "$OUT" | grep -q '20'; then
+    echo "✓ test_burn_block_renders_rate: burn 區塊輸出含速率數字 20"; ((PASS++))
+  else
+    echo "✗ test_burn_block_renders_rate: burn 區塊未顯示速率數字 20 — got: $OUT"; ((FAIL++))
+  fi
+}
+
 test_burn_history_subscription() {
   # burn history：subscription 輸入跑一次 statusline 後，history 檔應有一筆 seven_day 列
   local HTMP; HTMP=$(mktemp); rm -f "$HTMP"
@@ -269,6 +294,7 @@ main() {
   test_credit_block_quota
   test_credit_absent_hidden
   test_burn_history_subscription
+  test_burn_block_renders_rate
 
   echo "======================================"
   echo "Results: $PASS passed, $FAIL failed"

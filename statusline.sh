@@ -72,7 +72,7 @@ cfg_bar_empty=$("$JQ" -r '.bar_empty // ""' "$CONFIG")
 cfg_show_icons=$("$JQ" -r 'if .show_icons == false then "false" else "true" end' "$CONFIG")
 cfg_time_format=$("$JQ" -r '.time_format // "24h"' "$CONFIG")
 cfg_account_type=$("$JQ" -r '.account_type // "auto"' "$CONFIG")
-cfg_blocks=$("$JQ" -r '.blocks // ["model","context","rate_5h","rate_7d","directory","git","time"] | .[]' "$CONFIG")
+cfg_blocks=$("$JQ" -r '.blocks // ["model","context","rate_5h","rate_7d","cost","burn","directory","git","time"] | .[]' "$CONFIG")
 
 # ── Resolve theme ──────────────────────────────────────────────────────────
 THEME_DIR="$SCRIPT_DIR/themes"
@@ -119,10 +119,12 @@ S_SPEND=$(sym spend)
 [ "$S_SPEND" = "?" ] && S_SPEND="$S_COST"
 S_CREDIT=$(sym credit)
 [ "$S_CREDIT" = "?" ] && S_CREDIT="$S_SPEND"
+S_BURN=$(sym burn)
+[ "$S_BURN" = "?" ] && S_BURN="󱐋"
 
 # Clear icons if show_icons is disabled
 if [ "$cfg_show_icons" = "false" ]; then
-  S_MODEL="" S_CTX="" S_5H="" S_7D="" S_DIR="" S_GIT="" S_TIME="" S_COST="" S_SPEND="" S_CREDIT=""
+  S_MODEL="" S_CTX="" S_5H="" S_7D="" S_DIR="" S_GIT="" S_TIME="" S_COST="" S_SPEND="" S_CREDIT="" S_BURN=""
 fi
 
 # ── Read block color mappings ─────────────────────────────────────────────
@@ -436,6 +438,12 @@ block_text_credit() {
   block_text_pct "rate_7d" "$S_CREDIT" "CR" "$credit_pct" "$credit_reset"
 }
 
+block_text_burn() {
+  IFS='|' read -r _ba _bs _btf _bc _br <<< "$(burn_rate_calc)"
+  if [ -z "$_ba" ]; then echo -n " ${S_BURN} --/-- "; return; fi
+  echo -n " ${S_BURN} ${_ba}/${_bs}%/d "
+}
+
 block_text_turn_usage() {
   local cache="/tmp/claude-turn-usage.txt"
   if [ -f "$cache" ]; then
@@ -502,6 +510,18 @@ render_block_context()  { render_pct_block "context" "$S_CTX" "CTX" "$used_pct";
 render_block_rate_5h()  { render_pct_block "rate_5h" "$S_5H"  "5H"  "$five_pct" "$five_reset"; }
 render_block_rate_7d()  { render_pct_block "rate_7d" "$S_7D"  "7D"  "$week_pct" "$week_reset"; }
 render_block_credit() { render_pct_block "rate_7d" "$S_CREDIT" "CR" "$credit_pct" "$credit_reset"; }
+
+render_block_burn() {
+  local fg_hex=$(block_color rate_7d)
+  local bg=$(hex_to_bg "$(block_bg rate_7d)")
+  local dim_fg=$(hex_to_fg "$C_DIM")
+  IFS='|' read -r _ba _bs _btf _bc _br <<< "$(burn_rate_calc)"
+  if [ -z "$_ba" ]; then
+    echo -n "${bg}${dim_fg} ${S_BURN} --/-- ${RESET}"; return
+  fi
+  local col; if [ "$_btf" = "yes" ]; then col=$(hex_to_fg "$C_ALERT"); else col=$(hex_to_fg "$fg_hex"); fi
+  echo -n "${bg}${col}${BOLD} ${S_BURN} ${_ba}/${_bs}%/d ${RESET}"
+}
 
 render_block_directory() {
   local fg=$(hex_to_fg "$(block_color directory)")
@@ -686,6 +706,7 @@ if $PL_MODE; then
       cost)      text=$(block_text_cost) ;;
       spend)     text=$(block_text_spend) ;;
       credit)    text=$(block_text_credit) ;;
+      burn)      text=$(block_text_burn) ;;
     esac
     output+="${cur_bg}${cur_fg}${BOLD}${text}${RESET}"
 
@@ -717,6 +738,7 @@ else
       cost)      output+=$(render_block_cost) ;;
       spend)     output+=$(render_block_spend) ;;
       credit)    output+=$(render_block_credit) ;;
+      burn)      output+=$(render_block_burn) ;;
     esac
   done
 fi
