@@ -439,6 +439,7 @@ block_text_credit() {
 }
 
 block_text_burn() {
+  local _ba _bs _btf _bc _br
   IFS='|' read -r _ba _bs _btf _bc _br <<< "$(burn_rate_calc)"
   if [ -z "$_ba" ]; then echo -n " ${S_BURN} --/-- "; return; fi
   echo -n " ${S_BURN} ${_ba}/${_bs}%/d "
@@ -515,10 +516,12 @@ render_block_burn() {
   local fg_hex=$(block_color rate_7d)
   local bg=$(hex_to_bg "$(block_bg rate_7d)")
   local dim_fg=$(hex_to_fg "$C_DIM")
+  local _ba _bs _btf _bc _br
   IFS='|' read -r _ba _bs _btf _bc _br <<< "$(burn_rate_calc)"
   if [ -z "$_ba" ]; then
     echo -n "${bg}${dim_fg} ${S_BURN} --/-- ${RESET}"; return
   fi
+  # burn 是速率比值（actual vs sustainable），用二元 alert 判斷而非 neon_colour 的百分比三段色
   local col; if [ "$_btf" = "yes" ]; then col=$(hex_to_fg "$C_ALERT"); else col=$(hex_to_fg "$fg_hex"); fi
   echo -n "${bg}${col}${BOLD} ${S_BURN} ${_ba}/${_bs}%/d ${RESET}"
 }
