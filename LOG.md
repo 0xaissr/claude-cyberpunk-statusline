@@ -18,11 +18,17 @@
 - **記錄器去重改鍵**：由 `(utilization, resets_at)` 改為 `(metric, utilization)`。因 resets_at 漂移會讓 util 未變卻每次 render 都寫一筆而爆量（實測 1 小時 78 筆）；reset 本質是 util 下降，仍會被記錄，視窗邊界不漏
 - **資料修復**：清理開發測試期間混入真實 history 的 fixture 殘留（util 8/24/33 等多 metric 雜訊），備份為 `usage-history.jsonl.bak.*`
 
-### 調整：burn 顯示改為「預估耗盡天數/重置天數」
+### 調整：burn 顯示改為「實際 〈關係符〉 健康」
 
-- 原顯示 `actual/sustainable%/d`（兩個 %/day 數字）不易解讀。改為 `Xd/Yd`：以目前速度預估約 `X` 天用完，距實際重置還有 `Y` 天；`X < Y` 時告警色。例：`󱐋 0.8d/89d`
-- 新增 `_burn_days`（awk）將 actual/sustainable/remaining 換算成天數字串；無近期消耗顯示 `∞`，資料不足顯示 `--/--`
-- 同步 README（中英）與測試（改驗 `Xd/Yd` 格式）
+- 顯示格式定為 `actual <op> sustainable`（例 `87.6 > 0.8`）：目前每日速度對比「剛好撐到重置」的每日速度，關係符 `>`/`<`/`=` 直接表達關係，`>` 代表太快並轉告警色；數字取一位小數，資料不足顯示 `--`
+- 新增 `_burn_fmt`（awk；注意 function 須定義於 BEGIN 之外）產生顯示字串
+- 同步 README（中英）與測試（改驗 `actual <op> sustainable` 格式）
+
+### 修正：單點離群讀數被誤判為 reset 導致速率爆量
+
+- 現象：history 混入一筆瞬間異常的低 utilization（如 28 之間夾一筆 8），reset 偵測把它當成重置 → 視窗只剩數秒 → actual 算出數萬 %/day
+- 修正：utilization 是累積量、視窗內只增不減，故 reset 偵測忽略「下降後下一筆又彈回到跌前水準」的 V 形單點離群；無下一筆或下一筆仍低於跌前才算真重置
+- 補回歸測試 `outlier dip ignored`
 
 ## 2026-06-10
 

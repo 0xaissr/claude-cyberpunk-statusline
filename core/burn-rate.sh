@@ -27,8 +27,14 @@ burn_rate_calc() {
       | $last.resets_at as $reset
       | $last.utilization as $current
       | (100 - $current) as $remaining
-      | (reduce range(1; ($s|length)) as $i (0;
-           if $s[$i].utilization < $s[$i-1].utilization then $i else . end)) as $si
+      | ($s|length) as $n
+      | (reduce range(1; $n) as $i (0;
+           # 視 i 為 reset 起點：須是下降，且非「單點離群」——
+           # utilization 是累積量、視窗內只增不減，若下一筆又彈回到跌前水準（≥ 前一筆），
+           # 則這個下降是雜訊（V 形），不算 reset；無下一筆或下一筆仍低於跌前才算真重置。
+           if ($s[$i].utilization < $s[$i-1].utilization)
+              and (($i+1 >= $n) or ($s[$i+1].utilization < $s[$i-1].utilization))
+           then $i else . end)) as $si
       | $s[$si] as $startrow
       | (($now - $startrow.ts) / 86400) as $elapsed_d
       | (($reset - $now) / 86400) as $left_d

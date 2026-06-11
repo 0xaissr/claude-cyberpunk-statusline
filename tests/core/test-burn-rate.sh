@@ -116,5 +116,18 @@ check "metric-filter actual" "10" "$a"
 OUT=$(burn_rate_calc "$NOW"); IFS='|' read -r a s tf c r <<< "$OUT"
 check "reset-detect actual" "10" "$a"
 
+# ── 單點離群值（V 形：掉下去又彈回）不可當作 reset ──
+# util 10,20,8,21,22：中間的 8 是雜訊（下一筆 21 ≥ 跌前 20），應忽略 → 視窗從首筆 10
+# actual=(22-10)/4d=3（若誤判為 reset 會變成 (22-8)/2d=7）
+{
+  mkrow $(( NOW - 4*DAY )) 10 "$RESET"
+  mkrow $(( NOW - 3*DAY )) 20 "$RESET"
+  mkrow $(( NOW - 2*DAY )) 8  "$RESET"
+  mkrow $(( NOW - 1*DAY )) 21 "$RESET"
+  mkrow "$NOW"             22 "$RESET"
+} > "$TMP"
+OUT=$(burn_rate_calc "$NOW"); IFS='|' read -r a s tf c r <<< "$OUT"
+check "outlier dip ignored" "3" "$a"
+
 rm -f "$TMP"
 echo "---"; echo "PASS=$PASS FAIL=$FAIL"; [ "$FAIL" -eq 0 ]

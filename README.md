@@ -65,7 +65,7 @@ The setup wizard will guide you through:
 | spend | Monthly spend for Enterprise/quota accounts (replaces rate blocks) |
 | credit | One-time Claude Code/Cowork credit usage for quota accounts (shown left of spend, when present) |
 | cost | Daily cost across all sessions |
-| burn | Daily burn rate shown as `Xd/Yd` — estimated days to exhaust the quota at your current pace (`X`) vs days until it actually resets (`Y`). Turns alert-colored when `X < Y` (on pace to run out early); shows `--/--` until enough history accumulates, `∞` when there's no recent consumption. Backed by a per-render usage-history log (`~/.cache/cyberpunk-statusline/usage-history.jsonl`, deduped by (metric, value), 30-day retention). Early on the estimate is noisy (extrapolated from little data) and settles as history fills out. |
+| burn | Daily burn rate shown as `actual <op> sustainable` (e.g. `87.6 > 0.8`) — your current %/day pace vs the %/day that would exactly last until reset. The operator (`>`/`<`/`=`) shows the relationship; `>` means you're on pace to run out early and turns alert-colored. Shows `--` until enough history accumulates. Backed by a per-render usage-history log (`~/.cache/cyberpunk-statusline/usage-history.jsonl`, deduped by (metric, value), 30-day retention; single-point outlier dips are ignored so a transient bad reading isn't mistaken for a reset). Early on the pace is noisy (extrapolated from little data) and settles as history fills out. |
 | directory | Working directory |
 | git | Git branch |
 | time | Current time |
