@@ -58,5 +58,19 @@ OUT=$(burn_rate_calc "$NOW"); IFS='|' read -r a s tf c r <<< "$OUT"
 check "expired sustainable blank" "" "$s"
 check "expired too_fast na"       "na" "$tf"
 
+# burn_rate_daily：兩天資料，第一天 0→30（消耗30，剩70），第二天 30→50（消耗20，剩50）
+D1=$(date -u -r "$(( NOW - 1*DAY ))" +%Y-%m-%d 2>/dev/null || date -u -d "@$(( NOW - 1*DAY ))" +%Y-%m-%d)
+D0=$(date -u -r "$(( NOW - 2*DAY ))" +%Y-%m-%d 2>/dev/null || date -u -d "@$(( NOW - 2*DAY ))" +%Y-%m-%d)
+{
+  mkrow $(( NOW - 2*DAY ))        0  "$RESET"
+  mkrow $(( NOW - 2*DAY + 3600 )) 30 "$RESET"
+  mkrow $(( NOW - 1*DAY ))        30 "$RESET"
+  mkrow $(( NOW - 1*DAY + 3600 )) 50 "$RESET"
+} > "$TMP"
+DAILY=$(burn_rate_daily)
+check "daily day0 consumed" "30" "$(echo "$DAILY" | awk -v d="$D0" '$1==d{print $2}')"
+check "daily day1 consumed" "20" "$(echo "$DAILY" | awk -v d="$D1" '$1==d{print $2}')"
+check "daily day1 remaining" "50" "$(echo "$DAILY" | awk -v d="$D1" '$1==d{print $3}')"
+
 rm -f "$TMP"
 echo "---"; echo "PASS=$PASS FAIL=$FAIL"; [ "$FAIL" -eq 0 ]

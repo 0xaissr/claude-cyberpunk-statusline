@@ -41,3 +41,21 @@ burn_rate_calc() {
     end
   ' "$file" 2>/dev/null || printf '||na||\n'
 }
+
+# burn_rate_daily：印出 "YYYY-MM-DD\tconsumed\tremaining"，依日期升冪
+burn_rate_daily() {
+  local file; file="$(_br_file)"
+  [ ! -s "$file" ] && return 0
+  "$_BR_JQ" -rs '
+    map(. + {day: (.ts | strftime("%Y-%m-%d"))})
+    | group_by(.day)
+    | map(
+        (sort_by(.ts)) as $g
+        | { day: $g[0].day,
+            consumed: (($g[-1].utilization - $g[0].utilization) | if . < 0 then 0 else . end),
+            remaining: (100 - $g[-1].utilization) }
+      )
+    | sort_by(.day)[]
+    | "\(.day)\t\(.consumed)\t\(.remaining)"
+  ' "$file" 2>/dev/null
+}
