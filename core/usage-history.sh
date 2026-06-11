@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # 使用率時間序列記錄器：依數值變化去重 append，30 天保留期。
 # 被 statusline.sh source；測試可用 HISTORY_FILE env 覆寫路徑。
+# 注意：本檔案刻意不設 set -uo pipefail，因為它被 source 進呼叫方的 shell。
 
 _HIST_JQ="$(command -v jq 2>/dev/null || echo /opt/homebrew/bin/jq)"
 HISTORY_RETENTION_DAYS="${HISTORY_RETENTION_DAYS:-30}"
@@ -14,6 +15,8 @@ history_append() {
   local acct="$1" metric="$2" util="$3" reset="$4" ts="${5:-$(date +%s)}"
   [ -z "$util" ] && return 0
   [ -z "$reset" ] && return 0
+  [[ "$util" =~ ^-?[0-9]+(\.[0-9]+)?$ ]] || return 0
+  [[ "$reset" =~ ^-?[0-9]+$ ]] || return 0
 
   local file; file="$(_history_file)"
   mkdir -p "$(dirname "$file")" 2>/dev/null || true
@@ -41,5 +44,5 @@ history_append() {
   local tmp="$file.tmp.$$"
   { [ -f "$file" ] && cat "$file"; echo "$row"; } \
     | "$_HIST_JQ" -c --argjson cut "$cutoff" 'select(.ts > $cut)' \
-    > "$tmp" 2>/dev/null && mv -f "$tmp" "$file"
+    > "$tmp" 2>/dev/null && mv -f "$tmp" "$file" || { rm -f "$tmp"; return 1; }
 }
