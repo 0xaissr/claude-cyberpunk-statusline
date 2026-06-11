@@ -41,6 +41,7 @@ SAMPLE='{"model":{"display_name":"Opus 4.6 (1M)"},"workspace":{"current_dir":"'"
 # ── Helper: render with config overrides ──────────────────────────────────
 # _OVERVIEW_SCRATCH: isolated scratch file so overview previews don't pollute HISTORY_FILE
 _OVERVIEW_SCRATCH=$(mktemp)
+trap 'rm -f "$_OVERVIEW_SCRATCH"' EXIT
 render_with() {
   local overrides="$1"
   local tmp=$(mktemp)
@@ -94,7 +95,7 @@ if [ -n "$_daily" ]; then
   while IFS=$'\t' read -r _d _c _rem; do
     printf "  %-12s %9s%% %9s%%\n" "$_d" "$_c" "$_rem"
   done <<< "$_daily"
-  IFS='|' read -r _a _s _tf _cur _r <<< "$(burn_rate_calc)"
+  IFS='|' read -r _a _s _tf _ _ <<< "$(burn_rate_calc)"
   if [ "$_tf" = "yes" ]; then
     echo -e "  ${M}► 速率偏快：目前 ${_a}%/day，剛好用完應為 ${_s}%/day${R}"
   elif [ "$_tf" = "no" ]; then
