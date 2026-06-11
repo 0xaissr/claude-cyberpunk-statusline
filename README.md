@@ -65,6 +65,7 @@ The setup wizard will guide you through:
 | spend | Monthly spend for Enterprise/quota accounts (replaces rate blocks) |
 | credit | One-time Claude Code/Cowork credit usage for quota accounts (shown left of spend, when present) |
 | cost | Daily cost across all sessions |
+| burn | Daily burn rate: average %/day used vs the %/day that would exactly exhaust your quota by reset. Turns alert-colored when you're on pace to run out early; shows `--/--` until enough history accumulates. Backed by a per-render usage-history log (`~/.cache/cyberpunk-statusline/usage-history.jsonl`, deduped by value, 30-day retention). |
 | directory | Working directory |
 | git | Git branch |
 | time | Current time |

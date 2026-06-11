@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-06-11
+
+### 新增：burn 單日消耗速率區塊 + 使用率歷史記錄 + overview 每日趨勢
+
+- **使用率歷史記錄（usage-history logger）**：每次 statusline render 時將當前使用率（utilization%）與 resets_at 寫入 `~/.cache/cyberpunk-statusline/usage-history.jsonl`；採依數值去重（utilization 未改變時不重複寫入），自動保留最近 30 天資料
+- **Burn rate 計算器**：從歷史記錄計算「平均每日消耗速率（avg %/day）」與「剛好在重置前用完的可持續速率（sustainable %/day）」；歷史資料不足時回傳 `--/--`
+- **`burn` statusline 區塊**：格式為 `󱐋 avg/sustainable%/d`（例：`󱐋 20/10%/d`）；當平均速率超過可持續速率（即以目前速度會在重置前提早耗盡）時自動轉為告警色；`burn` 已加入預設 blocks 清單（位於 `cost` 之後）
+- **統一 utilization 模型**：metric 依帳號類型跟隨既有邏輯 — quota 帳號取 credit 或 spend（以使用中的為準）；subscription 帳號取 7D 速率限制；統一以 utilization% + resets_at 表示，不需個別處理
+- **overview.sh DAILY BURN TREND 區塊**：`overview.sh` 新增每日趨勢段落，顯示各天已消耗%／剩餘% 及當前速率預測（pace hint）
+- **文件同步**：`README.md`（英文）與 `docs/README.zh-TW.md`（繁中）的可用區塊表格新增 `burn` 說明
+
 ## 2026-06-10
 
 ### 新增：一次性 Claude Code／Cowork credit（cinder_cove）顯示區塊
