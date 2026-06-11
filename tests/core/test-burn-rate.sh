@@ -72,5 +72,14 @@ check "daily day0 consumed" "30" "$(echo "$DAILY" | awk -v d="$D0" '$1==d{print 
 check "daily day1 consumed" "20" "$(echo "$DAILY" | awk -v d="$D1" '$1==d{print $2}')"
 check "daily day1 remaining" "50" "$(echo "$DAILY" | awk -v d="$D1" '$1==d{print $3}')"
 
+# 同一天內 utilization 下降（視窗重置）→ consumed 夾到 0
+DR=$(date -u -r "$NOW" +%Y-%m-%d 2>/dev/null || date -u -d "@$NOW" +%Y-%m-%d)
+{
+  mkrow "$NOW"            90 "$RESET"
+  mkrow $(( NOW + 3600 )) 5  "$RESET"
+} > "$TMP"
+DAILY=$(burn_rate_daily)
+check "daily clamp negative→0" "0" "$(echo "$DAILY" | awk -v d="$DR" '$1==d{print $2}')"
+
 rm -f "$TMP"
 echo "---"; echo "PASS=$PASS FAIL=$FAIL"; [ "$FAIL" -eq 0 ]
