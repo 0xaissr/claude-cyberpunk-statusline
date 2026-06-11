@@ -49,6 +49,10 @@ neon_colour() {
   fi
 }
 
+# ── Burn-rate libraries ────────────────────────────────────────────────────
+source "$SCRIPT_DIR/core/usage-history.sh"
+source "$SCRIPT_DIR/core/burn-rate.sh"
+
 # ── Load config ────────────────────────────────────────────────────────────
 if [ ! -f "$CONFIG" ]; then
   echo "cyberpunk-statusline: run /cyberpunk-statusline configure"
@@ -300,6 +304,24 @@ case "$cfg_account_type" in
   subscription|quota) eff_account_type="$cfg_account_type" ;;
   *)                  eff_account_type="$acct_type" ;;
 esac
+
+# ── Record usage history for burn-rate tracking ───────────────────────────
+# 依帳號類型挑指標：quota+credit→credit；quota→spend；否則→seven_day。
+burn_metric="" burn_util="" burn_reset=""
+if [ "$eff_account_type" = "quota" ]; then
+  if [ -n "$credit_pct" ]; then
+    burn_metric="credit"; burn_util="$credit_pct"; burn_reset="$credit_reset"
+  elif [ -n "$spend_pct" ]; then
+    burn_metric="spend"; burn_util="$spend_pct"; burn_reset="$spend_reset"
+  fi
+else
+  if [ -n "$week_pct" ]; then
+    burn_metric="seven_day"; burn_util="$week_pct"; burn_reset="$week_reset"
+  fi
+fi
+if [ -n "$burn_metric" ]; then
+  history_append "$eff_account_type" "$burn_metric" "$burn_util" "$burn_reset" 2>/dev/null || true
+fi
 
 # ── Custom renderer check ─────────────────────────────────────────────────
 if [ -d "$THEME_DIR/$cfg_theme" ] && [ -f "$THEME_DIR/$cfg_theme/render.sh" ]; then

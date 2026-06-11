@@ -227,6 +227,32 @@ test_credit_absent_hidden() {
   fi
 }
 
+test_burn_history_subscription() {
+  # burn history：subscription 輸入跑一次 statusline 後，history 檔應有一筆 seven_day 列
+  local HTMP; HTMP=$(mktemp); rm -f "$HTMP"
+  local SAMPLE_7D=$(( $(date +%s) + 4*86400 ))
+  local cfg=$(mktemp) cache=$(mktemp)
+  printf '{"theme":"terminal-glitch","symbol_set":"unicode","spacing":"normal","style":"classic","separator":"|","blocks":["model","rate_5h","rate_7d","time"],"bar_width":6,"show_icons":false,"account_type":"auto"}' > "$cfg"
+  printf '{"account_type":"subscription"}' > "$cache"
+  echo '{"model":{"display_name":"Opus"},"workspace":{"current_dir":"/tmp"},"context_window":{"used_percentage":50},"rate_limits":{"seven_day":{"used_percentage":33,"resets_at":'"$SAMPLE_7D"'}}}' \
+    | HISTORY_FILE="$HTMP" USAGE_CACHE_OVERRIDE="$cache" CONFIG_OVERRIDE="$cfg" bash "$STATUSLINE" >/dev/null 2>&1
+  rm -f "$cfg" "$cache"
+  local got_metric got_util
+  got_metric=$(tail -n1 "$HTMP" 2>/dev/null | jq -r '.metric // "none"')
+  got_util=$(tail -n1 "$HTMP" 2>/dev/null | jq -r '.utilization')
+  rm -f "$HTMP"
+  if [ "$got_metric" = "seven_day" ]; then
+    echo "✓ test_burn_history_subscription: history 有 seven_day 列"; ((PASS++))
+  else
+    echo "✗ test_burn_history_subscription: metric 應為 seven_day，實際得到 '$got_metric'"; ((FAIL++))
+  fi
+  if [ "$got_util" = "33" ]; then
+    echo "✓ test_burn_history_subscription: utilization=33"; ((PASS++))
+  else
+    echo "✗ test_burn_history_subscription: utilization 應為 33，實際得到 '$got_util'"; ((FAIL++))
+  fi
+}
+
 main() {
   echo "Running cyberpunk-statusline tests..."
   echo "======================================"
@@ -242,6 +268,7 @@ main() {
   test_subscription_keeps_rate
   test_credit_block_quota
   test_credit_absent_hidden
+  test_burn_history_subscription
 
   echo "======================================"
   echo "Results: $PASS passed, $FAIL failed"
