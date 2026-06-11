@@ -17,6 +17,9 @@ mkrow() { # ts util reset_epoch
 TMP=$(mktemp); export HISTORY_FILE="$TMP"
 NOW=$(date +%s)
 DAY=86400
+# 錨定在 UTC 正午：burn_rate_daily 以 UTC 切日，用正午當基準可確保 +3600（1 小時）
+# 不會跨午夜，讓 daily/clamp 測試不受執行時刻影響（修正午夜邊界不穩定）。
+BASE=$(( (NOW / DAY) * DAY + 43200 ))
 
 # 7天視窗，視窗起點=NOW-3d，resets_at=NOW+4d。3天用60% → actual=20/day。剩40%/剩4天 → sustainable=10/day → too_fast=yes
 RESET=$(( NOW + 4*DAY ))
@@ -59,13 +62,13 @@ check "expired sustainable blank" "" "$s"
 check "expired too_fast na"       "na" "$tf"
 
 # burn_rate_daily：兩天資料，第一天 0→30（消耗30，剩70），第二天 30→50（消耗20，剩50）
-D1=$(date -u -r "$(( NOW - 1*DAY ))" +%Y-%m-%d 2>/dev/null || date -u -d "@$(( NOW - 1*DAY ))" +%Y-%m-%d)
-D0=$(date -u -r "$(( NOW - 2*DAY ))" +%Y-%m-%d 2>/dev/null || date -u -d "@$(( NOW - 2*DAY ))" +%Y-%m-%d)
+D1=$(date -u -r "$(( BASE - 1*DAY ))" +%Y-%m-%d 2>/dev/null || date -u -d "@$(( BASE - 1*DAY ))" +%Y-%m-%d)
+D0=$(date -u -r "$(( BASE - 2*DAY ))" +%Y-%m-%d 2>/dev/null || date -u -d "@$(( BASE - 2*DAY ))" +%Y-%m-%d)
 {
-  mkrow $(( NOW - 2*DAY ))        0  "$RESET"
-  mkrow $(( NOW - 2*DAY + 3600 )) 30 "$RESET"
-  mkrow $(( NOW - 1*DAY ))        30 "$RESET"
-  mkrow $(( NOW - 1*DAY + 3600 )) 50 "$RESET"
+  mkrow $(( BASE - 2*DAY ))        0  "$RESET"
+  mkrow $(( BASE - 2*DAY + 3600 )) 30 "$RESET"
+  mkrow $(( BASE - 1*DAY ))        30 "$RESET"
+  mkrow $(( BASE - 1*DAY + 3600 )) 50 "$RESET"
 } > "$TMP"
 DAILY=$(burn_rate_daily)
 check "daily day0 consumed" "30" "$(echo "$DAILY" | awk -v d="$D0" '$1==d{print $2}')"
@@ -73,10 +76,10 @@ check "daily day1 consumed" "20" "$(echo "$DAILY" | awk -v d="$D1" '$1==d{print 
 check "daily day1 remaining" "50" "$(echo "$DAILY" | awk -v d="$D1" '$1==d{print $3}')"
 
 # 同一天內 utilization 下降（視窗重置）→ consumed 夾到 0
-DR=$(date -u -r "$NOW" +%Y-%m-%d 2>/dev/null || date -u -d "@$NOW" +%Y-%m-%d)
+DR=$(date -u -r "$BASE" +%Y-%m-%d 2>/dev/null || date -u -d "@$BASE" +%Y-%m-%d)
 {
-  mkrow "$NOW"            90 "$RESET"
-  mkrow $(( NOW + 3600 )) 5  "$RESET"
+  mkrow "$BASE"            90 "$RESET"
+  mkrow $(( BASE + 3600 )) 5  "$RESET"
 } > "$TMP"
 DAILY=$(burn_rate_daily)
 check "daily clamp negative→0" "0" "$(echo "$DAILY" | awk -v d="$DR" '$1==d{print $2}')"
