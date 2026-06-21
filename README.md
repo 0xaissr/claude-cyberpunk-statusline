@@ -100,7 +100,7 @@ CR ████░ 8% ↻89d  $122/$500 ████░ 24% ↻21d
 - **progress bar** — same style as the `rate_5h` / `rate_7d` bars
 - **`↻…`** — countdown until the credit expires
 
-The credit block is **automatically hidden** when the account has no such credit — no configuration needed. It appears only for quota-based accounts; subscription accounts are unaffected.
+The credit block is **automatically hidden** when the account has no such credit, or once the credit is **fully used up (100%)** — at that point only the enterprise spend limit block remains, and the burn block switches to tracking spend. No configuration needed. It appears only for quota-based accounts; subscription accounts are unaffected.
 
 #### `account_type` Setting
 

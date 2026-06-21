@@ -311,7 +311,7 @@ esac
 # 依帳號類型挑指標：quota+credit→credit；quota→spend；否則→seven_day。
 burn_metric="" burn_util="" burn_reset=""
 if [ "$eff_account_type" = "quota" ]; then
-  if [ -n "$credit_pct" ]; then
+  if [ -n "$credit_pct" ] && awk -v p="$credit_pct" 'BEGIN{exit !(p < 100)}'; then
     burn_metric="credit"; burn_util="$credit_pct"; burn_reset="$credit_reset"
   elif [ -n "$spend_pct" ]; then
     burn_metric="spend"; burn_util="$spend_pct"; burn_reset="$spend_reset"
@@ -657,8 +657,9 @@ if [ "$eff_account_type" = "quota" ]; then
     done
     $_spend_added || eff_blocks+=("spend")
   fi
-  # one-time credit 區塊：存在時插在第一個 spend 之前（credit → spend）
-  if [ -n "$credit_pct" ]; then
+  # one-time credit 區塊：存在且尚未用光（< 100%）時插在第一個 spend 之前
+  # （credit → spend）；credit 用光後隱藏，只留 enterprise spend limit。
+  if [ -n "$credit_pct" ] && awk -v p="$credit_pct" 'BEGIN{exit !(p < 100)}'; then
     _tmp_blocks=()
     _cr_inserted=false
     for b in "${eff_blocks[@]}"; do

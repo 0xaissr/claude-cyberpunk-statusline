@@ -237,6 +237,22 @@ test_credit_absent_hidden() {
   fi
 }
 
+test_credit_exhausted_hidden() {
+  # credit 用光（utilization 100）時應隱藏 credit 區塊，只保留 spend（enterprise limit）
+  local cfg=$(mktemp) cache=$(mktemp)
+  printf '{"theme":"terminal-glitch","symbol_set":"nerd","spacing":"normal","style":"classic","separator":"|","blocks":["model","rate_5h","rate_7d","time"],"bar_width":6,"show_icons":false,"account_type":"auto"}' > "$cfg"
+  printf '{"account_type":"quota","credit":{"utilization":100,"resets_at":%s},"spend":{"used_cents":12156,"limit_cents":50000,"utilization":24,"currency":"USD","resets_at":%s}}' "$(($(date +%s)+7776000))" "$(($(date +%s)+1814400))" > "$cache"
+  local out=$(cat "$SAMPLE" | CONFIG_OVERRIDE="$cfg" USAGE_CACHE_OVERRIDE="$cache" bash "$STATUSLINE" 2>/dev/null || true)
+  rm -f "$cfg" "$cache"
+  if echo "$out" | grep -q 'CR'; then
+    echo "✗ test_credit_exhausted_hidden: credit 用光時仍出現 CR — got: $out"; ((FAIL++))
+  elif echo "$out" | grep -q '122/'; then
+    echo "✓ test_credit_exhausted_hidden: credit 用光時隱藏 CR、保留 spend"; ((PASS++))
+  else
+    echo "✗ test_credit_exhausted_hidden: spend 未顯示 — got: $out"; ((FAIL++))
+  fi
+}
+
 test_burn_block_renders_rate() {
   # burn 區塊：too_fast 歷史，確認輸出含速率數字（actual ≈ 20）
   local HTMP2; HTMP2=$(mktemp)
@@ -301,6 +317,7 @@ main() {
   test_subscription_keeps_rate
   test_credit_block_quota
   test_credit_absent_hidden
+  test_credit_exhausted_hidden
   test_burn_history_subscription
   test_burn_block_renders_rate
 

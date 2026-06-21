@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-06-21
+
+### 調整：credit 用光（100%）時隱藏 credit 區塊
+
+- **需求**：非訂閱制（quota）帳號同時擁有一次性 credit 與 enterprise spend limit 時，狀態列會並列 `CR`（credit）與 spend 兩個區塊。當 credit 已用光（100%），其倒數（如 `↻78d`）已無意義，使用者希望此時隱藏 credit、只留 enterprise limit
+- **statusline.sh**：credit 區塊插入條件由「`credit_pct` 非空」改為「非空且 `< 100`」（以 awk 做浮點比較）；同步將 burn 指標挑選邏輯改為相同門檻 — credit 用光後 burn 改追蹤 spend，避免顯示固定 100% 的無意義速率
+- **測試**：新增 `test_credit_exhausted_hidden`（utilization=100 時不出現 `CR`、仍保留 spend）；既有 `test_credit_block_quota` / `test_credit_absent_hidden` 不受影響，全數通過
+- **文件同步**：`README.md`（英文）與 `docs/README.zh-TW.md`（繁中）的 credit 區塊說明補上「用光後隱藏」行為
+
 ## 2026-06-11
 
 ### 新增：burn 單日消耗速率區塊 + 使用率歷史記錄 + overview 每日趨勢
