@@ -102,7 +102,20 @@ read_config_value() {
 
 latest_session_file() {
   [ -d "$SESSIONS_DIR" ] || return 1
-  find "$SESSIONS_DIR" -type f -name '*.jsonl' -print 2>/dev/null | sort | tail -1
+  local file
+  while IFS= read -r file; do
+    if jq -e '
+      select(type == "object")
+      | has("context_used_percent")
+        or has("five_hour_percent")
+        or has("weekly_percent")
+        or (.type == "event_msg" and .payload.type == "token_count")
+    ' "$file" >/dev/null 2>&1; then
+      printf '%s\n' "$file"
+      return 0
+    fi
+  done < <(find "$SESSIONS_DIR" -type f -name '*.jsonl' -print 2>/dev/null | sort -r)
+  return 1
 }
 
 read_latest_usage_field() {
@@ -169,6 +182,21 @@ codex_estimated_cost() {
       printf "%.2f", cost
     }
   '
+  return 0
+}
+
+ccusage_codex_cost() {
+  local output=""
+  if command -v ccusage >/dev/null 2>&1; then
+    output=$(ccusage codex daily --json --since "$(date +%Y%m%d)" 2>/dev/null || true)
+  elif command -v npx >/dev/null 2>&1; then
+    output=$(npx ccusage@latest codex daily --json --since "$(date +%Y%m%d)" 2>/dev/null || true)
+  fi
+
+  [ -n "$output" ] || return 0
+  printf '%s' "$output" \
+    | jq -r '.totals.costUSD // empty' 2>/dev/null \
+    | awk 'NF { printf "%.2f", $1; found=1 } END { if (!found) exit 0 }'
   return 0
 }
 
@@ -243,7 +271,10 @@ five="$(read_latest_usage_field five_hour_percent "$session_file")"
 five_reset="$(read_latest_usage_field five_hour_reset "$session_file")"
 weekly="$(read_latest_usage_field weekly_percent "$session_file")"
 weekly_reset="$(read_latest_usage_field weekly_reset "$session_file")"
-codex_cost="$(codex_estimated_cost "$session_file")"
+codex_cost="$(ccusage_codex_cost)"
+if [ -z "$codex_cost" ]; then
+  codex_cost="$(codex_estimated_cost "$session_file")"
+fi
 
 model_part="$model"
 if [ -n "$effort" ]; then
