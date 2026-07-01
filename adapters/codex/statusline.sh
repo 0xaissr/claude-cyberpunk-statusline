@@ -133,12 +133,43 @@ read_latest_usage_field() {
         context_pct
       elif $field == "five_hour_percent" then
         .payload.rate_limits.primary.used_percent // empty
+      elif $field == "five_hour_reset" then
+        .payload.rate_limits.primary.resets_at // empty
       elif $field == "weekly_percent" then
         .payload.rate_limits.secondary.used_percent // empty
+      elif $field == "weekly_reset" then
+        .payload.rate_limits.secondary.resets_at // empty
       else
         empty
       end
   ' "$file" 2>/dev/null | tail -1 | awk 'NF { print; found=1 }'
+}
+
+codex_estimated_cost() {
+  local file="$1"
+  [ -n "$file" ] && [ -f "$file" ] || return 0
+
+  jq -r '
+    select(type == "object" and .type == "event_msg" and .payload.type == "token_count")
+    | .payload.info.total_token_usage
+    | [
+        (.input_tokens // 0),
+        (.cached_input_tokens // 0),
+        (.output_tokens // 0)
+      ]
+    | @tsv
+  ' "$file" 2>/dev/null | tail -1 | awk '
+    NF == 3 {
+      input = $1
+      cached = $2
+      output = $3
+      non_cached = input - cached
+      if (non_cached < 0) non_cached = 0
+      cost = (non_cached * 5 + cached * 0.5 + output * 30) / 1000000
+      printf "%.2f", cost
+    }
+  '
+  return 0
 }
 
 capitalise() {
@@ -157,7 +188,7 @@ fallback_config() {
   "separator": "",
   "head": "rounded",
   "tail": "sharp",
-  "blocks": ["model", "context", "rate_5h", "rate_7d", "git", "time"],
+  "blocks": ["model", "context", "rate_5h", "rate_7d", "cost", "burn", "git", "time"],
   "bar_width": 6,
   "bar_filled": "●",
   "bar_empty": "○",
@@ -177,7 +208,9 @@ render_with_claude_style() {
   tmp_output=$(mktemp)
 
   mkdir -p "$tmp_home/.cache/cyberpunk-statusline"
-  printf -- '--' > "$tmp_home/.cache/cyberpunk-statusline/daily-cost"
+  if [ -n "$codex_cost" ]; then
+    printf '%s' "$codex_cost" > "$tmp_home/.cache/cyberpunk-statusline/daily-cost"
+  fi
   printf '{"account_type":"subscription"}' > "$tmp_usage"
 
   if [ -f "$STATUSLINE_CONFIG" ]; then
@@ -194,6 +227,7 @@ render_with_claude_style() {
 
   HOME="$tmp_home" \
     CONFIG_OVERRIDE="$tmp_config" \
+    HISTORY_FILE="$CACHE_DIR/usage-history.jsonl" \
     USAGE_CACHE_OVERRIDE="$tmp_usage" \
     bash "$MAIN_RENDERER" <<< "$input_json" > "$tmp_output" 2>/dev/null || true
 
@@ -206,7 +240,10 @@ effort="$(read_config_value model_reasoning_effort "")"
 session_file="$(latest_session_file || true)"
 ctx="$(read_latest_usage_field context_used_percent "$session_file")"
 five="$(read_latest_usage_field five_hour_percent "$session_file")"
+five_reset="$(read_latest_usage_field five_hour_reset "$session_file")"
 weekly="$(read_latest_usage_field weekly_percent "$session_file")"
+weekly_reset="$(read_latest_usage_field weekly_reset "$session_file")"
+codex_cost="$(codex_estimated_cost "$session_file")"
 
 model_part="$model"
 if [ -n "$effort" ]; then
@@ -218,7 +255,9 @@ input_json=$(jq -n \
   --arg cwd "$PWD" \
   --arg ctx "$ctx" \
   --arg five "$five" \
-  --arg weekly "$weekly" '
+  --arg five_reset "$five_reset" \
+  --arg weekly "$weekly" \
+  --arg weekly_reset "$weekly_reset" '
   def pct($value):
     if ($value | test("^[0-9]+(\\.[0-9]+)?$")) then
       ($value | tonumber)
@@ -232,8 +271,14 @@ input_json=$(jq -n \
     cwd: $cwd,
     context_window: { used_percentage: pct($ctx) },
     rate_limits: {
-      five_hour: { used_percentage: pct($five) },
-      seven_day: { used_percentage: pct($weekly) }
+      five_hour: {
+        used_percentage: pct($five),
+        resets_at: pct($five_reset)
+      },
+      seven_day: {
+        used_percentage: pct($weekly),
+        resets_at: pct($weekly_reset)
+      }
     }
   }
 ')
