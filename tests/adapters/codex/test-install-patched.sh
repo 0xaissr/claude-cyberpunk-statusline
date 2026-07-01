@@ -59,13 +59,14 @@ test_dry_run_does_not_reference_claude() {
 }
 
 test_real_flow_with_fake_tools_installs_binary_and_config() {
-  local home_tmp fake_bin log config output source_cache out
+  local home_tmp fake_bin log config output source_cache statusline_config out
   home_tmp=$(mktemp -d)
   fake_bin="$home_tmp/fake-bin"
   log="$home_tmp/commands.log"
   config="$home_tmp/.codex/config.toml"
   output="$home_tmp/.local/bin/codex-cyberpunk"
   source_cache="$home_tmp/source"
+  statusline_config="$home_tmp/codex-statusline.json"
   mkdir -p "$fake_bin"
 
   cat > "$fake_bin/git" <<'SH'
@@ -111,6 +112,7 @@ SH
     CODEX_PATCH_CACHE="$source_cache" \
     CODEX_OUTPUT_BIN_OVERRIDE="$output" \
     CODEX_CONFIG_TOML="$config" \
+    CODEX_STATUSLINE_CONFIG="$statusline_config" \
     bash "$INSTALLER" 2>&1 || true)
 
   if [ -x "$output" ]; then
@@ -119,7 +121,8 @@ SH
     fail "real flow installs output binary" "$out"
   fi
 
-  if grep -Fq 'status_line_command = "bash \"' "$config" && grep -Fq 'adapters/codex/statusline.sh\" --line"' "$config"; then
+  if grep -Fq "CODEX_STATUSLINE_CONFIG=\\\"$statusline_config\\\" bash" "$config" \
+    && grep -Fq 'adapters/codex/statusline.sh\" --line"' "$config"; then
     pass "real flow writes Codex status_line_command"
   else
     fail "real flow writes Codex status_line_command" "$(cat "$config" 2>/dev/null)"

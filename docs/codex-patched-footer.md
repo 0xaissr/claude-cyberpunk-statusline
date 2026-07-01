@@ -10,6 +10,8 @@ Implemented:
 - `adapters/codex/statusline.sh --line` renders a one-line Codex status preview.
 - `adapters/codex/lib-config.sh` can add or remove a patched
   `tui.status_line_command` key in Codex config.
+- `install-codex.sh` guides Codex setup, writes a Codex-specific theme config,
+  installs the patched binary, and can optionally add a shell alias.
 - `adapters/codex/install-patched.sh` can clone Codex `rust-v0.142.5`, apply
   the local `status_line_command` patch, build a release binary, install it as
   `~/.local/bin/codex-cyberpunk`, and write Codex config.
@@ -20,7 +22,6 @@ Implemented:
 
 Not implemented yet:
 
-- Replacing or shimming the user's `codex` command.
 - A timeout around `status_line_command`; keep the renderer command fast.
 
 ## Preview the Renderer
@@ -39,7 +40,24 @@ The renderer reads Codex-local state from:
 
 Unavailable telemetry is rendered as `--`.
 
-## Dry Run Installer
+## Guided Installer
+
+From this repository:
+
+```bash
+./install-codex.sh
+```
+
+This guides theme selection, writes `adapters/codex/config.json`, installs the
+patched Codex binary, and asks whether `codex` should launch `codex-cyberpunk`.
+
+For non-interactive setup:
+
+```bash
+./install-codex.sh --theme tokyo-night --alias
+```
+
+## Dry Run Low-Level Installer
 
 ```bash
 bash adapters/codex/install-patched.sh --dry-run
@@ -102,7 +120,7 @@ done
 To confirm Claude-facing files are untouched:
 
 ```bash
-git diff -- statusline.sh install.sh configure.sh uninstall.sh tab-state.sh _lib_tab_state.sh
+git diff -- statusline.sh install-claude.sh configure.sh uninstall.sh tab-state.sh _lib_tab_state.sh
 ```
 
 Expected output: nothing.

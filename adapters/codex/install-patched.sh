@@ -30,7 +30,8 @@ if [ -z "$CODEX_BIN" ]; then
   exit 1
 fi
 
-RENDERER_CMD="bash \"$PROJECT_DIR/adapters/codex/statusline.sh\" --line"
+STATUSLINE_CONFIG="${CODEX_STATUSLINE_CONFIG:-$PROJECT_DIR/adapters/codex/config.json}"
+RENDERER_CMD="CODEX_STATUSLINE_CONFIG=\"$STATUSLINE_CONFIG\" bash \"$PROJECT_DIR/adapters/codex/statusline.sh\" --line"
 OUTPUT_BIN="${CODEX_OUTPUT_BIN_OVERRIDE:-$HOME/.local/bin/codex-cyberpunk}"
 SOURCE_CACHE="${CODEX_PATCH_CACHE:-$HOME/.cache/cyberpunk-statusline/codex-source}"
 SOURCE_REPO="${CODEX_SOURCE_REPO_OVERRIDE:-https://github.com/openai/codex.git}"
@@ -45,6 +46,7 @@ else
 fi
 echo "current codex: $CODEX_BIN"
 echo "renderer command: $RENDERER_CMD"
+echo "statusline config: $STATUSLINE_CONFIG"
 echo "source repo: $SOURCE_REPO"
 echo "source ref: $SOURCE_REF"
 echo "source cache: $SOURCE_CACHE"

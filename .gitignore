@@ -3,3 +3,4 @@
 .superpowers/
 .worktrees/
 config.json
+adapters/codex/config.json

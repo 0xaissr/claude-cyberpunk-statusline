@@ -1,6 +1,6 @@
 # cyberpunk-statusline
 
-可自訂主題的賽博龐克風格狀態列，專為 Claude Code 打造，附帶 p10k 風格的設定精靈。
+可自訂主題的賽博龐克風格狀態列，支援 Claude Code 與 Codex，附帶 p10k 風格的設定流程。
 
 顯示模型名稱、上下文用量、速率限制、每日花費、目錄路徑、Git 分支與時間 — 全部以真彩色主題呈現在終端機中。
 
@@ -21,16 +21,26 @@
 git clone https://github.com/0xaissr/claude-cyberpunk-statusline.git ~/claude-cyberpunk-statusline
 ```
 
-### 2. 執行安裝
+### 2. 安裝 Claude
 
 ```bash
-cd ~/claude-cyberpunk-statusline && ./install.sh
+cd ~/claude-cyberpunk-statusline && ./install-claude.sh
 ```
 
 安裝程式會：
 - 檢查環境需求（jq）
 - 設定 Claude Code 的 statusLine 設定
 - 啟動設定精靈（首次安裝時）
+
+### 安裝 Codex
+
+Codex 使用獨立安裝器，因此可以和 Claude 使用不同主題：
+
+```bash
+cd ~/claude-cyberpunk-statusline && ./install-codex.sh
+```
+
+它會引導選擇 Codex 主題、安裝 `codex-cyberpunk`，並可選擇是否讓 `codex` 指向 patched 版本。
 
 ### 3. 重新啟動
 

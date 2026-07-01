@@ -65,7 +65,7 @@ if [ -f "$CONFIG" ]; then
   echo "$SAMPLE" | HISTORY_FILE="$_OVERVIEW_SCRATCH" bash "$STATUSLINE" 2>/dev/null
   echo ""
 else
-  echo -e "  ${D}(not configured -- run ./install.sh)${R}"
+  echo -e "  ${D}(not configured -- run ./install-claude.sh)${R}"
   echo ""
 fi
 
@@ -176,7 +176,8 @@ echo ""
 # ── Scripts ───────────────────────────────────────────────────────────────
 echo -e "  ${Y}SCRIPTS${R}"
 echo -e "  ${D}----------------------------------------------------${R}"
-printf "  ${B}%-24s${R} %s\n" "./install.sh"          "Install + configure Claude Code"
+printf "  ${B}%-24s${R} %s\n" "./install-claude.sh"   "Install + configure Claude Code"
+printf "  ${B}%-24s${R} %s\n" "./install-codex.sh"    "Install + configure Codex"
 printf "  ${B}%-24s${R} %s\n" "./configure.sh"        "Full setup wizard (p10k-style)"
 printf "  ${B}%-24s${R} %s\n" "./configure-theme.sh"  "Preview + switch/edit themes"
 printf "  ${B}%-24s${R} %s\n" "./overview.sh"         "This overview"

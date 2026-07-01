@@ -2,7 +2,7 @@
 
 [English](README.md) | [繁體中文](docs/README.zh-TW.md)
 
-Themeable cyberpunk status line for Claude Code, with a p10k-style setup wizard.
+Themeable cyberpunk status line for Claude Code and Codex, with p10k-style setup flows.
 
 Displays model, context usage, rate limits, daily cost, directory, git branch, and time — all rendered in your terminal with true-color themes.
 
@@ -23,16 +23,27 @@ Displays model, context usage, rate limits, daily cost, directory, git branch, a
 git clone https://github.com/0xaissr/claude-cyberpunk-statusline.git ~/claude-cyberpunk-statusline
 ```
 
-### 2. Install
+### 2. Install Claude
 
 ```bash
-cd ~/claude-cyberpunk-statusline && ./install.sh
+cd ~/claude-cyberpunk-statusline && ./install-claude.sh
 ```
 
 This will:
 - Check prerequisites (jq)
 - Configure Claude Code's statusLine setting
 - Launch the setup wizard (if first time)
+
+### Install Codex
+
+Codex uses a separate installer so it can keep its own theme config:
+
+```bash
+cd ~/claude-cyberpunk-statusline && ./install-codex.sh
+```
+
+This will guide theme selection, install `codex-cyberpunk`, and optionally make
+the `codex` command launch the patched build.
 
 ### 3. Restart
 
