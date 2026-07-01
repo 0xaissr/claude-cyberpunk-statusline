@@ -58,7 +58,32 @@ read_latest_usage_field() {
   fi
 
   jq -r --arg field "$field" '
-    select(type == "object" and has($field)) | .[$field]
+    def context_pct:
+      (.payload.info.last_token_usage.total_tokens // empty) as $tokens
+      | (.payload.info.model_context_window // empty) as $window
+      | if (($tokens | type) == "number" and ($window | type) == "number" and $window > 0) then
+          12000 as $baseline
+          | if $window <= $baseline then
+              100
+            else
+              (((($tokens - $baseline) | if . > 0 then . else 0 end) * 100 / ($window - $baseline)) + 0.5 | floor)
+            end
+        else
+          empty
+        end;
+
+    select(type == "object")
+    | if has($field) then
+        .[$field]
+      elif $field == "context_used_percent" then
+        context_pct
+      elif $field == "five_hour_percent" then
+        .payload.rate_limits.primary.used_percent // empty
+      elif $field == "weekly_percent" then
+        .payload.rate_limits.secondary.used_percent // empty
+      else
+        empty
+      end
   ' "$file" 2>/dev/null | tail -1 | awk 'NF { print; found=1 }'
 }
 

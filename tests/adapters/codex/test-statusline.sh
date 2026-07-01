@@ -52,6 +52,22 @@ test_fixture_session_outputs_usage() {
   check_contains "fixture includes 7d" "86%" "$out"
 }
 
+test_real_token_count_session_outputs_usage() {
+  local home_tmp
+  home_tmp=$(mktemp -d)
+  mkdir -p "$home_tmp/.codex/sessions/2026/07/01"
+  cp "$SCRIPT_DIR/fixtures/real-token-count-session.jsonl" "$home_tmp/.codex/sessions/2026/07/01/rollout-real.jsonl"
+  printf 'model = "gpt-5.5"\nmodel_reasoning_effort = "medium"\n' > "$home_tmp/.codex/config.toml"
+
+  local out
+  out=$(HOME="$home_tmp" CYBERPUNK_STATUSLINE_ROOT="$PROJECT_DIR" bash "$RENDERER" --line 2>/dev/null || true)
+  rm -rf "$home_tmp"
+
+  check_contains "real token count includes context percent" "5%" "$out"
+  check_contains "real token count includes 5h percent" "39%" "$out"
+  check_contains "real token count includes 7d percent" "6%" "$out"
+}
+
 test_no_claude_files_referenced() {
   if grep -R "\.claude" "$PROJECT_DIR/adapters/codex" >/dev/null 2>&1; then
     echo "✗ codex adapter references .claude"
@@ -64,6 +80,7 @@ test_no_claude_files_referenced() {
 
 test_no_sessions_outputs_placeholders
 test_fixture_session_outputs_usage
+test_real_token_count_session_outputs_usage
 test_no_claude_files_referenced
 
 echo "PASS=$PASS FAIL=$FAIL"
