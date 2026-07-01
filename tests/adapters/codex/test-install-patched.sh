@@ -58,8 +58,89 @@ test_dry_run_does_not_reference_claude() {
   fi
 }
 
+test_real_flow_with_fake_tools_installs_binary_and_config() {
+  local home_tmp fake_bin log config output source_cache out
+  home_tmp=$(mktemp -d)
+  fake_bin="$home_tmp/fake-bin"
+  log="$home_tmp/commands.log"
+  config="$home_tmp/.codex/config.toml"
+  output="$home_tmp/.local/bin/codex-cyberpunk"
+  source_cache="$home_tmp/source"
+  mkdir -p "$fake_bin"
+
+  cat > "$fake_bin/git" <<'SH'
+#!/bin/sh
+echo "git $*" >> "$FAKE_LOG"
+if [ "$1" = "clone" ]; then
+  for arg in "$@"; do
+    dest="$arg"
+  done
+  mkdir -p "$dest/codex-rs"
+  printf '[workspace]\n' > "$dest/codex-rs/Cargo.toml"
+  mkdir -p "$dest/.git"
+  exit 0
+fi
+if [ "$1" = "-C" ] && [ "$3" = "apply" ]; then
+  exit 0
+fi
+exit 0
+SH
+
+  cat > "$fake_bin/cargo" <<'SH'
+#!/bin/sh
+echo "cargo $*" >> "$FAKE_LOG"
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "--manifest-path" ]; then
+    manifest="$2"
+    break
+  fi
+  shift
+done
+root="$(dirname "$manifest")"
+mkdir -p "$root/target/release"
+printf '#!/bin/sh\necho codex-cyberpunk\n' > "$root/target/release/codex"
+chmod +x "$root/target/release/codex"
+SH
+  chmod +x "$fake_bin/git" "$fake_bin/cargo"
+
+  out=$(HOME="$home_tmp" \
+    PATH="$fake_bin:$PATH" \
+    FAKE_LOG="$log" \
+    CODEX_BIN_OVERRIDE=/bin/echo \
+    CODEX_SOURCE_REPO_OVERRIDE=/fake/codex.git \
+    CODEX_PATCH_CACHE="$source_cache" \
+    CODEX_OUTPUT_BIN_OVERRIDE="$output" \
+    CODEX_CONFIG_TOML="$config" \
+    bash "$INSTALLER" 2>&1 || true)
+
+  if [ -x "$output" ]; then
+    pass "real flow installs output binary"
+  else
+    fail "real flow installs output binary" "$out"
+  fi
+
+  if grep -Fq 'status_line_command = "bash ' "$config" && grep -Fq 'adapters/codex/statusline.sh" --line' "$config"; then
+    pass "real flow writes Codex status_line_command"
+  else
+    fail "real flow writes Codex status_line_command" "$(cat "$config" 2>/dev/null)"
+  fi
+
+  assert_contains "real flow clones source" "git clone" "$(cat "$log")"
+  assert_contains "real flow applies patch" "git -C $source_cache apply" "$(cat "$log")"
+  assert_contains "real flow builds codex cli" "cargo build --release -p codex-cli --bin codex" "$(cat "$log")"
+
+  if [ -e "$home_tmp/.claude" ]; then
+    fail "real flow does not create Claude state" "$home_tmp/.claude exists"
+  else
+    pass "real flow does not create Claude state"
+  fi
+
+  rm -rf "$home_tmp"
+}
+
 test_dry_run_reports_plan_without_writes
 test_dry_run_does_not_reference_claude
+test_real_flow_with_fake_tools_installs_binary_and_config
 
 echo "PASS=$PASS FAIL=$FAIL"
 exit "$FAIL"

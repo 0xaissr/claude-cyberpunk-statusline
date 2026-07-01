@@ -1,20 +1,108 @@
-# status_line_command patch scaffold
-#
-# This file documents the intended Codex TUI patch point. It is deliberately a
-# scaffold until a supported Codex source revision is pinned.
-#
-# Desired behavior:
-#
-# - Add a `[tui].status_line_command` config key.
-# - When present, the TUI footer calls the command and renders its stdout as the
-#   footer line.
-# - If the command fails, times out, or prints nothing, Codex falls back to the
-#   built-in `[tui].status_line` items.
-#
-# Safety rule:
-#
-# - install-patched.sh must refuse to apply this scaffold as a real patch for an
-#   unsupported Codex source revision.
-#
-# Placeholder marker used by tests and installer dry-run output:
-# status_line_command
+diff --git a/codex-rs/config/src/types.rs b/codex-rs/config/src/types.rs
+index e459f9585b..c2963c69cb 100644
+--- a/codex-rs/config/src/types.rs
++++ b/codex-rs/config/src/types.rs
+@@ -720,6 +720,13 @@ pub struct Tui {
+     #[serde(default)]
+     pub status_line: Option<Vec<String>>,
+ 
++    /// Command used to render the full status line.
++    ///
++    /// When set, the TUI executes this command and renders the first stdout line
++    /// instead of the built-in `status_line` item list.
++    #[serde(default)]
++    pub status_line_command: Option<String>,
++
+     /// Color status line items with colors derived from the active syntax theme.
+     /// Defaults to `true`.
+     #[serde(default = "default_true")]
+diff --git a/codex-rs/core/src/config/mod.rs b/codex-rs/core/src/config/mod.rs
+index 953d0af1a1..6d3e3ed4d4 100644
+--- a/codex-rs/core/src/config/mod.rs
++++ b/codex-rs/core/src/config/mod.rs
+@@ -762,6 +762,9 @@ pub struct Config {
+     /// When unset, the TUI defaults to: `model-with-reasoning` and `current-dir`.
+     pub tui_status_line: Option<Vec<String>>,
+ 
++    /// Command used to render the full TUI status line.
++    pub tui_status_line_command: Option<String>,
++
+     /// Whether to color status line items with colors from the active syntax theme.
+     pub tui_status_line_use_colors: bool,
+ 
+@@ -3954,6 +3957,10 @@ impl Config {
+                 .map(|t| t.alternate_screen)
+                 .unwrap_or_default(),
+             tui_status_line: cfg.tui.as_ref().and_then(|t| t.status_line.clone()),
++            tui_status_line_command: cfg
++                .tui
++                .as_ref()
++                .and_then(|t| t.status_line_command.clone()),
+             tui_status_line_use_colors: cfg
+                 .tui
+                 .as_ref()
+diff --git a/codex-rs/tui/src/chatwidget/status_surfaces.rs b/codex-rs/tui/src/chatwidget/status_surfaces.rs
+index 5f02dd8d69..99d4069128 100644
+--- a/codex-rs/tui/src/chatwidget/status_surfaces.rs
++++ b/codex-rs/tui/src/chatwidget/status_surfaces.rs
+@@ -11,10 +11,13 @@ use crate::chatwidget::rate_limits::get_limits_duration;
+ use crate::legacy_core::config::Config;
+ use crate::status::format_tokens_compact;
+ use codex_app_server_protocol::AskForApproval;
++use codex_ansi_escape::ansi_escape_line;
+ use codex_protocol::config_types::ApprovalsReviewer;
+ use codex_protocol::config_types::ServiceTier;
+ use codex_protocol::models::PermissionProfile;
+ use codex_utils_sandbox_summary::summarize_permission_profile;
++use std::path::Path;
++use std::process::Command;
+ 
+ use super::status_state::TerminalTitleStatusKind;
+ 
+@@ -174,6 +177,19 @@ impl ChatWidget {
+     }
+ 
+     fn refresh_status_line_from_selections(&mut self, selections: &StatusSurfaceSelections) {
++        if let Some(command) = self
++            .config
++            .tui_status_line_command
++            .as_deref()
++            .map(str::trim)
++            .filter(|command| !command.is_empty())
++        {
++            self.bottom_pane.set_status_line_enabled(true);
++            self.set_status_line(status_line_from_command(command, self.status_line_cwd()));
++            self.set_status_line_hyperlink(/*url*/ None);
++            return;
++        }
++
+         let enabled = !selections.status_line_items.is_empty();
+         self.bottom_pane.set_status_line_enabled(enabled);
+         if !enabled {
+@@ -1132,6 +1148,26 @@ fn approval_mode_display(config: &Config) -> String {
+     config.permissions.approval_policy.value().to_string()
+ }
+ 
++fn status_line_from_command(command: &str, cwd: &Path) -> Option<Line<'static>> {
++    let output = Command::new("sh")
++        .arg("-c")
++        .arg(command)
++        .current_dir(cwd)
++        .output()
++        .ok()?;
++    if !output.status.success() {
++        return None;
++    }
++
++    let stdout = String::from_utf8_lossy(&output.stdout);
++    let line = stdout.lines().next()?.trim_end();
++    if line.trim().is_empty() {
++        return None;
++    }
++
++    Some(ansi_escape_line(line))
++}
++
+ fn parse_items_with_invalids<T>(ids: impl IntoIterator<Item = String>) -> (Vec<T>, Vec<String>)
+ where
+     T: std::str::FromStr,

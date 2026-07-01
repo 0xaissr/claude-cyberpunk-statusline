@@ -75,8 +75,53 @@ test_dry_run_avoids_claude_paths() {
   rm -rf "$home_tmp"
 }
 
+test_real_flow_removes_binary_and_project_config() {
+  local home_tmp config output out
+  home_tmp=$(mktemp -d)
+  mkdir -p "$home_tmp/.codex" "$home_tmp/.local/bin"
+  config="$home_tmp/.codex/config.toml"
+  output="$home_tmp/.local/bin/codex-cyberpunk"
+  cat > "$config" <<TOML
+[tui]
+status_line = ["model"]
+status_line_command = "bash $PROJECT_DIR/adapters/codex/statusline.sh --line"
+notifications = false
+TOML
+  printf '#!/bin/sh\n' > "$output"
+  chmod +x "$output"
+
+  out=$(HOME="$home_tmp" CODEX_OUTPUT_BIN_OVERRIDE="$output" CODEX_CONFIG_TOML="$config" bash "$UNINSTALLER" 2>&1 || true)
+
+  if [ -e "$output" ]; then
+    fail "real flow removes output binary" "$out"
+  else
+    pass "real flow removes output binary"
+  fi
+
+  if grep -Fq 'status_line_command' "$config"; then
+    fail "real flow removes project status_line_command" "$(cat "$config")"
+  else
+    pass "real flow removes project status_line_command"
+  fi
+
+  if grep -Fq 'status_line = ["model"]' "$config" && grep -Fq 'notifications = false' "$config"; then
+    pass "real flow preserves other Codex config"
+  else
+    fail "real flow preserves other Codex config" "$(cat "$config")"
+  fi
+
+  if [ -e "$home_tmp/.claude" ]; then
+    fail "real flow does not create Claude state" "$home_tmp/.claude exists"
+  else
+    pass "real flow does not create Claude state"
+  fi
+
+  rm -rf "$home_tmp"
+}
+
 test_dry_run_reports_removals_without_writes
 test_dry_run_avoids_claude_paths
+test_real_flow_removes_binary_and_project_config
 
 echo "PASS=$PASS FAIL=$FAIL"
 exit "$FAIL"

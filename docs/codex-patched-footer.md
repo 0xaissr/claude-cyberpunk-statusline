@@ -10,17 +10,18 @@ Implemented:
 - `adapters/codex/statusline.sh --line` renders a one-line Codex status preview.
 - `adapters/codex/lib-config.sh` can add or remove a patched
   `tui.status_line_command` key in Codex config.
-- `adapters/codex/install-patched.sh --dry-run` reports the planned patched
-  Codex install flow.
-- `adapters/codex/uninstall-patched.sh --dry-run` reports the planned cleanup.
-- `adapters/codex/patches/status-line-command.patch` documents the intended
-  patch point.
+- `adapters/codex/install-patched.sh` can clone Codex `rust-v0.142.5`, apply
+  the local `status_line_command` patch, build a release binary, install it as
+  `~/.local/bin/codex-cyberpunk`, and write Codex config.
+- `adapters/codex/uninstall-patched.sh` removes `codex-cyberpunk` and removes
+  only this project's `status_line_command` config.
+- `adapters/codex/patches/status-line-command.patch` is an applyable patch for
+  OpenAI Codex `rust-v0.142.5`.
 
 Not implemented yet:
 
-- Building a patched Codex binary.
 - Replacing or shimming the user's `codex` command.
-- Applying the patch to an upstream Codex source revision.
+- A timeout around `status_line_command`; keep the renderer command fast.
 
 ## Preview the Renderer
 
@@ -54,6 +55,21 @@ This prints:
 
 Dry run does not write files.
 
+## Install Patched Codex
+
+```bash
+bash adapters/codex/install-patched.sh
+```
+
+This writes:
+
+- `~/.cache/cyberpunk-statusline/codex-source`
+- `~/.local/bin/codex-cyberpunk`
+- `~/.codex/config.toml` backup plus `tui.status_line_command`
+
+The first build downloads Rust crates and can take several minutes. The
+installer does not replace your existing `codex` command.
+
 ## Dry Run Uninstaller
 
 ```bash
@@ -62,6 +78,16 @@ bash adapters/codex/uninstall-patched.sh --dry-run
 
 This prints the Codex-only artifacts that would be removed. Dry run does not
 edit `~/.codex/config.toml`.
+
+## Uninstall Patched Codex
+
+```bash
+bash adapters/codex/uninstall-patched.sh
+```
+
+This removes `~/.local/bin/codex-cyberpunk` and removes
+`tui.status_line_command` only when it points at this project. Other Codex config
+is preserved.
 
 ## Testing
 
@@ -83,11 +109,11 @@ Expected output: nothing.
 
 ## Recovery
 
-Because this phase does not install a patched binary, recovery is currently just
-removing generated Codex-only files from any future manual experiment:
+Recovery removes only generated Codex-only files:
 
 ```bash
 rm -f ~/.local/bin/codex-cyberpunk
+bash adapters/codex/uninstall-patched.sh
 ```
 
 Do not remove or edit Claude settings for this Codex workflow.
