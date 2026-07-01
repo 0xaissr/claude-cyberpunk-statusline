@@ -6,7 +6,7 @@ _codex_backup_file() {
 }
 
 _codex_toml_quote() {
-  printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+  printf '%s' "$1" | jq -Rs .
 }
 
 _codex_set_status_line_command() {
@@ -18,8 +18,9 @@ _codex_set_status_line_command() {
   [ -f "$config_file" ] || printf '' > "$config_file"
   _codex_backup_file "$config_file"
 
-  awk -v cmd="status_line_command = \"$quoted\"" '
+  CODEX_STATUS_LINE_COMMAND_LINE="status_line_command = $quoted" awk '
     BEGIN {
+      cmd = ENVIRON["CODEX_STATUS_LINE_COMMAND_LINE"]
       in_tui = 0
       saw_tui = 0
       wrote_cmd = 0

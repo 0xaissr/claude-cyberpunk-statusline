@@ -119,7 +119,7 @@ SH
     fail "real flow installs output binary" "$out"
   fi
 
-  if grep -Fq 'status_line_command = "bash ' "$config" && grep -Fq 'adapters/codex/statusline.sh" --line' "$config"; then
+  if grep -Fq 'status_line_command = "bash \"' "$config" && grep -Fq 'adapters/codex/statusline.sh\" --line"' "$config"; then
     pass "real flow writes Codex status_line_command"
   else
     fail "real flow writes Codex status_line_command" "$(cat "$config" 2>/dev/null)"

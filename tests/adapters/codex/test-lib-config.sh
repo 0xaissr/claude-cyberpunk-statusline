@@ -74,6 +74,19 @@ test_set_appends_tui_when_missing() {
   rm -f "$tmp" "$tmp".bak.*
 }
 
+test_set_escapes_quoted_command() {
+  # shellcheck source=/dev/null
+  source "$LIB"
+  local tmp
+  tmp=$(mktemp)
+  printf '[tui]\n' > "$tmp"
+
+  _codex_set_status_line_command "$tmp" 'bash "/repo/adapters/codex/statusline.sh" --line'
+
+  assert_contains "set escapes quoted command" 'status_line_command = "bash \"/repo/adapters/codex/statusline.sh\" --line"' "$tmp"
+  rm -f "$tmp" "$tmp".bak.*
+}
+
 test_remove_only_project_owned_command() {
   # shellcheck source=/dev/null
   source "$LIB"
@@ -112,6 +125,7 @@ TOML
 
 test_set_adds_tui_command_and_preserves_existing_status_line
 test_set_appends_tui_when_missing
+test_set_escapes_quoted_command
 test_remove_only_project_owned_command
 test_remove_preserves_foreign_command
 
