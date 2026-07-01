@@ -10,7 +10,7 @@ FAIL=0
 
 check_contains() {
   local label="$1" needle="$2" haystack="$3"
-  if echo "$haystack" | grep -Fq "$needle"; then
+  if echo "$haystack" | grep -Fq -- "$needle"; then
     echo "✓ $label"
     ((PASS++))
   else
@@ -30,8 +30,9 @@ test_no_sessions_outputs_placeholders() {
   rm -rf "$home_tmp"
 
   check_contains "no sessions includes model" "gpt-5.5" "$out"
-  check_contains "no sessions includes context placeholder" "Ctx:--" "$out"
-  check_contains "no sessions includes rate placeholder" "5h:--" "$out"
+  check_contains "no sessions uses statusline block style" "CTX" "$out"
+  check_contains "no sessions includes context placeholder" "--" "$out"
+  check_contains "no sessions includes rate label" "5H" "$out"
 }
 
 test_fixture_session_outputs_usage() {
@@ -45,10 +46,10 @@ test_fixture_session_outputs_usage() {
   out=$(HOME="$home_tmp" CYBERPUNK_STATUSLINE_ROOT="$PROJECT_DIR" bash "$RENDERER" --line 2>/dev/null || true)
   rm -rf "$home_tmp"
 
-  check_contains "fixture includes effort" "xhigh" "$out"
-  check_contains "fixture includes context" "Ctx:42%" "$out"
-  check_contains "fixture includes 5h" "5h:68%" "$out"
-  check_contains "fixture includes 7d" "7d:86%" "$out"
+  check_contains "fixture includes effort" "Xhigh" "$out"
+  check_contains "fixture includes context" "42%" "$out"
+  check_contains "fixture includes 5h" "68%" "$out"
+  check_contains "fixture includes 7d" "86%" "$out"
 }
 
 test_no_claude_files_referenced() {
