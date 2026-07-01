@@ -68,6 +68,27 @@ test_real_token_count_session_outputs_usage() {
   check_contains "real token count includes 7d percent" "6%" "$out"
 }
 
+test_recent_render_is_cached() {
+  local home_tmp
+  home_tmp=$(mktemp -d)
+  mkdir -p "$home_tmp/.codex/sessions/2026/07/01"
+  cp "$SCRIPT_DIR/fixtures/rate-session.jsonl" "$home_tmp/.codex/sessions/2026/07/01/rollout-cache.jsonl"
+  printf 'model = "gpt-5.5"\nmodel_reasoning_effort = "medium"\n' > "$home_tmp/.codex/config.toml"
+
+  local first second third
+  first=$(HOME="$home_tmp" CYBERPUNK_STATUSLINE_ROOT="$PROJECT_DIR" bash "$RENDERER" --line 2>/dev/null || true)
+  cat > "$home_tmp/.codex/sessions/2026/07/01/rollout-cache.jsonl" <<'JSONL'
+{"type":"usage","context_used_percent":7,"five_hour_percent":8,"weekly_percent":9}
+JSONL
+  second=$(HOME="$home_tmp" CYBERPUNK_STATUSLINE_ROOT="$PROJECT_DIR" bash "$RENDERER" --line 2>/dev/null || true)
+  third=$(HOME="$home_tmp" CYBERPUNK_STATUSLINE_ROOT="$PROJECT_DIR" CODEX_STATUSLINE_DISABLE_CACHE=1 bash "$RENDERER" --line 2>/dev/null || true)
+  rm -rf "$home_tmp"
+
+  check_contains "cache keeps recent context percent" "42%" "$second"
+  check_contains "cache bypass refreshes context percent" "7%" "$third"
+  check_contains "cache initial render includes context percent" "42%" "$first"
+}
+
 test_no_claude_files_referenced() {
   if grep -R "\.claude" "$PROJECT_DIR/adapters/codex" >/dev/null 2>&1; then
     echo "✗ codex adapter references .claude"
@@ -81,6 +102,7 @@ test_no_claude_files_referenced() {
 test_no_sessions_outputs_placeholders
 test_fixture_session_outputs_usage
 test_real_token_count_session_outputs_usage
+test_recent_render_is_cached
 test_no_claude_files_referenced
 
 echo "PASS=$PASS FAIL=$FAIL"

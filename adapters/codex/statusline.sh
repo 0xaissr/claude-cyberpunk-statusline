@@ -24,6 +24,60 @@ fi
 
 MAIN_RENDERER="$STATUSLINE_ROOT/statusline.sh"
 STATUSLINE_CONFIG="${CODEX_STATUSLINE_CONFIG:-$STATUSLINE_ROOT/config.json}"
+CACHE_TTL_SECONDS="${CODEX_STATUSLINE_CACHE_TTL_SECONDS:-5}"
+
+cache_key() {
+  local material="$PWD|$HOME|$CONFIG_TOML|$STATUSLINE_CONFIG"
+  if command -v md5 >/dev/null 2>&1; then
+    printf '%s' "$material" | md5
+  else
+    printf '%s' "$material" | shasum | awk '{ print $1 }'
+  fi
+}
+
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/cyberpunk-statusline/codex-adapter"
+CACHE_FILE="$CACHE_DIR/$(cache_key).line"
+CACHE_LOCK="$CACHE_FILE.lock"
+
+refresh_cache_in_background() {
+  [ -z "${CODEX_STATUSLINE_CACHE_REFRESH:-}" ] || return 0
+  mkdir -p "$CACHE_DIR"
+  if mkdir "$CACHE_LOCK" 2>/dev/null; then
+    (
+      tmp="$CACHE_FILE.tmp.$$"
+      CODEX_STATUSLINE_CACHE_REFRESH=1 CODEX_STATUSLINE_DISABLE_CACHE=1 bash "$0" --line > "$tmp" 2>/dev/null \
+        && [ -s "$tmp" ] \
+        && mv "$tmp" "$CACHE_FILE"
+      rm -f "$tmp"
+      rmdir "$CACHE_LOCK" 2>/dev/null || true
+    ) &
+    disown "$!" 2>/dev/null || true
+  fi
+}
+
+read_cache() {
+  [ -z "${CODEX_STATUSLINE_DISABLE_CACHE:-}" ] || return 1
+  [ -f "$CACHE_FILE" ] || return 1
+  local now mtime age
+  now=$(date +%s)
+  mtime=$(stat -f %m "$CACHE_FILE" 2>/dev/null || echo 0)
+  age=$((now - mtime))
+  if [ "$age" -gt "$CACHE_TTL_SECONDS" ]; then
+    refresh_cache_in_background
+  fi
+  cat "$CACHE_FILE"
+}
+
+write_cache() {
+  [ -z "${CODEX_STATUSLINE_DISABLE_CACHE:-}" ] || return 0
+  mkdir -p "$CACHE_DIR"
+  printf '%s\n' "$1" > "$CACHE_FILE"
+}
+
+if cached_line="$(read_cache)"; then
+  printf '%s\n' "$cached_line"
+  exit 0
+fi
 
 read_config_value() {
   local key="$1" default="$2"
@@ -184,4 +238,8 @@ input_json=$(jq -n \
   }
 ')
 
-render_with_claude_style "$input_json"
+rendered_line="$(render_with_claude_style "$input_json")"
+if [ -n "$rendered_line" ]; then
+  write_cache "$rendered_line"
+  printf '%s\n' "$rendered_line"
+fi
