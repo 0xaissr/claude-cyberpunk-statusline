@@ -1,0 +1,20 @@
+# status_line_command patch scaffold
+#
+# This file documents the intended Codex TUI patch point. It is deliberately a
+# scaffold until a supported Codex source revision is pinned.
+#
+# Desired behavior:
+#
+# - Add a `[tui].status_line_command` config key.
+# - When present, the TUI footer calls the command and renders its stdout as the
+#   footer line.
+# - If the command fails, times out, or prints nothing, Codex falls back to the
+#   built-in `[tui].status_line` items.
+#
+# Safety rule:
+#
+# - install-patched.sh must refuse to apply this scaffold as a real patch for an
+#   unsupported Codex source revision.
+#
+# Placeholder marker used by tests and installer dry-run output:
+# status_line_command
