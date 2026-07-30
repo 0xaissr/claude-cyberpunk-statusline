@@ -231,9 +231,9 @@ _refresh_cost() {
   # (prices them as $0). Online mode fetches from LiteLLM's pricing repo
   # which is updated more quickly.
   if command -v ccusage >/dev/null 2>&1; then
-    val=$(ccusage daily --jq '.totals.totalCost' --since "$(date +%Y%m%d)" 2>/dev/null)
+    val=$(ccusage claude daily --jq '.totals.totalCost' --since "$(date +%Y%m%d)" 2>/dev/null)
   elif command -v npx >/dev/null 2>&1; then
-    val=$(npx ccusage@latest daily --jq '.totals.totalCost' --since "$(date +%Y%m%d)" 2>/dev/null)
+    val=$(npx ccusage@latest claude daily --jq '.totals.totalCost' --since "$(date +%Y%m%d)" 2>/dev/null)
   fi
 
   # Fallback: local JSONL calc when ccusage unavailable or fails.

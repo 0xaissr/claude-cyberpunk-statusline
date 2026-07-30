@@ -69,6 +69,65 @@ _codex_set_status_line_command() {
   mv "$tmp" "$config_file"
 }
 
+_codex_set_status_line() {
+  local config_file="$1" items="$2"
+  local tmp
+  tmp=$(mktemp)
+
+  [ -f "$config_file" ] || printf '' > "$config_file"
+  _codex_backup_file "$config_file"
+
+  CODEX_STATUS_LINE_LINE="status_line = $items" awk '
+    BEGIN {
+      line = ENVIRON["CODEX_STATUS_LINE_LINE"]
+      in_tui = 0
+      saw_tui = 0
+      wrote_line = 0
+    }
+
+    /^\[tui\][[:space:]]*$/ {
+      in_tui = 1
+      saw_tui = 1
+      print
+      next
+    }
+
+    /^\[/ {
+      if (in_tui && !wrote_line) {
+        print line
+        wrote_line = 1
+      }
+      in_tui = 0
+      print
+      next
+    }
+
+    in_tui && /^[[:space:]]*status_line[[:space:]]*=/ {
+      if (!wrote_line) {
+        print line
+        wrote_line = 1
+      }
+      next
+    }
+
+    { print }
+
+    END {
+      if (in_tui && !wrote_line) {
+        print line
+        wrote_line = 1
+      }
+      if (!saw_tui) {
+        print ""
+        print "[tui]"
+        print line
+      }
+    }
+  ' "$config_file" > "$tmp"
+
+  mv "$tmp" "$config_file"
+}
+
 _codex_remove_status_line_command() {
   local config_file="$1" project_root="$2"
   local tmp

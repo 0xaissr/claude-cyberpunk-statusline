@@ -42,8 +42,16 @@ Codex uses a separate installer so it can keep its own theme config:
 cd ~/claude-cyberpunk-statusline && ./install-codex.sh
 ```
 
-This will guide theme selection, install `codex-cyberpunk`, and optionally make
-the `codex` command launch the patched build.
+This will guide theme selection and configure Codex's official built-in
+`tui.status_line` items. It does not build a patched Codex binary by default.
+Official Codex does not currently support command-rendered cyberpunk status
+lines.
+
+For the full cyberpunk footer, opt into the patched-binary path explicitly:
+
+```bash
+cd ~/claude-cyberpunk-statusline && ./install-codex.sh --patched
+```
 
 ### 3. Restart
 

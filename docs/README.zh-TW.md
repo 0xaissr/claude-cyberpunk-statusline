@@ -40,7 +40,13 @@ Codex 使用獨立安裝器，因此可以和 Claude 使用不同主題：
 cd ~/claude-cyberpunk-statusline && ./install-codex.sh
 ```
 
-它會引導選擇 Codex 主題、安裝 `codex-cyberpunk`，並可選擇是否讓 `codex` 指向 patched 版本。
+它會引導選擇 Codex 主題，並設定 Codex 官方支援的內建 `tui.status_line` items。預設不會編譯 patched Codex binary。官方 Codex 目前不支援 command-rendered cyberpunk status line。
+
+如果要使用完整 cyberpunk footer，請明確指定 patched binary 路徑：
+
+```bash
+cd ~/claude-cyberpunk-statusline && ./install-codex.sh --patched
+```
 
 ### 3. 重新啟動
 

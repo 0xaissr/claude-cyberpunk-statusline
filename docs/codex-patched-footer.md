@@ -11,7 +11,7 @@ Implemented:
 - `adapters/codex/lib-config.sh` can add or remove a patched
   `tui.status_line_command` key in Codex config.
 - `install-codex.sh` guides Codex setup, writes a Codex-specific theme config,
-  installs the patched binary, and can optionally add a shell alias.
+  and configures Codex's official built-in `tui.status_line` items by default.
 - `adapters/codex/install-patched.sh` can clone Codex `rust-v0.142.5`, apply
   the local `status_line_command` patch, build a release binary, install it as
   `~/.local/bin/codex-cyberpunk`, and write Codex config.
@@ -48,13 +48,24 @@ From this repository:
 ./install-codex.sh
 ```
 
-This guides theme selection, writes `adapters/codex/config.json`, installs the
-patched Codex binary, and asks whether `codex` should launch `codex-cyberpunk`.
+This guides theme selection, writes `adapters/codex/config.json`, and writes
+official `tui.status_line` items into `~/.codex/config.toml`. It does not clone
+Codex, run Cargo, or install `codex-cyberpunk` by default.
 
 For non-interactive setup:
 
 ```bash
-./install-codex.sh --theme tokyo-night --alias
+./install-codex.sh --theme tokyo-night
+```
+
+This official path uses Codex's built-in status line item list. It does not
+render the cyberpunk command output because official Codex does not currently
+support `tui.status_line_command`.
+
+To opt into the full cyberpunk patched-binary flow:
+
+```bash
+./install-codex.sh --patched --theme tokyo-night --alias
 ```
 
 ## Dry Run Low-Level Installer

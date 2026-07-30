@@ -209,6 +209,36 @@ test_subscription_keeps_rate() {
   fi
 }
 
+test_cost_uses_claude_only_ccusage() {
+  local home_tmp bin_tmp cfg out
+  home_tmp=$(mktemp -d)
+  bin_tmp=$(mktemp -d)
+  cfg=$(mktemp)
+  printf '{"theme":"terminal-glitch","symbol_set":"unicode","spacing":"normal","style":"classic","separator":"|","blocks":["cost"],"bar_width":6,"show_icons":false,"account_type":"subscription"}' > "$cfg"
+  cat > "$bin_tmp/ccusage" <<'SH'
+#!/bin/sh
+if [ "$1" = "claude" ] && [ "$2" = "daily" ]; then
+  printf '7.89\n'
+  exit 0
+fi
+if [ "$1" = "daily" ]; then
+  printf '99.99\n'
+  exit 0
+fi
+exit 1
+SH
+  chmod +x "$bin_tmp/ccusage"
+
+  out=$(cat "$SAMPLE" | HOME="$home_tmp" PATH="$bin_tmp:$PATH" CONFIG_OVERRIDE="$cfg" bash "$STATUSLINE" 2>/dev/null || true)
+  rm -rf "$home_tmp" "$bin_tmp"
+  rm -f "$cfg"
+  if echo "$out" | grep -q '\$7.89' && ! echo "$out" | grep -q '\$99.99'; then
+    echo "✓ test_cost_uses_claude_only_ccusage: cost 只取 Claude 用量"; ((PASS++))
+  else
+    echo "✗ test_cost_uses_claude_only_ccusage: cost 應使用 ccusage claude daily — got: $out"; ((FAIL++))
+  fi
+}
+
 test_credit_block_quota() {
   local cfg=$(mktemp) cache=$(mktemp)
   printf '{"theme":"terminal-glitch","symbol_set":"nerd","spacing":"normal","style":"classic","separator":"|","blocks":["model","rate_5h","rate_7d","time"],"bar_width":6,"show_icons":false,"account_type":"auto"}' > "$cfg"
@@ -315,6 +345,7 @@ main() {
   test_spend_replaces_rate
   test_spend_degraded
   test_subscription_keeps_rate
+  test_cost_uses_claude_only_ccusage
   test_credit_block_quota
   test_credit_absent_hidden
   test_credit_exhausted_hidden
