@@ -177,6 +177,64 @@ JSONL
   check_contains "cache initial render includes context percent" "42%" "$first"
 }
 
+# ── tokens block ─────────────────────────────────────────────────────────
+# 顯式指定只含 tokens 的 config，讓斷言不受主 config.json 的區塊順序影響。
+_tokens_only_config() {
+  printf '{"theme":"terminal-glitch","symbol_set":"ascii","spacing":"normal","style":"classic","separator":"|","blocks":["tokens"],"bar_width":6,"show_icons":true,"account_type":"subscription"}' > "$1"
+}
+
+# _render_tokens <rollout_file_content_source> —— 以指定 rollout 內容跑一次 adapter
+_render_tokens() {
+  local rollout_src="$1"
+  local home_tmp cfg out
+  home_tmp=$(mktemp -d)
+  cfg=$(mktemp)
+  mkdir -p "$home_tmp/.codex/sessions/2026/07/01"
+  cp "$rollout_src" "$home_tmp/.codex/sessions/2026/07/01/rollout-tokens.jsonl"
+  printf 'model = "gpt-5.5"\nmodel_reasoning_effort = "medium"\n' > "$home_tmp/.codex/config.toml"
+  _tokens_only_config "$cfg"
+
+  out=$(HOME="$home_tmp" CYBERPUNK_STATUSLINE_ROOT="$PROJECT_DIR" \
+    CODEX_STATUSLINE_CONFIG="$cfg" bash "$RENDERER" --line 2>/dev/null || true)
+  rm -rf "$home_tmp"; rm -f "$cfg"
+  printf '%s' "$out"
+}
+
+test_session_tokens_from_real_fixture() {
+  # 73866 - 56832 + 0(缺 cache_write，走 // 0) + 1378 = 18412 → 18K
+  local out
+  out=$(_render_tokens "$SCRIPT_DIR/fixtures/real-token-count-session.jsonl")
+  check_contains "session tokens subtracts cached input" "18K" "$out"
+}
+
+test_session_tokens_counts_cache_write_not_reasoning() {
+  # 2,000,000 - 1,500,000 + 250,000 + 100,000 = 850,000 → 850K
+  # reasoning_output_tokens(40,000) 已含在 output_tokens 內，若重複相加會變 890K
+  local roll
+  roll=$(mktemp)
+  cat > "$roll" <<'JSON'
+{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":2000000,"cached_input_tokens":1500000,"cache_write_input_tokens":250000,"output_tokens":100000,"reasoning_output_tokens":40000,"total_tokens":2100000},"last_token_usage":{"total_tokens":51200},"model_context_window":258400}}}
+JSON
+  local out
+  out=$(_render_tokens "$roll")
+  rm -f "$roll"
+
+  check_contains "session tokens adds cache_write" "850K" "$out"
+  if echo "$out" | grep -Fq -- "890K"; then
+    echo "✗ session tokens double-counts reasoning_output_tokens — got: $out"
+    ((FAIL++))
+  else
+    echo "✓ session tokens does not double-count reasoning_output_tokens"
+    ((PASS++))
+  fi
+}
+
+test_session_tokens_degraded_without_token_count() {
+  local out
+  out=$(_render_tokens "$SCRIPT_DIR/fixtures/rate-session.jsonl")
+  check_contains "session tokens degrades to placeholder" "[#] --" "$out"
+}
+
 test_no_claude_files_referenced() {
   if grep -R "\.claude" "$PROJECT_DIR/adapters/codex" >/dev/null 2>&1; then
     echo "✗ codex adapter references .claude"
@@ -195,6 +253,9 @@ test_ccusage_codex_cost_wins_when_available
 test_npx_ccusage_codex_cost_wins_when_global_missing
 test_latest_session_skips_empty_newer_rollout
 test_recent_render_is_cached
+test_session_tokens_from_real_fixture
+test_session_tokens_counts_cache_write_not_reasoning
+test_session_tokens_degraded_without_token_count
 test_no_claude_files_referenced
 
 echo "PASS=$PASS FAIL=$FAIL"

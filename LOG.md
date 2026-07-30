@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-07-30
+
+### 新增：tokens 區塊（本次 session 累計 token）
+
+- **需求**：狀態列有 `context`（CTX %）與 `cost`（今日 $），但沒有欄位回答「這場對話到目前為止燒掉多少 token」
+- **統計範圍**：本次 session 累計，非跨 session 日總量（日維度已由 cost 以金額呈現）
+- **token 組成**：`input_tokens + cache_creation_input_tokens + output_tokens`，**刻意排除 `cache_read_input_tokens`** — 每輪都重讀整個 context，計入後會膨脹到數千萬並主導整個數字。代價是與 `ccusage` 的 `totalTokens` 定義不一致，兩份 README 皆明確標註
+- **顯示格式**：`842` / `840K` / `12.4M`，一律無條件捨去，避免 999,999 被進位成 `1000K` 這種跨單位溢位
+- **statusline.sh**：新增 `S_TOKENS`、`fmt_tokens()`、`_resolve_transcript()`、`_count_session_tokens()`、`render_block_tokens()`、`block_text_tokens()`，classic 與 rainbow 兩處 dispatch 各補一個 case
+  - transcript 解析順序：stdin 的 `.transcript_path` → 退路以 `.session_id` glob `~/.claude/projects/*/`。需要退路是因為 `session_id` 確認存在於 statusline schema，`transcript_path` 未實測確認；用 glob 精準比對 session id，不從 cwd 推導目錄 slug（slug 會把 `/` 與 `.` 都轉成 `-`，不可靠）
+  - 去重鍵沿用 cost fallback 的 `message.id|requestId`，重試的 request 不會重複計算
+  - 快取採 **mtime 比對**而非固定 TTL：`~/.cache/cyberpunk-statusline/session-tokens-<session_id>` 存 `<mtime>|<total>`，transcript 未變動就零成本重用。實測最大的 1.8MB session 全掃約 18ms
+  - 新增 `SESSION_TOKENS_OVERRIDE` 環境變數（沿用 `USAGE_CACHE_OVERRIDE` 慣例），供 configure.sh 預覽與 Codex adapter 注入
+- **adapters/codex/statusline.sh**：新增 `codex_session_tokens()`，取最後一筆 `token_count` 事件的 `payload.info.total_token_usage`，公式 `input - cached + cache_write + output`
+  - 依實測 rollout 驗證：`total_tokens == input + output`，故 `input_tokens` 已內含 `cached_input_tokens`（需相減）；`reasoning_output_tokens` 已內含於 `output_tokens`（不可另加）
+  - 透過 `SESSION_TOKENS_OVERRIDE` 注入主渲染器，完整重用格式化與配色邏輯
+- **主題**：14 個主題檔（含 `custom-example`）補上 `symbols.{nerd,unicode,ascii}.tokens` 與 `blocks.tokens` 色彩；`sym` 另有硬編碼 fallback `⇅`，自訂主題不會壞掉
+- **接線**：`config.json`、`configure.sh` 的 `block_ids` 與說明、`adapters/codex/config.json`、`install-codex.sh` 的預設 blocks
+- **清理**：移除死碼 `render_block_turn_usage()` / `block_text_turn_usage()` — 兩處 dispatch 都沒有對應 case，且其讀取的 `/tmp/claude-turn-usage.txt` 在 repo 內找不到任何 writer。**檔案尾端的第二行渲染器未動** — 那段讀的是 `$COST_CACHE_DIR/turn-usage-<md5>.txt`，由 repo 外的 `~/.claude/hooks/show-turn-usage.sh`（Stop hook）寫入，是獨立且活著的功能，顯示上一輪明細，與 tokens 的 session 累計語義不重疊
+- **測試**：`tests/test-statusline.sh` +11（加總、排除 cache_read、去重、session_id 退路、無 transcript 降級、6 個格式邊界）；`tests/adapters/codex/test-statusline.sh` +4（真實 fixture 公式、cache_write 計入、reasoning 不重複計、無 token_count 降級）。合計 41 + 24 全通過
+- **文件同步**：`README.md` 與 `docs/README.zh-TW.md` 的區塊表格與說明段落；設計文件 `docs/superpowers/specs/2026-07-30-session-tokens-block-design.md`
+
 ## 2026-06-21
 
 ### 調整：credit 用光（100%）時隱藏 credit 區塊

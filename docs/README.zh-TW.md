@@ -74,6 +74,7 @@ cd ~/claude-cyberpunk-statusline && ./configure.sh
 |---|---|
 | model | 模型名稱（例如 Opus 4.6） |
 | context | 上下文視窗用量 % |
+| tokens | 本次 session 已使用的 token 數（例如 `840K`、`12.4M`） |
 | rate_5h | 5 小時速率限制 % |
 | rate_7d | 7 天速率限制 % |
 | spend | 企業版／配額制帳號的本月 spend 用量（自動取代速率限制區塊） |
@@ -83,6 +84,16 @@ cd ~/claude-cyberpunk-statusline && ./configure.sh
 | directory | 工作目錄 |
 | git | Git 分支 |
 | time | 目前時間 |
+
+**tokens 區塊**顯示**目前這場對話**已消耗的 token 數，計算方式為：
+
+```
+input_tokens + cache_creation_input_tokens + output_tokens
+```
+
+`cache_read_input_tokens` **刻意排除**。每一輪都會重讀整個 context，把 cache read 累加進去會讓數字膨脹到數千萬，失去對比意義。這也代表這個數字**不會**等於 `ccusage` 的 `totalTokens`（後者有計入 cache read）。
+
+數字格式為 `842` / `840K` / `12.4M`，一律無條件捨去，因此不會出現跨單位溢位的怪值。數值取自 session transcript，並以 transcript 的 mtime 作為快取失效依據，所以閒置時重新 render 完全不耗成本。找不到 transcript 時顯示 `--`。
 
 **cost 區塊**會顯示今日所有 Claude 模型與 session 的總花費。若有安裝 [ccusage](https://github.com/ryoppippi/ccusage) 會使用其精確統計，否則自動以內建 JSONL 計算。資料每 5 分鐘在背景更新快取。
 

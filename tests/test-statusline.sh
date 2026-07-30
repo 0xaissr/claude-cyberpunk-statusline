@@ -239,6 +239,108 @@ SH
   fi
 }
 
+# ── tokens block ─────────────────────────────────────────────────────────
+# 只放 tokens 一個區塊、ascii symbol、關掉 icon 以外的雜訊，讓斷言鎖在數字本身。
+_tokens_cfg() {
+  printf '{"theme":"terminal-glitch","symbol_set":"ascii","spacing":"normal","style":"classic","separator":"|","blocks":["tokens"],"bar_width":6,"show_icons":true,"account_type":"subscription"}'
+}
+
+# _tokens_render <transcript_file> [extra_env_assignments...]
+# 回傳去掉 ANSI 的第一行輸出。HOME 指向暫存目錄，避免污染真實快取。
+_tokens_render() {
+  local transcript="$1"; shift
+  local cfg home out
+  cfg=$(mktemp)
+  home=$(mktemp -d)
+  _tokens_cfg > "$cfg"
+  out=$(printf '{"session_id":"fixture","transcript_path":"%s"}' "$transcript" \
+    | env HOME="$home" CONFIG_OVERRIDE="$cfg" "$@" bash "$STATUSLINE" 2>/dev/null \
+    | head -1 | sed 's/\x1b\[[0-9;]*m//g')
+  rm -rf "$home"; rm -f "$cfg"
+  printf '%s' "$out"
+}
+
+# _tokens_entry <msg_id> <req_id> <input> <cache_creation> <cache_read> <output>
+_tokens_entry() {
+  printf '{"type":"assistant","requestId":"%s","message":{"id":"%s","model":"claude-opus-5","usage":{"input_tokens":%s,"cache_creation_input_tokens":%s,"cache_read_input_tokens":%s,"output_tokens":%s}}}\n' \
+    "$2" "$1" "$3" "$4" "$5" "$6"
+}
+
+test_tokens_sums_session_transcript() {
+  local t=$(mktemp)
+  # 1000+2000+500=3500, 4000+8000+1500=13500 → 17000 → "17K"
+  { _tokens_entry m1 r1 1000 2000 9999 500
+    _tokens_entry m2 r2 4000 8000 9999 1500; } > "$t"
+  local out=$(_tokens_render "$t")
+  rm -f "$t"
+  check "test_tokens_sums_session_transcript: 加總 input+cache_creation+output" " [#] 17K " "$out"
+}
+
+test_tokens_excludes_cache_read() {
+  local t=$(mktemp)
+  # cache_read 高達 5,000,000；若被計入會顯示 M 量級而非 3K
+  { _tokens_entry m1 r1 1000 2000 5000000 500; } > "$t"
+  local out=$(_tokens_render "$t")
+  rm -f "$t"
+  check "test_tokens_excludes_cache_read: cache_read 不計入" " [#] 3K " "$out"
+}
+
+test_tokens_dedupes_retried_request() {
+  local t=$(mktemp)
+  # 同一組 message.id|requestId 出現兩次，只能算一次
+  { _tokens_entry m1 r1 10000 20000 9999 5000
+    _tokens_entry m1 r1 10000 20000 9999 5000; } > "$t"
+  local out=$(_tokens_render "$t")
+  rm -f "$t"
+  check "test_tokens_dedupes_retried_request: 重複列只計一次" " [#] 35K " "$out"
+}
+
+test_tokens_resolves_by_session_id() {
+  # 不給 transcript_path，改由 session_id 在 $HOME/.claude/projects/*/ 找
+  local home=$(mktemp -d) cfg=$(mktemp)
+  mkdir -p "$home/.claude/projects/some-project"
+  _tokens_entry m1 r1 1000000 500000 9999 234567 \
+    > "$home/.claude/projects/some-project/abc-123.jsonl"
+  _tokens_cfg > "$cfg"
+  local out=$(printf '{"session_id":"abc-123"}' \
+    | env HOME="$home" CONFIG_OVERRIDE="$cfg" bash "$STATUSLINE" 2>/dev/null \
+    | head -1 | sed 's/\x1b\[[0-9;]*m//g')
+  rm -rf "$home"; rm -f "$cfg"
+  # 1,734,567 → 無條件捨去到一位小數 → 1.7M
+  check "test_tokens_resolves_by_session_id: 用 session_id 找到 transcript" " [#] 1.7M " "$out"
+}
+
+test_tokens_degraded_without_transcript() {
+  local home=$(mktemp -d) cfg=$(mktemp)
+  _tokens_cfg > "$cfg"
+  local out=$(printf '{"session_id":"no-such-session"}' \
+    | env HOME="$home" CONFIG_OVERRIDE="$cfg" bash "$STATUSLINE" 2>/dev/null \
+    | head -1 | sed 's/\x1b\[[0-9;]*m//g')
+  rm -rf "$home"; rm -f "$cfg"
+  check "test_tokens_degraded_without_transcript: 無 transcript 顯示 --" " [#] -- " "$out"
+}
+
+test_tokens_number_formatting() {
+  local cfg=$(mktemp) home=$(mktemp -d)
+  _tokens_cfg > "$cfg"
+  # 邊界重點：999999 不可進位成 "1000K"，必須維持 999K（跨單位溢位防護）
+  local n expected out
+  while IFS='|' read -r n expected; do
+    out=$(printf '{"session_id":"x"}' \
+      | env HOME="$home" CONFIG_OVERRIDE="$cfg" SESSION_TOKENS_OVERRIDE="$n" bash "$STATUSLINE" 2>/dev/null \
+      | head -1 | sed 's/\x1b\[[0-9;]*m//g')
+    check "test_tokens_number_formatting: $n" " [#] $expected " "$out"
+  done <<'EOF'
+0|0
+999|999
+1000|1K
+999999|999K
+1000000|1.0M
+12456789|12.4M
+EOF
+  rm -rf "$home"; rm -f "$cfg"
+}
+
 test_credit_block_quota() {
   local cfg=$(mktemp) cache=$(mktemp)
   printf '{"theme":"terminal-glitch","symbol_set":"nerd","spacing":"normal","style":"classic","separator":"|","blocks":["model","rate_5h","rate_7d","time"],"bar_width":6,"show_icons":false,"account_type":"auto"}' > "$cfg"
@@ -351,6 +453,12 @@ main() {
   test_credit_exhausted_hidden
   test_burn_history_subscription
   test_burn_block_renders_rate
+  test_tokens_sums_session_transcript
+  test_tokens_excludes_cache_read
+  test_tokens_dedupes_retried_request
+  test_tokens_resolves_by_session_id
+  test_tokens_degraded_without_transcript
+  test_tokens_number_formatting
 
   echo "======================================"
   echo "Results: $PASS passed, $FAIL failed"

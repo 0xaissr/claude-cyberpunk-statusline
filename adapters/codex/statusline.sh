@@ -185,6 +185,39 @@ codex_estimated_cost() {
   return 0
 }
 
+# Session-cumulative tokens, excluding cache reads — mirrors the Claude side's
+# input + cache_creation + output. Codex's total_token_usage already accumulates
+# over the session, so no summing or dedupe is needed here.
+#
+# Field semantics verified against a real rollout:
+#   total_tokens == input_tokens + output_tokens
+# so input_tokens already CONTAINS cached_input_tokens (subtract to get the
+# non-cached input), and reasoning_output_tokens is already inside output_tokens
+# (adding it separately would double-count).
+codex_session_tokens() {
+  local file="$1"
+  [ -n "$file" ] && [ -f "$file" ] || return 0
+
+  jq -r '
+    select(type == "object" and .type == "event_msg" and .payload.type == "token_count")
+    | .payload.info.total_token_usage
+    | [
+        (.input_tokens // 0),
+        (.cached_input_tokens // 0),
+        (.cache_write_input_tokens // 0),
+        (.output_tokens // 0)
+      ]
+    | @tsv
+  ' "$file" 2>/dev/null | tail -1 | awk '
+    NF == 4 {
+      non_cached = $1 - $2
+      if (non_cached < 0) non_cached = 0
+      printf "%d", non_cached + $3 + $4
+    }
+  '
+  return 0
+}
+
 ccusage_codex_cost() {
   local output=""
   if command -v ccusage >/dev/null 2>&1; then
@@ -216,7 +249,7 @@ fallback_config() {
   "separator": "",
   "head": "rounded",
   "tail": "sharp",
-  "blocks": ["model", "context", "rate_5h", "rate_7d", "cost", "burn", "git", "time"],
+  "blocks": ["model", "context", "tokens", "rate_5h", "rate_7d", "cost", "burn", "git", "time"],
   "bar_width": 6,
   "bar_filled": "●",
   "bar_empty": "○",
@@ -257,6 +290,7 @@ render_with_claude_style() {
     CONFIG_OVERRIDE="$tmp_config" \
     HISTORY_FILE="$CACHE_DIR/usage-history.jsonl" \
     USAGE_CACHE_OVERRIDE="$tmp_usage" \
+    SESSION_TOKENS_OVERRIDE="$codex_tokens" \
     bash "$MAIN_RENDERER" <<< "$input_json" > "$tmp_output" 2>/dev/null || true
 
   awk 'NF { print; exit }' "$tmp_output"
@@ -275,6 +309,7 @@ codex_cost="$(ccusage_codex_cost)"
 if [ -z "$codex_cost" ]; then
   codex_cost="$(codex_estimated_cost "$session_file")"
 fi
+codex_tokens="$(codex_session_tokens "$session_file")"
 
 model_part="$model"
 if [ -n "$effort" ]; then

@@ -79,6 +79,7 @@ The setup wizard will guide you through:
 |---|---|
 | model | Model name (e.g., Opus 4.6) |
 | context | Context window usage % |
+| tokens | Tokens used in the current session (e.g. `840K`, `12.4M`) |
 | rate_5h | 5-hour rate limit % |
 | rate_7d | 7-day rate limit % |
 | spend | Monthly spend for Enterprise/quota accounts (replaces rate blocks) |
@@ -88,6 +89,22 @@ The setup wizard will guide you through:
 | directory | Working directory |
 | git | Git branch |
 | time | Current time |
+
+The **tokens** block shows how many tokens the *current conversation* has consumed, counted as:
+
+```
+input_tokens + cache_creation_input_tokens + output_tokens
+```
+
+`cache_read_input_tokens` is **deliberately excluded**. Every turn re-reads the whole
+context, so including cache reads would push the figure into the tens of millions and
+make it useless for comparison. Note this means the number will **not** match
+`ccusage`'s `totalTokens`, which does include cache reads.
+
+Numbers are formatted `842` / `840K` / `12.4M` and always round down, so a value never
+spills into the next unit. The count comes from the session transcript and is cached
+against the transcript's mtime, so an idle statusline costs nothing to re-render.
+It shows `--` when the transcript cannot be located.
 
 The **cost** block shows today's total spending across all Claude models and sessions. It uses [ccusage](https://github.com/ryoppippi/ccusage) for accurate tracking if installed, otherwise falls back to built-in JSONL calculation. Data is cached and refreshed every 5 minutes in the background.
 

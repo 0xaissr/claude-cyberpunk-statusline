@@ -25,7 +25,8 @@
       "time": "󰅐",
       "bar_filled": "█",
       "bar_empty": "░",
-      "cost": "󰄉"
+      "cost": "󰄉",
+      "tokens": "󰊖"
     },
     "unicode": {
       "model": "⬡",
@@ -37,7 +38,8 @@
       "time": "◷",
       "bar_filled": "█",
       "bar_empty": "░",
-      "cost": "$"
+      "cost": "$",
+      "tokens": "⇅"
     },
     "ascii": {
       "model": "[M]",
@@ -49,7 +51,8 @@
       "time": "[T]",
       "bar_filled": "#",
       "bar_empty": ".",
-      "cost": "[$]"
+      "cost": "[$]",
+      "tokens": "[#]"
     }
   },
   "blocks": {
@@ -96,6 +99,12 @@
       "pl_fg": "bg_primary"
     },
     "cost": {
+      "color": "accent_3",
+      "bg": "bg_panel",
+      "pl_bg": "accent_3",
+      "pl_fg": "bg_primary"
+    },
+    "tokens": {
       "color": "accent_3",
       "bg": "bg_panel",
       "pl_bg": "accent_3",

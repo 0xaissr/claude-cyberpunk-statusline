@@ -323,7 +323,8 @@ render_preview() {
 CONF
 
   local output
-  output=$(CONFIG_OVERRIDE="$tmp_config" bash "$STATUSLINE" <<< "$SAMPLE_DATA" 2>/dev/null) || true
+  output=$(CONFIG_OVERRIDE="$tmp_config" SESSION_TOKENS_OVERRIDE="842317" \
+    bash "$STATUSLINE" <<< "$SAMPLE_DATA" 2>/dev/null) || true
   echo -e "$output"
 }
 
@@ -463,10 +464,11 @@ step_show_icons() {
 step_blocks() {
   draw_header 2 $TOTAL_STEPS "Which blocks to show? (Space to toggle)"
 
-  local block_ids=("model" "context" "rate_5h" "rate_7d" "cost" "directory" "git" "time")
+  local block_ids=("model" "context" "tokens" "rate_5h" "rate_7d" "cost" "directory" "git" "time")
   local block_descs=(
     "model       — Model name (e.g., Opus 4.6)"
     "context     — Context window usage %"
+    "tokens      — Session tokens used (excludes cache reads)"
     "rate_5h     — 5-hour rate limit %"
     "rate_7d     — 7-day rate limit %"
     "cost        — Daily cost (requires ccusage)"

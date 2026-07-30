@@ -113,7 +113,7 @@ write_codex_config() {
     separator: "",
     head: "rounded",
     tail: "sharp",
-    blocks: ["model", "context", "rate_5h", "rate_7d", "cost", "burn", "git", "time"],
+    blocks: ["model", "context", "tokens", "rate_5h", "rate_7d", "cost", "burn", "git", "time"],
     bar_width: 6,
     bar_filled: "●",
     bar_empty: "○",

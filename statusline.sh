@@ -121,10 +121,12 @@ S_CREDIT=$(sym credit)
 [ "$S_CREDIT" = "?" ] && S_CREDIT="$S_SPEND"
 S_BURN=$(sym burn)
 [ "$S_BURN" = "?" ] && S_BURN="󱐋"
+S_TOKENS=$(sym tokens)
+[ "$S_TOKENS" = "?" ] && S_TOKENS="⇅"
 
 # Clear icons if show_icons is disabled
 if [ "$cfg_show_icons" = "false" ]; then
-  S_MODEL="" S_CTX="" S_5H="" S_7D="" S_DIR="" S_GIT="" S_TIME="" S_COST="" S_SPEND="" S_CREDIT="" S_BURN=""
+  S_MODEL="" S_CTX="" S_5H="" S_7D="" S_DIR="" S_GIT="" S_TIME="" S_COST="" S_SPEND="" S_CREDIT="" S_BURN="" S_TOKENS=""
 fi
 
 # ── Read block color mappings ─────────────────────────────────────────────
@@ -197,6 +199,8 @@ five_reset=$(echo "$input" | "$JQ" -r '.rate_limits.five_hour.resets_at // empty
 week_pct=$(echo "$input" | "$JQ" -r 'if (.rate_limits.seven_day.used_percentage | type) == "number" then .rate_limits.seven_day.used_percentage else empty end')
 week_reset=$(echo "$input" | "$JQ" -r '.rate_limits.seven_day.resets_at // empty')
 cwd=$(echo "$input" | "$JQ" -r '.workspace.current_dir // .cwd // "?"')
+session_id=$(echo "$input" | "$JQ" -r '.session_id // empty')
+transcript_path=$(echo "$input" | "$JQ" -r '.transcript_path // empty')
 case "$cfg_time_format" in
   12h)        now=$(date +"%I:%M:%S %p") ;;
   24h-no-sec) now=$(date +"%H:%M") ;;
@@ -271,6 +275,79 @@ if [ ! -f "$COST_CACHE" ] || [ $(($(date +%s) - $(stat -f%m "$COST_CACHE" 2>/dev
   _refresh_cost
   daily_cost=$(cat "$COST_CACHE" 2>/dev/null)
 fi
+
+# ── Session tokens (cached, invalidated by transcript mtime) ──────────────
+# Counts input + cache_creation + output for THIS conversation. cache_read is
+# deliberately excluded: every turn re-reads the whole context, so including it
+# would push the total into the tens of millions and drown out everything else.
+session_tokens=""
+
+# stdin's transcript_path is preferred; session_id is the documented fallback
+# (it is present in the statusline schema, transcript_path is not guaranteed).
+# Match the session id against the projects tree rather than deriving the
+# directory slug from cwd — the slug mangles both '/' and '.' into '-'.
+_resolve_transcript() {
+  if [ -n "$transcript_path" ] && [ -f "$transcript_path" ]; then
+    printf '%s' "$transcript_path"
+    return
+  fi
+  [ -n "$session_id" ] || return
+  local f
+  for f in "$HOME"/.claude/projects/*/"$session_id".jsonl; do
+    [ -f "$f" ] || continue
+    printf '%s' "$f"
+    return
+  done
+}
+
+# Dedupe on message.id|requestId — the same key the local cost fallback uses,
+# so a retried request is not counted twice.
+_count_session_tokens() {
+  grep -h '"type":"assistant"' "$1" 2>/dev/null | "$JQ" -s '
+    [ .[] | select(.message.id != null) |
+      {k: (.message.id + "|" + (.requestId // "")), e: .}
+    ] | group_by(.k) | map(.[0].e) |
+    [ .[] | .message.usage |
+      (.input_tokens // 0)
+      + (.cache_creation_input_tokens // 0)
+      + (.output_tokens // 0)
+    ] | add // 0
+  ' 2>/dev/null
+}
+
+_transcript=""
+# Override short-circuits transcript resolution entirely — used by configure.sh's
+# live preview (its sample data has no real session) and by tests.
+if [ -n "${SESSION_TOKENS_OVERRIDE:-}" ]; then
+  session_tokens="$SESSION_TOKENS_OVERRIDE"
+else
+  _transcript=$(_resolve_transcript)
+fi
+if [ -n "$_transcript" ]; then
+  _tokens_cache="$COST_CACHE_DIR/session-tokens-$(basename "$_transcript" .jsonl)"
+  _t_mtime=$(stat -f%m "$_transcript" 2>/dev/null || echo 0)
+  _c_mtime="" _c_total=""
+  [ -f "$_tokens_cache" ] && IFS='|' read -r _c_mtime _c_total < "$_tokens_cache"
+
+  if [ -n "$_c_total" ] && [ "$_c_mtime" = "$_t_mtime" ]; then
+    session_tokens="$_c_total"
+  else
+    session_tokens=$(_count_session_tokens "$_transcript")
+    if [ -n "$session_tokens" ]; then
+      mkdir -p "$COST_CACHE_DIR"
+      printf '%s|%s\n' "$_t_mtime" "$session_tokens" > "$_tokens_cache" 2>/dev/null
+    fi
+  fi
+fi
+
+# 840K / 12.4M —— 一律無條件捨去，避免 999,600 被進位成 "1000K" 這種跨單位的怪值
+fmt_tokens() {
+  awk -v n="${1:-0}" 'BEGIN{
+    if (n >= 1000000)   printf "%.1fM", int(n/100000)/10
+    else if (n >= 1000) printf "%dK", int(n/1000)
+    else                printf "%d", n
+  }'
+}
 
 # ── Usage / spend (cached, background refresh) ────────────────────────────
 USAGE_CACHE="${USAGE_CACHE_OVERRIDE:-$COST_CACHE_DIR/usage.json}"
@@ -456,18 +533,12 @@ block_text_burn() {
   echo -n " ${S_BURN} $(_burn_fmt "$_ba" "$_bs") "
 }
 
-block_text_turn_usage() {
-  local cache="/tmp/claude-turn-usage.txt"
-  if [ -f "$cache" ]; then
-    local data
-    data=$(cat "$cache" 2>/dev/null)
-    if [ -n "$data" ]; then
-      IFS='|' read -r t_in t_cache t_out t_cost <<< "$data"
-      echo -n " 󰊖 cache:${t_cache} in:${t_in} out:${t_out} \$${t_cost} "
-      return
-    fi
+block_text_tokens() {
+  if [ -n "$session_tokens" ]; then
+    echo -n " ${S_TOKENS} $(fmt_tokens "$session_tokens") "
+  else
+    echo -n " ${S_TOKENS} -- "
   fi
-  echo -n " 󰊖 -- "
 }
 
 # ── Classic block renderers ───────────────────────────────────────────────
@@ -607,21 +678,15 @@ render_block_spend() {
   esac
 }
 
-render_block_turn_usage() {
-  local fg=$(hex_to_fg "$(block_color turn_usage)")
-  local bg=$(hex_to_bg "$(block_bg turn_usage)")
-  local cache="/tmp/claude-turn-usage.txt"
-  if [ -f "$cache" ]; then
-    local data
-    data=$(cat "$cache" 2>/dev/null)
-    if [ -n "$data" ]; then
-      IFS='|' read -r t_in t_cache t_out t_cost <<< "$data"
-      echo -n "${bg}${fg}${BOLD} 󰊖 cache:${t_cache} in:${t_in} out:${t_out} \$${t_cost} ${RESET}"
-      return
-    fi
+render_block_tokens() {
+  local fg=$(hex_to_fg "$(block_color tokens)")
+  local bg=$(hex_to_bg "$(block_bg tokens)")
+  if [ -n "$session_tokens" ]; then
+    echo -n "${bg}${fg}${BOLD} ${S_TOKENS} $(fmt_tokens "$session_tokens") ${RESET}"
+  else
+    local dim_fg=$(hex_to_fg "$C_DIM")
+    echo -n "${bg}${dim_fg} ${S_TOKENS} -- ${RESET}"
   fi
-  local dim_fg=$(hex_to_fg "$C_DIM")
-  echo -n "${bg}${dim_fg} 󰊖 -- ${RESET}"
 }
 
 # ── Get block's rainbow bg hex ────────────────────────────────────────────
@@ -722,6 +787,7 @@ if $PL_MODE; then
       spend)     text=$(block_text_spend) ;;
       credit)    text=$(block_text_credit) ;;
       burn)      text=$(block_text_burn) ;;
+      tokens)    text=$(block_text_tokens) ;;
     esac
     output+="${cur_bg}${cur_fg}${BOLD}${text}${RESET}"
 
@@ -754,6 +820,7 @@ else
       spend)     output+=$(render_block_spend) ;;
       credit)    output+=$(render_block_credit) ;;
       burn)      output+=$(render_block_burn) ;;
+      tokens)    output+=$(render_block_tokens) ;;
     esac
   done
 fi

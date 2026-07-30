@@ -124,9 +124,17 @@ theme 檔理論上可不改（`block_color` fallback 到 `accent_1`、`block_bg`
 
 ## 順帶清理
 
-`statusline.sh` 的 `render_block_turn_usage` 是死碼：classic 與 rainbow 兩處 dispatch
-都沒有對應的 case，且它讀取的 `/tmp/claude-turn-usage.txt` 在整個 repo 找不到任何
-writer。新區塊上線後移除，避免與 `tokens` 語義重疊造成混淆。
+`statusline.sh` 的 `render_block_turn_usage` 與 `block_text_turn_usage` 是死碼：classic
+與 rainbow 兩處 dispatch 都沒有對應的 case，且它們讀取的 `/tmp/claude-turn-usage.txt`
+在整個 repo 找不到任何 writer。新區塊上線後移除。
+
+**不要連帶刪掉檔案尾端的第二行渲染器。** 那段（`# ── Turn usage (second line) ──`）是
+獨立且活著的功能：它讀的是 `$COST_CACHE_DIR/turn-usage-<md5>.txt`（不同的路徑），由
+repo 外的 `~/.claude/hooks/show-turn-usage.sh`（Stop hook）寫入，輸出 `Last Chat
+cache:… in:… out:… $…` 這一行。
+
+兩者語義不重疊，可並存：第二行是**上一輪**的明細，`tokens` 區塊是**整場 session** 的
+累計量。
 
 ## 非目標
 
