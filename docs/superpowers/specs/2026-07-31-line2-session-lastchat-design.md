@@ -131,6 +131,8 @@ mtime|session_tokens|session_cost|last_tokens|last_cost
 
 保留各 theme 既有的 `symbols.*.tokens` 與 `blocks.tokens`，作為向後相容映射的後備。
 
+注意 rainbow 樣式**忽略** theme 的 `pl_bg`，改依區塊在該列中的位置循環 `accent_1 → accent_2 → accent_3`（statusline.sh:747-752）。第二列的色彩循環從自己的索引 0 重新起算，因此 `session` 自動拿到 `accent_1`、`last_chat` 拿到 `accent_2`，兩欄色差在 rainbow 下自然成立。theme 裡的 `blocks.session.color` / `.bg` 只在 classic 樣式生效。
+
 ### configure.sh
 
 `step_blocks` 拆成兩段選單：第一列可選 `model / context / rate_5h / rate_7d / cost / directory / git / time`，第二列可選 `session / last_chat`。選取結果分別存入 `sel_blocks` 與 `sel_blocks_line2`。
@@ -141,12 +143,13 @@ mtime|session_tokens|session_cost|last_tokens|last_cost
 
 ### Codex adapter
 
-`adapters/codex/statusline.sh` 目前餵 `SESSION_TOKENS_OVERRIDE` 給主 statusline。改動：
+`adapters/codex/statusline.sh` 目前餵 `SESSION_TOKENS_OVERRIDE` 給主 statusline，並以 `awk 'NF { print; exit }'` **只取第一行**輸出（Codex 的 `tui.status_line` 是單行）。因此 Codex 完全不使用 `blocks_line2`。改動：
 
-- 其預設 config 的 `blocks` 移除 `tokens`，`blocks_line2` 設為 `["session"]`。
+- 其預設 config 的 `blocks` 把 `tokens` 換成 `session`，**仍留在第一列**；不設 `blocks_line2`。
 - 不設 `SESSION_COST_OVERRIDE`；`block_text_session` 在金額為空時只輸出 token，不輸出 `$`。
-- `blocks_line2` 不含 `last_chat`，該欄位不會出現。
+- `last_chat` 不會出現（Codex 無此資料來源）。
 - `codex_session_tokens` 目前刻意扣除 `cached_input_tokens`，改為**不扣除**，與 Claude 側「含快取讀取」的定義一致。
+- `awk 'NF { print; exit }'` 維持不動。
 
 ## 測試
 
