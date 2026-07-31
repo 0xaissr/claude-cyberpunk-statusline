@@ -322,9 +322,9 @@ _scan_transcript() {
        + ($u.output_tokens // 0) * $p.o
        + ($u.cache_creation_input_tokens // 0) * $p.cw
        + ($u.cache_read_input_tokens // 0) * $p.cr) / 1000000;
-    [ .[] | select(.message.id != null) |
-      {k: (.message.id + "|" + (.requestId // "")), e: .}
-    ] | group_by(.k) | map(.[0].e) as $msgs |
+    [ .[] | select(.message.id != null) ] | to_entries
+    | map({k: (.value.message.id + "|" + (.value.requestId // "")), i: .key, e: .value})
+    | group_by(.k) | map(.[0]) | sort_by(.i) | map(.e) as $msgs |
     ( [ $msgs[] | tok(.message.usage) ] | add // 0 ) as $st |
     ( [ $msgs[] | cost(.) ]             | add // 0 ) as $sc |
     ( if ($msgs | length) > 0 then ($msgs | last) else null end ) as $lastmsg |

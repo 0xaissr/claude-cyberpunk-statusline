@@ -330,6 +330,19 @@ test_session_prices_by_model() {
   check "test_session_prices_by_model: sonnet 用 sonnet 單價" " [#] 7K \$0.0192 " "$out"
 }
 
+# group_by 會依 message.id 排序，若直接取 last 會拿到字典序最大的 m9 而非檔案順序的
+# 最後一筆 m1。這個 fixture 的兩筆刻意讓字典序與檔案順序相反。
+test_scan_last_chat_uses_file_order() {
+  local t=$(mktemp)
+  { _tokens_entry m9 r9 1 0 0 1
+    _tokens_entry m1 r1 1000 0 0 1000; } > "$t"
+  local out
+  out=$(bash -c "$(awk '/^_scan_transcript\(\)/,/^}/' "$STATUSLINE"); JQ=\$(command -v jq); _scan_transcript \"$t\"")
+  rm -f "$t"
+  check "test_scan_last_chat_uses_file_order: session 加總兩筆" "2002" "$(echo "$out" | cut -d'|' -f1)"
+  check "test_scan_last_chat_uses_file_order: last_chat 取檔案順序最後一筆" "2000" "$(echo "$out" | cut -d'|' -f3)"
+}
+
 test_session_degraded_without_transcript() {
   local home=$(mktemp -d) cfg=$(mktemp)
   _tokens_cfg > "$cfg"
@@ -513,6 +526,7 @@ main() {
   test_tokens_resolves_by_session_id
   test_session_includes_cache_read
   test_session_prices_by_model
+  test_scan_last_chat_uses_file_order
   test_session_degraded_without_transcript
   test_tokens_number_formatting
   test_fmt_price_formatting
