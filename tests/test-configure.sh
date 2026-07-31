@@ -79,6 +79,50 @@ test_startup_checks() {
   fi
 }
 
+# ── Test: second-line block configuration ────────────────────────────────
+test_blocks_line2() {
+  echo "▸ test_blocks_line2"
+
+  if grep -q 'step_blocks_line2' "$CONFIGURE"; then
+    pass "step_blocks_line2 present"
+  else
+    fail "step_blocks_line2" "not found"
+  fi
+
+  if grep -q 'line2_ids=("session" "last_chat")' "$CONFIGURE"; then
+    pass "second line offers session and last_chat"
+  else
+    fail "line2_ids" "expected line2_ids=(\"session\" \"last_chat\")"
+  fi
+
+  if grep -q '"blocks_line2"' "$CONFIGURE"; then
+    pass "blocks_line2 written to config"
+  else
+    fail "blocks_line2 field" "not emitted by render_preview or save"
+  fi
+
+  # 第二列允許零選取，故不可用 :- 回退 —— 空字串會被誤退回 cur_blocks_line2，
+  # 使用者就永遠關不掉第二列
+  if grep -q 'sel_blocks_line2_set' "$CONFIGURE"; then
+    pass "sel_blocks_line2_set flag present"
+  else
+    fail "sel_blocks_line2_set" "not found — empty selection would fall back"
+  fi
+
+  if grep -q '\${sel_blocks_line2:-' "$CONFIGURE"; then
+    fail "sel_blocks_line2 fallback" "must not use :- (breaks empty selection)"
+  else
+    pass "no :- fallback on sel_blocks_line2"
+  fi
+
+  # 第一列的 tokens 已由 session 取代
+  if grep -q '"tokens"' "$CONFIGURE"; then
+    fail "first line blocks" "still references tokens"
+  else
+    pass "first line no longer offers tokens"
+  fi
+}
+
 # ── Main ──────────────────────────────────────────────────────────────────
 echo "=== configure.sh tests ==="
 test_exists
@@ -86,6 +130,7 @@ test_requires_tty
 test_step_functions
 test_tui_primitives
 test_startup_checks
+test_blocks_line2
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"

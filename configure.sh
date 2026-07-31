@@ -73,6 +73,7 @@ if [ -f "$CONFIG" ]; then
   cur_show_icons=$("$JQ" -r '.show_icons // true' "$CONFIG")
   cur_time_format=$("$JQ" -r '.time_format // "24h"' "$CONFIG")
   cur_blocks=$("$JQ" -r '.blocks // ["model","context","rate_5h","rate_7d","directory","git","time"] | .[]' "$CONFIG")
+  cur_blocks_line2=$("$JQ" -r '.blocks_line2 // [] | .[]' "$CONFIG" | tr '\n' ',' | sed 's/,$//')
 else
   cur_theme="terminal-glitch"
   cur_symbols="unicode"
@@ -87,12 +88,15 @@ else
   cur_show_icons="true"
   cur_time_format="24h"
   cur_blocks="model context rate_5h rate_7d directory git time"
+  cur_blocks_line2="session,last_chat"
 fi
 
 # Selections (will be filled by each step)
 sel_symbols=""
 sel_theme=""
 sel_blocks=""
+sel_blocks_line2=""
+sel_blocks_line2_set=false
 sel_spacing=""
 sel_style=""        # "classic" or "rainbow"
 sel_separator=""
@@ -109,6 +113,8 @@ restart_wizard() {
   sel_symbols=""
   sel_theme=""
   sel_blocks=""
+  sel_blocks_line2=""
+  sel_blocks_line2_set=false
   sel_spacing=""
   sel_style=""
   sel_separator=""
@@ -299,6 +305,28 @@ render_preview() {
     fi
   done
 
+  # 第二列改讀全域，與本函式已在讀 sel_symbols / cur_symbols 的做法一致。
+  # 用 sel_blocks_line2_set 而非 :- ，否則「全部不選」會被誤退回 cur_blocks_line2。
+  local blocks_line2_src
+  if [ "${sel_blocks_line2_set:-false}" = true ]; then
+    blocks_line2_src="$sel_blocks_line2"
+  else
+    blocks_line2_src="$cur_blocks_line2"
+  fi
+  local blocks_line2_json=""
+  local first_l2=true
+  local l2b
+  IFS=',' read -ra l2_arr <<< "$blocks_line2_src"
+  for l2b in "${l2_arr[@]}"; do
+    [ -z "$l2b" ] && continue
+    if $first_l2; then
+      blocks_line2_json="\"$l2b\""
+      first_l2=false
+    else
+      blocks_line2_json="$blocks_line2_json, \"$l2b\""
+    fi
+  done
+
   # Build optional bar_filled/bar_empty JSON fields
   local bar_fields=""
   if [ -n "$bar_filled" ]; then
@@ -315,6 +343,7 @@ render_preview() {
   "head": "$head",
   "tail": "$tail",
   "blocks": [$blocks_json],
+  "blocks_line2": [$blocks_line2_json],
   "bar_width": $bar_width,${bar_fields}
   "show_icons": $show_icons,
   "time_format": "$time_format",
@@ -323,7 +352,11 @@ render_preview() {
 CONF
 
   local output
-  output=$(CONFIG_OVERRIDE="$tmp_config" SESSION_TOKENS_OVERRIDE="842317" \
+  output=$(CONFIG_OVERRIDE="$tmp_config" \
+    SESSION_TOKENS_OVERRIDE="646951" \
+    SESSION_COST_OVERRIDE="1.8931" \
+    LAST_CHAT_TOKENS_OVERRIDE="163123" \
+    LAST_CHAT_COST_OVERRIDE="0.3442" \
     bash "$STATUSLINE" <<< "$SAMPLE_DATA" 2>/dev/null) || true
   echo -e "$output"
 }
@@ -367,8 +400,12 @@ draw_preview() {
   fi
   tput cup "$preview_row" 0
   printf '\033[K\033[2mPreview:\033[0m\n'
+  # 預覽可能有兩行（blocks_line2），先把兩列都清乾淨再畫，否則關掉第二列後會留殘影
   tput cup $((preview_row + 1)) 0
   printf '\033[K'
+  tput cup $((preview_row + 2)) 0
+  printf '\033[K'
+  tput cup $((preview_row + 1)) 0
   render_preview "$@"
   printf '\033[K'
 }
@@ -464,11 +501,10 @@ step_show_icons() {
 step_blocks() {
   draw_header 2 $TOTAL_STEPS "Which blocks to show? (Space to toggle)"
 
-  local block_ids=("model" "context" "tokens" "rate_5h" "rate_7d" "cost" "directory" "git" "time")
+  local block_ids=("model" "context" "rate_5h" "rate_7d" "cost" "directory" "git" "time")
   local block_descs=(
     "model       — Model name (e.g., Opus 4.6)"
     "context     — Context window usage %"
-    "tokens      — Session tokens used (excludes cache reads)"
     "rate_5h     — 5-hour rate limit %"
     "rate_7d     — 7-day rate limit %"
     "cost        — Daily cost (requires ccusage)"
@@ -562,6 +598,106 @@ step_blocks() {
             fi
           fi
         done
+        return 0
+        ;;
+      r) return 2 ;;
+      b) return 1 ;;
+      q) cleanup; exit 0 ;;
+    esac
+  done
+}
+
+# 第二列的區塊選單。與 step_blocks 同屬精靈第 2 步，共用步驟編號。
+step_blocks_line2() {
+  draw_header 2 $TOTAL_STEPS "Which blocks on the second line? (Space to toggle)"
+
+  local line2_ids=("session" "last_chat")
+  local line2_descs=(
+    "session     — This session's cumulative tokens + cost"
+    "last_chat   — Last API call's tokens + cost"
+  )
+
+  # 依現有設定決定初始勾選，而非像第一列那樣全部預設開啟
+  local existing
+  if [ "${sel_blocks_line2_set:-false}" = true ]; then
+    existing="$sel_blocks_line2"
+  else
+    existing="$cur_blocks_line2"
+  fi
+  local states=() i b found
+  for i in "${!line2_ids[@]}"; do
+    found="0"
+    for b in $(echo "$existing" | tr ',' ' '); do
+      [ "$b" = "${line2_ids[$i]}" ] && found="1"
+    done
+    states+=("$found")
+  done
+
+  # 進入此步驟即視為已設定，之後 render_preview 一律採用 sel_blocks_line2
+  sel_blocks_line2_set=true
+
+  _line2_commit() {
+    sel_blocks_line2=""
+    local first=true j
+    for j in "${!line2_ids[@]}"; do
+      if [ "${states[$j]}" = "1" ]; then
+        if $first; then
+          sel_blocks_line2="${line2_ids[$j]}"
+          first=false
+        else
+          sel_blocks_line2="$sel_blocks_line2,${line2_ids[$j]}"
+        fi
+      fi
+    done
+  }
+  _line2_commit
+
+  draw_footer "j/k move · Space toggle · Enter confirm · b back · r restart · q quit"
+
+  local cursor=0
+  local count=${#line2_descs[@]}
+  local preview_dirty=true
+
+  while true; do
+    for i in "${!line2_descs[@]}"; do
+      tput cup $((5 + i)) 0
+      local check_mark
+      if [ "${states[$i]}" = "1" ]; then
+        check_mark="\033[32m✔\033[0m"
+      else
+        check_mark="\033[2m✗\033[0m"
+      fi
+      if [ "$i" -eq "$cursor" ]; then
+        printf '\033[K \033[1;36m❯\033[0m'"${check_mark}"' \033[1m%s\033[0m' "${line2_descs[$i]}"
+      else
+        printf '\033[K  '"${check_mark}"' \033[2m%s\033[0m' "${line2_descs[$i]}"
+      fi
+    done
+
+    if $preview_dirty; then
+      _line2_commit
+      draw_preview --row $((5 + count + 1)) "$DEFAULT_THEME" "${sel_symbols:-$cur_symbols}" \
+        "${sel_spacing:-$cur_spacing}" "${sel_separator:-$cur_separator}" \
+        "${sel_blocks:-$(echo "$cur_blocks" | tr ' ' '\n' | tr '\n' ',' | sed 's/,$//')}" \
+        "${sel_bar_width:-$cur_bar_width}" "${sel_time_format:-$cur_time_format}"
+      preview_dirty=false
+    fi
+
+    read_key
+    case "$KEY" in
+      up)    (( cursor > 0 )) && (( cursor-- )) ;;
+      down)  (( cursor < count - 1 )) && (( cursor++ )) ;;
+      space)
+        if [ "${states[$cursor]}" = "1" ]; then
+          states[$cursor]="0"
+        else
+          states[$cursor]="1"
+        fi
+        preview_dirty=true
+        ;;
+      enter)
+        # 第一列有「至少選一個」的檢查，這裡刻意沒有 —— 全部不選就是關掉第二列
+        _line2_commit
         return 0
         ;;
       r) return 2 ;;
@@ -1015,6 +1151,26 @@ step_done() {
   local bar_width="${sel_bar_width:-10}"
   local time_format="${sel_time_format:-24h}"
 
+  local blocks_line2_src_save
+  if [ "${sel_blocks_line2_set:-false}" = true ]; then
+    blocks_line2_src_save="$sel_blocks_line2"
+  else
+    blocks_line2_src_save="$cur_blocks_line2"
+  fi
+  local blocks_line2_save=""
+  local first_l2s=true
+  local l2sb
+  IFS=',' read -ra l2s_arr <<< "$blocks_line2_src_save"
+  for l2sb in "${l2s_arr[@]}"; do
+    [ -z "$l2sb" ] && continue
+    if $first_l2s; then
+      blocks_line2_save="\"$l2sb\""
+      first_l2s=false
+    else
+      blocks_line2_save="$blocks_line2_save, \"$l2sb\""
+    fi
+  done
+
   # Write config
   local bar_filled_field="" bar_empty_field=""
   if [ -n "$sel_bar_filled" ]; then
@@ -1033,6 +1189,7 @@ step_done() {
   "head": "$sel_head",
   "tail": "$sel_tail",
   "blocks": [$blocks_json],
+  "blocks_line2": [$blocks_line2_save],
   "bar_width": $bar_width,${bar_filled_field}${bar_empty_field}
   "show_icons": $sel_show_icons,
   "time_format": "$time_format",
@@ -1051,6 +1208,7 @@ CONF
   echo -e "\033[2mSymbols:    \033[0m $sel_symbols"
   echo -e "\033[2mIcons:      \033[0m $sel_show_icons"
   echo -e "\033[2mBlocks:     \033[0m ${block_count}/8 enabled"
+  echo -e "\033[2mLine 2:     \033[0m ${blocks_line2_src_save:-<none>}"
   echo -e "\033[2mSpacing:    \033[0m $sel_spacing"
   echo -e "\033[2mStyle:      \033[0m $sel_style"
   if [ "$sel_style" = "rainbow" ]; then
@@ -1097,13 +1255,20 @@ while true; do
         current_step=2
       fi
       ;;
-    2) # Blocks
+    2) # Blocks (line 1 + line 2)
       step_blocks
       rc=$?
       if [ $rc -eq 2 ]; then
         restart_wizard
       elif [ $rc -eq 0 ]; then
-        current_step=3
+        step_blocks_line2
+        rc=$?
+        if [ $rc -eq 2 ]; then
+          restart_wizard
+        elif [ $rc -eq 0 ]; then
+          current_step=3
+        fi
+        # rc=1（上一步）→ current_step 維持 2，迴圈重跑 step_blocks
       elif [ $rc -eq 1 ]; then
         current_step=1
       fi
