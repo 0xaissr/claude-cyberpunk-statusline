@@ -384,6 +384,77 @@ test_session_without_cost_omits_dollar() {
   check "test_session_without_cost_omits_dollar: 無金額時只印 token" " [#] 123K " "$out"
 }
 
+test_line2_renders_second_row() {
+  local t=$(mktemp) cfg=$(mktemp) home=$(mktemp -d)
+  _tokens_entry m1 r1 1000 2000 1000 500 > "$t"
+  printf '{"theme":"terminal-glitch","symbol_set":"ascii","spacing":"normal","style":"classic","separator":"|","blocks":["model"],"blocks_line2":["session","last_chat"],"bar_width":6,"show_icons":true,"account_type":"subscription"}' > "$cfg"
+  local out=$(printf '{"session_id":"fixture","transcript_path":"%s","model":{"display_name":"Opus 5"}}' "$t" \
+    | env HOME="$home" CONFIG_OVERRIDE="$cfg" bash "$STATUSLINE" 2>/dev/null \
+    | sed 's/\x1b\[[0-9;]*m//g')
+  rm -rf "$home"; rm -f "$cfg" "$t"
+  local line2=$(printf '%s' "$out" | sed -n '2p')
+  # 4500 tokens → "4K"；成本 1000*15 + 2000*18.75 + 1000*1.5 + 500*75
+  #             = 15000 + 37500 + 1500 + 37500 = 91500 /1e6 → $0.0915
+  # 只有一筆訊息，故 last_chat 與 session 數值相同
+  # SEP 實測為 " | "，與區塊自帶的前後空白相加後是兩個空格（實測驗證過）
+  check "test_line2_renders_second_row: 第二列有 session 與 last_chat" " [#] 4K \$0.0915  |  [L] 4K \$0.0915 " "$line2"
+}
+
+test_line2_absent_when_empty() {
+  local t=$(mktemp) cfg=$(mktemp) home=$(mktemp -d)
+  _tokens_entry m1 r1 1000 2000 1000 500 > "$t"
+  printf '{"theme":"terminal-glitch","symbol_set":"ascii","spacing":"normal","style":"classic","separator":"|","blocks":["model"],"blocks_line2":[],"bar_width":6,"show_icons":true,"account_type":"subscription"}' > "$cfg"
+  local out=$(printf '{"session_id":"fixture","transcript_path":"%s","model":{"display_name":"Opus 5"}}' "$t" \
+    | env HOME="$home" CONFIG_OVERRIDE="$cfg" bash "$STATUSLINE" 2>/dev/null \
+    | sed 's/\x1b\[[0-9;]*m//g')
+  rm -rf "$home"; rm -f "$cfg" "$t"
+  local nonempty=$(printf '%s' "$out" | grep -c '[^[:space:]]')
+  check "test_line2_absent_when_empty: 空陣列時只有一列" "1" "$nonempty"
+}
+
+test_line2_absent_when_missing() {
+  # 舊 config 沒有 blocks_line2 欄位，不應憑空多出第二列
+  local t=$(mktemp) cfg=$(mktemp) home=$(mktemp -d)
+  _tokens_entry m1 r1 1000 2000 1000 500 > "$t"
+  printf '{"theme":"terminal-glitch","symbol_set":"ascii","spacing":"normal","style":"classic","separator":"|","blocks":["model"],"bar_width":6,"show_icons":true,"account_type":"subscription"}' > "$cfg"
+  local out=$(printf '{"session_id":"fixture","transcript_path":"%s","model":{"display_name":"Opus 5"}}' "$t" \
+    | env HOME="$home" CONFIG_OVERRIDE="$cfg" bash "$STATUSLINE" 2>/dev/null \
+    | sed 's/\x1b\[[0-9;]*m//g')
+  rm -rf "$home"; rm -f "$cfg" "$t"
+  local nonempty=$(printf '%s' "$out" | grep -c '[^[:space:]]')
+  check "test_line2_absent_when_missing: 欄位缺漏時只有一列" "1" "$nonempty"
+}
+
+test_legacy_tokens_maps_to_session() {
+  # 舊 config 的 blocks 含 "tokens"，應映射成 session 區塊
+  local t=$(mktemp) cfg=$(mktemp) home=$(mktemp -d)
+  _tokens_entry m1 r1 1000 2000 1000 500 > "$t"
+  printf '{"theme":"terminal-glitch","symbol_set":"ascii","spacing":"normal","style":"classic","separator":"|","blocks":["tokens"],"bar_width":6,"show_icons":true,"account_type":"subscription"}' > "$cfg"
+  local out=$(printf '{"session_id":"fixture","transcript_path":"%s"}' "$t" \
+    | env HOME="$home" CONFIG_OVERRIDE="$cfg" bash "$STATUSLINE" 2>/dev/null \
+    | head -1 | sed 's/\x1b\[[0-9;]*m//g')
+  rm -rf "$home"; rm -f "$cfg" "$t"
+  check "test_legacy_tokens_maps_to_session: 舊 tokens 名稱仍可用" " [#] 4K \$0.0915 " "$out"
+}
+
+test_line2_rainbow_colors_differ() {
+  # rainbow 下第二列的兩個區塊必須拿到不同背景色
+  local t=$(mktemp) cfg=$(mktemp) home=$(mktemp -d)
+  _tokens_entry m1 r1 1000 2000 1000 500 > "$t"
+  printf '{"theme":"terminal-glitch","symbol_set":"ascii","spacing":"normal","style":"rainbow","separator":"","head":"sharp","tail":"sharp","blocks":["model"],"blocks_line2":["session","last_chat"],"bar_width":6,"show_icons":true,"account_type":"subscription"}' > "$cfg"
+  local line2=$(printf '{"session_id":"fixture","transcript_path":"%s","model":{"display_name":"Opus 5"}}' "$t" \
+    | env HOME="$home" CONFIG_OVERRIDE="$cfg" bash "$STATUSLINE" 2>/dev/null \
+    | sed -n '2p')
+  rm -rf "$home"; rm -f "$cfg" "$t"
+  # 抽出所有 48;2;R;G;B 背景色碼，去重後應有 2 種以上
+  local n=$(printf '%s' "$line2" | grep -o '48;2;[0-9]*;[0-9]*;[0-9]*' | sort -u | wc -l | tr -d ' ')
+  if [ "$n" -ge 2 ]; then
+    echo "✓ test_line2_rainbow_colors_differ: 兩區塊背景色不同（$n 種）"; ((PASS++))
+  else
+    echo "✗ test_line2_rainbow_colors_differ: 應有至少 2 種背景色，實際 $n"; ((FAIL++))
+  fi
+}
+
 test_tokens_number_formatting() {
   local cfg=$(mktemp) home=$(mktemp -d)
   _tokens_cfg > "$cfg"
@@ -561,6 +632,11 @@ main() {
   test_session_degraded_without_transcript
   test_last_chat_uses_final_message
   test_session_without_cost_omits_dollar
+  test_line2_renders_second_row
+  test_line2_absent_when_empty
+  test_line2_absent_when_missing
+  test_legacy_tokens_maps_to_session
+  test_line2_rainbow_colors_differ
   test_tokens_number_formatting
   test_fmt_price_formatting
 

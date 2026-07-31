@@ -73,6 +73,7 @@ cfg_show_icons=$("$JQ" -r 'if .show_icons == false then "false" else "true" end'
 cfg_time_format=$("$JQ" -r '.time_format // "24h"' "$CONFIG")
 cfg_account_type=$("$JQ" -r '.account_type // "auto"' "$CONFIG")
 cfg_blocks=$("$JQ" -r '.blocks // ["model","context","rate_5h","rate_7d","cost","burn","directory","git","time"] | .[]' "$CONFIG")
+cfg_blocks_line2=$("$JQ" -r '.blocks_line2 // [] | .[]' "$CONFIG")
 
 # ── Resolve theme ──────────────────────────────────────────────────────────
 THEME_DIR="$SCRIPT_DIR/themes"
@@ -750,159 +751,148 @@ get_block_bg_hex() {
 }
 
 # ── Assemble ───────────────────────────────────────────────────────────────
-output=""
 
-# When the effective account type is quota, replace the rate_5h/rate_7d slot
-# with a single spend block (first rate block becomes spend, the other drops).
-eff_blocks=()
-if [ "$eff_account_type" = "quota" ]; then
-  _spend_added=false
-  for b in $cfg_blocks; do
+# 舊 config 的 "tokens" 映射為 "session"，升級後不會壞掉。
+_canon_block() {
+  case "$1" in
+    tokens) echo "session" ;;
+    *)      echo "$1" ;;
+  esac
+}
+
+# quota 帳號：把 rate_5h/rate_7d 的位置換成單一 spend 區塊，並在其前面
+# 插入尚未用光的 credit。只作用於第一列。
+apply_quota_substitution() {
+  local out=() b
+  local _spend_added=false
+  for b in "$@"; do
     if [ "$b" = "rate_5h" ] || [ "$b" = "rate_7d" ]; then
-      if ! $_spend_added; then eff_blocks+=("spend"); _spend_added=true; fi
+      if ! $_spend_added; then out+=("spend"); _spend_added=true; fi
       continue
     fi
-    eff_blocks+=("$b")
+    out+=("$b")
   done
   if ! $_spend_added; then
-    eff_blocks=()
-    for b in $cfg_blocks; do
-      eff_blocks+=("$b")
-      [ "$b" = "context" ] && eff_blocks+=("spend") && _spend_added=true
+    out=()
+    for b in "$@"; do
+      out+=("$b")
+      [ "$b" = "context" ] && out+=("spend") && _spend_added=true
     done
-    $_spend_added || eff_blocks+=("spend")
+    $_spend_added || out+=("spend")
   fi
   # one-time credit 區塊：存在且尚未用光（< 100%）時插在第一個 spend 之前
   # （credit → spend）；credit 用光後隱藏，只留 enterprise spend limit。
   if [ -n "$credit_pct" ] && awk -v p="$credit_pct" 'BEGIN{exit !(p < 100)}'; then
-    _tmp_blocks=()
-    _cr_inserted=false
-    for b in "${eff_blocks[@]}"; do
-      if [ "$b" = "spend" ] && ! $_cr_inserted; then
-        _tmp_blocks+=("credit")
-        _cr_inserted=true
+    local tmp=() inserted=false
+    for b in "${out[@]}"; do
+      if [ "$b" = "spend" ] && ! $inserted; then
+        tmp+=("credit"); inserted=true
       fi
-      _tmp_blocks+=("$b")
+      tmp+=("$b")
     done
-    eff_blocks=("${_tmp_blocks[@]}")
+    out=("${tmp[@]}")
   fi
-else
-  for b in $cfg_blocks; do eff_blocks+=("$b"); done
-fi
+  printf '%s\n' "${out[@]}"
+}
 
-if $PL_MODE; then
-  # ── Rainbow assembly ───────────────────────────────────────────────────
-  block_list=()
-  for b in "${eff_blocks[@]}"; do block_list+=("$b"); done
+# 把一串區塊名稱渲染成一整列（含 rainbow 頭尾 glyph 或 classic 分隔符）。
+# rainbow 的色彩循環以區塊在「該列」中的索引計算，因此每列都從 accent_1
+# 重新起算 —— 第二列的 session/last_chat 會自然拿到不同顏色。
+assemble_line() {
+  local block_list=("$@")
+  local line=""
+  [ ${#block_list[@]} -eq 0 ] && return
 
-  # Cycle bg through accent_1 → accent_2 → accent_3 based on the block's
-  # position in the ACTIVE list, so colors stay sequential even when some
-  # blocks are disabled. Individual block pl_bg entries in theme files are
-  # ignored here; pl_fg still falls back to bg_primary via pl_block_fg.
-  PL_CYCLE=("$C_ACCENT_1" "$C_ACCENT_2" "$C_ACCENT_3")
+  if $PL_MODE; then
+    local PL_CYCLE=("$C_ACCENT_1" "$C_ACCENT_2" "$C_ACCENT_3")
+    local prev_bg_hex="" idx block cur_bg_hex cur_fg_hex cur_bg cur_fg head_fg arrow_fg text
+    for idx in "${!block_list[@]}"; do
+      block="${block_list[$idx]}"
+      cur_bg_hex="${PL_CYCLE[$((idx % 3))]}"
+      cur_fg_hex=$(pl_block_fg "$block")
+      cur_bg=$(hex_to_bg "$cur_bg_hex")
+      cur_fg=$(hex_to_fg "$cur_fg_hex")
 
-  prev_bg_hex=""
-  for idx in "${!block_list[@]}"; do
-    block="${block_list[$idx]}"
-    cur_bg_hex="${PL_CYCLE[$((idx % 3))]}"
-    cur_fg_hex=$(pl_block_fg "$block")
-    cur_bg=$(hex_to_bg "$cur_bg_hex")
-    cur_fg=$(hex_to_fg "$cur_fg_hex")
-
-    if [ "$idx" -eq 0 ]; then
-      # Head glyph: opens the first segment
-      if [ -n "$PL_HEAD_OPEN" ]; then
-        head_fg=$(hex_to_fg "$cur_bg_hex")
-        output+="${RESET}${head_fg}${PL_HEAD_OPEN}${RESET}"
+      if [ "$idx" -eq 0 ]; then
+        if [ -n "$PL_HEAD_OPEN" ]; then
+          head_fg=$(hex_to_fg "$cur_bg_hex")
+          line+="${RESET}${head_fg}${PL_HEAD_OPEN}${RESET}"
+        fi
+      else
+        if [ -n "$PL_TAIL_SEP" ]; then
+          arrow_fg=$(hex_to_fg "$prev_bg_hex")
+          line+="${RESET}${arrow_fg}${cur_bg}${PL_TAIL_SEP}${RESET}"
+        fi
       fi
-    else
-      # Tail glyph between segments: prev bg → cur bg transition
-      if [ -n "$PL_TAIL_SEP" ]; then
-        arrow_fg=$(hex_to_fg "$prev_bg_hex")
-        output+="${RESET}${arrow_fg}${cur_bg}${PL_TAIL_SEP}${RESET}"
-      fi
+
+      text=""
+      case "$block" in
+        model)     text=$(block_text_model) ;;
+        context)   text=$(block_text_pct "context" "$S_CTX" "CTX" "$used_pct") ;;
+        rate_5h)   text=$(block_text_pct "rate_5h" "$S_5H" "5H" "$five_pct" "$five_reset") ;;
+        rate_7d)   text=$(block_text_pct "rate_7d" "$S_7D" "7D" "$week_pct" "$week_reset") ;;
+        directory) text=$(block_text_directory) ;;
+        git)       text=$(block_text_git) ;;
+        time)      text=$(block_text_time) ;;
+        cost)      text=$(block_text_cost) ;;
+        spend)     text=$(block_text_spend) ;;
+        credit)    text=$(block_text_credit) ;;
+        burn)      text=$(block_text_burn) ;;
+        session)   text=$(block_text_session) ;;
+        last_chat) text=$(block_text_last_chat) ;;
+      esac
+      line+="${cur_bg}${cur_fg}${BOLD}${text}${RESET}"
+      prev_bg_hex="$cur_bg_hex"
+    done
+
+    if [ -n "$prev_bg_hex" ] && [ -n "$PL_TAIL_SEP" ]; then
+      arrow_fg=$(hex_to_fg "$prev_bg_hex")
+      line+="${RESET}${arrow_fg}${PL_TAIL_SEP}${RESET}"
     fi
-
-    # Block content
-    text=""
-    case "$block" in
-      model)     text=$(block_text_model) ;;
-      context)   text=$(block_text_pct "context" "$S_CTX" "CTX" "$used_pct") ;;
-      rate_5h)   text=$(block_text_pct "rate_5h" "$S_5H" "5H" "$five_pct" "$five_reset") ;;
-      rate_7d)   text=$(block_text_pct "rate_7d" "$S_7D" "7D" "$week_pct" "$week_reset") ;;
-      directory) text=$(block_text_directory) ;;
-      git)       text=$(block_text_git) ;;
-      time)      text=$(block_text_time) ;;
-      cost)      text=$(block_text_cost) ;;
-      spend)     text=$(block_text_spend) ;;
-      credit)    text=$(block_text_credit) ;;
-      burn)      text=$(block_text_burn) ;;
-      session)   text=$(block_text_session) ;;
-      last_chat) text=$(block_text_last_chat) ;;
-    esac
-    output+="${cur_bg}${cur_fg}${BOLD}${text}${RESET}"
-
-    prev_bg_hex="$cur_bg_hex"
-  done
-
-  # Closing tail glyph after last segment
-  if [ -n "$prev_bg_hex" ] && [ -n "$PL_TAIL_SEP" ]; then
-    arrow_fg=$(hex_to_fg "$prev_bg_hex")
-    output+="${RESET}${arrow_fg}${PL_TAIL_SEP}${RESET}"
+  else
+    local first=true block
+    for block in "${block_list[@]}"; do
+      if $first; then first=false; else line+="$SEP"; fi
+      case "$block" in
+        model)     line+=$(render_block_model) ;;
+        context)   line+=$(render_block_context) ;;
+        rate_5h)   line+=$(render_block_rate_5h) ;;
+        rate_7d)   line+=$(render_block_rate_7d) ;;
+        directory) line+=$(render_block_directory) ;;
+        git)       line+=$(render_block_git) ;;
+        time)      line+=$(render_block_time) ;;
+        cost)      line+=$(render_block_cost) ;;
+        spend)     line+=$(render_block_spend) ;;
+        credit)    line+=$(render_block_credit) ;;
+        burn)      line+=$(render_block_burn) ;;
+        session)   line+=$(render_block_session) ;;
+        last_chat) line+=$(render_block_last_chat) ;;
+      esac
+    done
   fi
-else
-  # ── Classic assembly ───────────────────────────────────────────────────
-  first=true
-  for block in "${eff_blocks[@]}"; do
-    if [ "$first" = true ]; then
-      first=false
-    else
-      output+="$SEP"
-    fi
-    case "$block" in
-      model)     output+=$(render_block_model) ;;
-      context)   output+=$(render_block_context) ;;
-      rate_5h)   output+=$(render_block_rate_5h) ;;
-      rate_7d)   output+=$(render_block_rate_7d) ;;
-      directory) output+=$(render_block_directory) ;;
-      git)       output+=$(render_block_git) ;;
-      time)      output+=$(render_block_time) ;;
-      cost)      output+=$(render_block_cost) ;;
-      spend)     output+=$(render_block_spend) ;;
-      credit)    output+=$(render_block_credit) ;;
-      burn)      output+=$(render_block_burn) ;;
-      session)   output+=$(render_block_session) ;;
-      last_chat) output+=$(render_block_last_chat) ;;
-    esac
-  done
+  printf '%s' "$line"
+}
+
+line1_blocks=()
+for b in $cfg_blocks; do line1_blocks+=("$(_canon_block "$b")"); done
+if [ "$eff_account_type" = "quota" ] && [ ${#line1_blocks[@]} -gt 0 ]; then
+  _subbed=()
+  while IFS= read -r b; do [ -n "$b" ] && _subbed+=("$b"); done < <(apply_quota_substitution "${line1_blocks[@]}")
+  line1_blocks=("${_subbed[@]}")
 fi
 
-# ── Turn usage (second line) ──────────────────────────────────────────────
-turn_line=""
-TERM_KEY="${TERM_SESSION_ID:-${cwd}}"
-TURN_CACHE="$COST_CACHE_DIR/turn-usage-$(echo -n "$TERM_KEY" | md5).txt"
-if [ -f "$TURN_CACHE" ]; then
-  turn_data=$(cat "$TURN_CACHE" 2>/dev/null)
-  if [ -n "$turn_data" ]; then
-    IFS='|' read -r t_in t_cache t_out t_cost <<< "$turn_data"
-    turn_text=" 󰊖 Last Chat cache:${t_cache} in:${t_in} out:${t_out} \$${t_cost} "
-    local_bg_hex=$(block_color turn_usage)
-    local_fg_hex="$C_BG_PRIMARY"
-    local_bg=$(hex_to_bg "$local_bg_hex")
-    local_fg=$(hex_to_fg "$local_fg_hex")
-    if $PL_MODE; then
-      head_fg=$(hex_to_fg "$local_bg_hex")
-      tail_fg=$(hex_to_fg "$local_bg_hex")
-      turn_line="${RESET}${head_fg}${PL_HEAD_OPEN}${RESET}${local_bg}${local_fg}${BOLD}${turn_text}${RESET}${tail_fg}${PL_TAIL_SEP}${RESET}"
-    else
-      turn_line="${local_bg}${local_fg}${BOLD}${turn_text}${RESET}"
-    fi
-  fi
-fi
+line2_blocks=()
+for b in $cfg_blocks_line2; do line2_blocks+=("$(_canon_block "$b")"); done
+
+output=""
+[ ${#line1_blocks[@]} -gt 0 ] && output=$(assemble_line "${line1_blocks[@]}")
+
+line2=""
+[ ${#line2_blocks[@]} -gt 0 ] && line2=$(assemble_line "${line2_blocks[@]}")
 
 # Ensure output ends with newline so subsequent prompts start on a new line
 echo -e "$output"
-if [ -n "$turn_line" ]; then
-  echo -e "$turn_line"
+if [ -n "$line2" ]; then
+  echo -e "$line2"
 fi
 echo ""
