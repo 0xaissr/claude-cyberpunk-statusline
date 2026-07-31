@@ -80,7 +80,7 @@ The setup wizard will guide you through:
 | model | Model name (e.g., Opus 4.6) |
 | context | Context window usage % |
 | session | Cumulative tokens and cost for the current session (e.g. `646K $1.89`) |
-| last_chat | Tokens and cost of the most recent API call (e.g. `163K $0.3442`) |
+| last_chat | Tokens and cost of the most recent API call (e.g. `163K $0.34`) |
 | rate_5h | 5-hour rate limit % |
 | rate_7d | 7-day rate limit % |
 | spend | Monthly spend for Enterprise/quota accounts (replaces rate blocks) |

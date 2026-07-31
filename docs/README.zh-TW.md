@@ -75,7 +75,7 @@ cd ~/claude-cyberpunk-statusline && ./configure.sh
 | model | 模型名稱（例如 Opus 4.6） |
 | context | 上下文視窗用量 % |
 | session | 本次 session 的累計 token 與花費（例如 `646K $1.89`） |
-| last_chat | 最後一次 API 呼叫的 token 與花費（例如 `163K $0.3442`） |
+| last_chat | 最後一次 API 呼叫的 token 與花費（例如 `163K $0.34`） |
 | rate_5h | 5 小時速率限制 % |
 | rate_7d | 7 天速率限制 % |
 | spend | 企業版／配額制帳號的本月 spend 用量（自動取代速率限制區塊） |

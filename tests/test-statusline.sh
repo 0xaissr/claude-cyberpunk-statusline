@@ -270,12 +270,12 @@ test_tokens_sums_session_transcript() {
   local t=$(mktemp)
   # (1000+2000+9999+500) + (4000+8000+9999+1500) = 36998 → "36K"
   # 成本：opus。in 5000*15 + cw 10000*18.75 + cr 19998*1.5 + out 2000*75
-  #      = 75000 + 187500 + 29997 + 150000 = 442497 (per 1e6) = $0.442497 → $0.4425
+  #      = 75000 + 187500 + 29997 + 150000 = 442497 (per 1e6) = $0.442497 → $0.44
   { _tokens_entry m1 r1 1000 2000 9999 500
     _tokens_entry m2 r2 4000 8000 9999 1500; } > "$t"
   local out=$(_tokens_render "$t")
   rm -f "$t"
-  check "test_tokens_sums_session_transcript: 四類 token 全加總" " [#] 36K \$0.4425 " "$out"
+  check "test_tokens_sums_session_transcript: 四類 token 全加總" " [#] 36K \$0.44 " "$out"
 }
 
 test_tokens_dedupes_retried_request() {
@@ -283,12 +283,12 @@ test_tokens_dedupes_retried_request() {
   # 同一組 message.id|requestId 出現兩次，只能算一次
   # 10000+20000+9999+5000 = 44999 → "44K"
   # opus 成本：10000*15 + 20000*18.75 + 9999*1.5 + 5000*75
-  #          = 150000 + 375000 + 14998.5 + 375000 = 914998.5 /1e6 = $0.9149985 → $0.9150
+  #          = 150000 + 375000 + 14998.5 + 375000 = 914998.5 /1e6 = $0.9149985 → $0.91
   { _tokens_entry m1 r1 10000 20000 9999 5000
     _tokens_entry m1 r1 10000 20000 9999 5000; } > "$t"
   local out=$(_tokens_render "$t")
   rm -f "$t"
-  check "test_tokens_dedupes_retried_request: 重複列只計一次" " [#] 44K \$0.9150 " "$out"
+  check "test_tokens_dedupes_retried_request: 重複列只計一次" " [#] 44K \$0.91 " "$out"
 }
 
 test_tokens_resolves_by_session_id() {
@@ -327,7 +327,7 @@ test_session_prices_by_model() {
   printf '{"type":"assistant","requestId":"r1","message":{"id":"m1","model":"claude-sonnet-5","usage":{"input_tokens":1000,"cache_creation_input_tokens":2000,"cache_read_input_tokens":4000,"output_tokens":500}}}\n' > "$t"
   local out=$(_tokens_render "$t")
   rm -f "$t"
-  check "test_session_prices_by_model: sonnet 用 sonnet 單價" " [#] 7K \$0.0192 " "$out"
+  check "test_session_prices_by_model: sonnet 用 sonnet 單價" " [#] 7K \$0.02 " "$out"
 }
 
 # group_by 會依 message.id 排序，若直接取 last 會拿到字典序最大的 m9 而非檔案順序的
@@ -369,7 +369,7 @@ test_last_chat_uses_final_message() {
     | env HOME="$home" CONFIG_OVERRIDE="$cfg" bash "$STATUSLINE" 2>/dev/null \
     | head -1 | sed 's/\x1b\[[0-9;]*m//g')
   rm -rf "$home"; rm -f "$cfg" "$t"
-  check "test_last_chat_uses_final_message: 只取最後一筆訊息" " [L] 14K \$0.3240 " "$out"
+  check "test_last_chat_uses_final_message: 只取最後一筆訊息" " [L] 14K \$0.32 " "$out"
 }
 
 test_session_without_cost_omits_dollar() {
@@ -397,7 +397,7 @@ test_line2_renders_second_row() {
   #             = 15000 + 37500 + 1500 + 37500 = 91500 /1e6 → $0.0915
   # 只有一筆訊息，故 last_chat 與 session 數值相同
   # SEP 實測為 " | "，與區塊自帶的前後空白相加後是兩個空格（實測驗證過）
-  check "test_line2_renders_second_row: 第二列有 session 與 last_chat" " [#] 4K \$0.0915  |  [L] 4K \$0.0915 " "$line2"
+  check "test_line2_renders_second_row: 第二列有 session 與 last_chat" " [#] 4K \$0.09  |  [L] 4K \$0.09 " "$line2"
 }
 
 test_line2_absent_when_empty() {
@@ -434,7 +434,7 @@ test_legacy_tokens_maps_to_session() {
     | env HOME="$home" CONFIG_OVERRIDE="$cfg" bash "$STATUSLINE" 2>/dev/null \
     | head -1 | sed 's/\x1b\[[0-9;]*m//g')
   rm -rf "$home"; rm -f "$cfg" "$t"
-  check "test_legacy_tokens_maps_to_session: 舊 tokens 名稱仍可用" " [#] 4K \$0.0915 " "$out"
+  check "test_legacy_tokens_maps_to_session: 舊 tokens 名稱仍可用" " [#] 4K \$0.09 " "$out"
 }
 
 test_line2_rainbow_colors_differ() {
@@ -523,7 +523,7 @@ test_line2_unknown_block_skipped_alongside_known_rainbow() {
     | env HOME="$home" CONFIG_OVERRIDE="$cfg" bash "$STATUSLINE" 2>/dev/null \
     | sed -n '2p' | sed 's/\x1b\[[0-9;]*m//g')
   rm -rf "$home"; rm -f "$cfg" "$t"
-  if printf '%s' "$line2" | grep -q '\[L\] 4K \$0.0915'; then
+  if printf '%s' "$line2" | grep -q '\[L\] 4K \$0.09'; then
     echo "✓ test_line2_unknown_block_skipped_alongside_known_rainbow: 打錯字的區塊被跳過，正常區塊仍渲染"; ((PASS++))
   else
     echo "✗ test_line2_unknown_block_skipped_alongside_known_rainbow: last_chat 內容遺失 — got: $line2"; ((FAIL++))
@@ -567,14 +567,14 @@ test_fmt_price_formatting() {
     out=$(_call_fmt_price "$n")
     check "test_fmt_price_formatting: $n" "$expected" "$out"
   done <<'EOF'
-0|0.0000
-0.3442|0.3442
-0.9999|0.9999
+0|0.00
+0.3442|0.34
+0.9999|1.00
 1|1.00
 1.894|1.89
 89.2|89.20
 1234.5|1234.50
-0.0000015|0.0000
+0.0000015|0.00
 EOF
   out=$(_call_fmt_price "")
   check "test_fmt_price_formatting: 空字串降級" "--" "$out"
