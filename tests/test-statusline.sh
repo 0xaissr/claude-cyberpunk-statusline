@@ -604,6 +604,31 @@ test_burn_history_subscription() {
   fi
 }
 
+test_themes_have_usage_blocks() {
+  local themes_dir="$PROJECT_DIR/themes"
+  local missing=""
+  while IFS= read -r f; do
+    local m
+    m=$(jq -r '
+      [ (if .symbols.nerd.session    then empty else "symbols.nerd.session"    end),
+        (if .symbols.unicode.session then empty else "symbols.unicode.session" end),
+        (if .symbols.ascii.session   then empty else "symbols.ascii.session"   end),
+        (if .symbols.nerd.last_chat    then empty else "symbols.nerd.last_chat"    end),
+        (if .symbols.unicode.last_chat then empty else "symbols.unicode.last_chat" end),
+        (if .symbols.ascii.last_chat   then empty else "symbols.ascii.last_chat"   end),
+        (if .blocks.session   then empty else "blocks.session"   end),
+        (if .blocks.last_chat then empty else "blocks.last_chat" end)
+      ] | join(",")' "$f" 2>/dev/null)
+    [ -n "$m" ] && missing="$missing $(basename "$f"):$m"
+  done < <(find "$themes_dir" -name "*.json" -type f)
+
+  if [ -z "$missing" ]; then
+    echo "✓ test_themes_have_usage_blocks: 所有主題都有 session/last_chat 定義"; ((PASS++))
+  else
+    echo "✗ test_themes_have_usage_blocks: 缺漏 —$missing"; ((FAIL++))
+  fi
+}
+
 main() {
   echo "Running cyberpunk-statusline tests..."
   echo "======================================"
@@ -612,6 +637,7 @@ main() {
   test_default_output
   test_theme_json
   test_each_theme
+  test_themes_have_usage_blocks
   test_spacing_modes
   test_spend_block_quota
   test_spend_replaces_rate
