@@ -16,7 +16,7 @@
   - rainbow 的 `PL_CYCLE` 以區塊在**該列**中的索引計算，第二列從 `accent_1` 重新起算，兩欄自然有色差，不需另外配色
   - `_canon_block()` 把舊 config 的 `"tokens"` 映射為 `"session"`。`blocks_line2` 缺漏時**不補預設值** —— 若補上，第一列映射而來的 session 會與第二列重複
 - **移除外部 hook 依賴**：刪除硬編碼的 `turn_line` 區段。它讀的是 repo 外部 `~/.claude/hooks/show-turn-usage.sh`（Stop hook）寫的快取檔，使用者不裝該 hook 就沒有第二列，且該 hook 把單價硬編成 Opus（切到 Sonnet 會多算約 5 倍）。改由 `last_chat` 從 transcript 直接讀，repo 自此自足
-- **主題**：14 個主題檔（含 `custom-example`）補上 `symbols.{nerd,unicode,ascii}.{session,last_chat}` 與 `blocks.{session,last_chat}`。session 沿用該主題既有的 tokens 符號值，last_chat 新增（nerd `󰭹` / unicode `⌯` / ascii `[L]`）。舊的 `symbols.*.tokens` 與 `blocks.tokens` 保留作 fallback
+- **主題**：14 個主題檔（含 `custom-example`）補上 `symbols.{nerd,unicode,ascii}.{session,last_chat}` 與 `blocks.{session,last_chat}`。session 沿用該主題既有的 tokens 符號值，last_chat 新增（nerd `󰭹` / unicode `⌯` / ascii `[L]`）。`symbols.*.tokens` 仍是活的 fallback ——`sym session` 找不到時會退回 `sym tokens`，讓沒補上 `symbols.*.session` 的自訂主題不會壞掉；但 `blocks.tokens` 其實已經摸不到了，`_canon_block` 在 dispatch 前就把 `"tokens"` 改寫成 `"session"`，`block_color`/`block_bg` 從未真的被叫成 `tokens`，主題檔裡若還留著 `blocks.tokens` 純粹是死設定
 - **configure.sh**：區塊選單拆成第一列與第二列兩步，新增 `step_blocks_line2`。`render_preview` 有十餘個呼叫點，第二列因此不加位置參數，改讀全域 `sel_blocks_line2` / `cur_blocks_line2`
 - **adapters/codex**：`codex_session_tokens` 不再扣除 `cached_input_tokens`，與 Claude 側新定義一致。blocks 把 `tokens` 換成 `session`，**留在第一列** —— `render_with_claude_style` 以 `awk 'NF { print; exit }'` 只取第一行（Codex 的 `tui.status_line` 是單行），故 Codex 不使用 `blocks_line2`。不注入 `SESSION_COST_OVERRIDE`（Codex 沒有 session 層級金額來源），session 區塊降級成只顯示 token
 - **設計文件**：`docs/superpowers/specs/2026-07-31-line2-session-lastchat-design.md`

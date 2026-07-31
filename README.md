@@ -117,7 +117,17 @@ Configure which blocks appear on each line with `blocks` and `blocks_line2`:
 
 An empty or absent `blocks_line2` means no second line. Upgrading from an older
 version: a `"tokens"` entry in `blocks` is treated as `"session"`, but you'll need to
-re-run `configure.sh` to get the second line.
+re-run `configure.sh` to get the second line. Because cache reads are now counted,
+the number you're used to seeing will jump substantially — often by more than an
+order of magnitude (one real transcript went from 164,018 to 6,182,840, a ~38x
+increase) — this is expected, not a bug. This feature no longer reads or writes the
+cache files that the old `~/.claude/hooks/show-turn-usage.sh` Stop hook produced, so
+if you still have that hook installed you can safely delete it.
+
+On Codex, `session` behaves differently: it stays on the first line (Codex's status
+line is single-line, so there is no second line to move it to), it shows tokens with
+no `$` amount (Codex has no session-level cost source), and `last_chat` does not
+exist at all on Codex.
 
 Numbers are formatted `842` / `840K` / `12.4M` and always round down, so a value never
 spills into the next unit. The count comes from the session transcript and is cached

@@ -108,7 +108,15 @@ input_tokens + cache_creation_input_tokens + cache_read_input_tokens + output_to
 ```
 
 `blocks_line2` 為空或缺漏就不顯示第二列。從舊版升級：`blocks` 中的 `"tokens"` 會被視為
-`"session"`，但要重跑 `configure.sh` 才會有第二列。
+`"session"`，但要重跑 `configure.sh` 才會有第二列。由於現在會把 cache read 算進去，
+你原本習慣看到的數字會大幅跳升——常常是十倍以上（實測有一份 transcript 從 164,018
+跳到 6,182,840，約 38 倍）——這是預期行為，不是 bug。這個功能已經不再讀寫舊版
+`~/.claude/hooks/show-turn-usage.sh` 這個 Stop hook 產生的快取檔，如果你還裝著這個
+hook，可以直接刪掉。
+
+在 Codex 上 `session` 的行為不同：它會留在第一列（Codex 的 status line 本來就只有一
+列，沒有第二列可以搬過去）、只顯示 token 數不顯示 `$` 金額（Codex 沒有 session 層級
+的花費來源），而且 `last_chat` 在 Codex 上完全不存在。
 
 數字格式為 `842` / `840K` / `12.4M`，一律無條件捨去，因此不會出現跨單位溢位的怪值。數值取自 session transcript，並以 transcript 的 mtime 作為快取失效依據，所以閒置時重新 render 完全不耗成本。找不到 transcript 時顯示 `--`。
 
