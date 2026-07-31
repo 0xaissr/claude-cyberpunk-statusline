@@ -9,6 +9,7 @@
 - **statusline.sh 資料層**：`_count_session_tokens()` 換成 `_scan_transcript()`，單次掃描產出 `session_tokens|session_cost|last_tokens|last_cost` 四個值。定價沿用 `_refresh_cost` 既有的 `price()` 表按 model 家族分價
   - 快取檔 `session-tokens-<session_id>` 格式由 `<mtime>|<total>` 擴充為五欄位；讀取時最後一欄為空即視為舊格式 cache miss 重算，使用者不需手動清快取
   - 新增 `SESSION_COST_OVERRIDE`、`LAST_CHAT_TOKENS_OVERRIDE`、`LAST_CHAT_COST_OVERRIDE` 三個環境變數
+  - **修正 `last_chat` 取錯訊息的嚴重 bug**：原本的去重邏輯是 `group_by(.k) | map(.[0]) | ... | last`，但 `group_by` 會依分組鍵（`message.id|requestId`）做**字典序排序**，導致這裡的 `last` 取到的是**去重鍵字典序最大**的那筆訊息，而不是 transcript 檔案中實際最後一次 API 呼叫。拿 40 份真實 transcript 實測，33 份的 `last_chat` 是錯的，其中一份差了近 4 倍（真正最後一次呼叫是 503,090 tokens，錯誤版本回報 167,705）。修法是在去重前先用 `to_entries` 記下每筆訊息在檔案中的原始索引，去重後改 `sort_by(.i)` 依檔案順序排序，再取最後一筆，如此 `last` 才等於「檔案裡最後一次呼叫」。新增迴歸測試 `test_scan_last_chat_uses_file_order`，fixture 刻意讓字典序與檔案順序相反（`m9` 排文件最前但字典序最大、`m1` 排文件最後但字典序最小）以固定住這個行為。**教訓**：Task 2 當初用單一訊息的 fixture 驗證資料層，那種案例下 `session` 與 `last_chat` 必然相等，天生就測不出這個 bug——之後任何牽涉「取最後一筆」邏輯的測試，至少要準備兩筆且刻意讓排序鍵與檔案順序相反的樣本
 - **statusline.sh 渲染層**：新增 `fmt_price()`（`≥1` 兩位小數、`<1` 四位小數，避免 `$0.3442` 塌成 `$0.00`）、`block_text_session` / `block_text_last_chat` / `render_block_session` / `render_block_last_chat`，共用 `_usage_text` 與 `_render_usage` 兩個內部函式
   - 三段降級：無 token → `--`（dim 色）；有 token 無金額 → 只印 token（Codex 靠這條）；兩者皆有 → 完整輸出
 - **statusline.sh 組裝層**：頂層的組裝邏輯抽成 `assemble_line()`，第一列讀 `blocks`、第二列讀 `blocks_line2`，共用 rainbow / classic 渲染。quota 帳號的 spend/credit 替換抽成 `apply_quota_substitution()`，只作用於第一列
