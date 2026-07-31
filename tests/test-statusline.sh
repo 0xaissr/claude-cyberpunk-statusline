@@ -362,9 +362,16 @@ test_fmt_price_formatting() {
 1.894|1.89
 89.2|89.20
 1234.5|1234.50
+0.0000015|0.0000
 EOF
   out=$(_call_fmt_price "")
   check "test_fmt_price_formatting: 空字串降級" "--" "$out"
+  out=$(_call_fmt_price "abc")
+  check "test_fmt_price_formatting: 非數字降級" "--" "$out"
+  out=$(_call_fmt_price "nan")
+  check "test_fmt_price_formatting: nan 降級" "--" "$out"
+  out=$(_call_fmt_price "inf")
+  check "test_fmt_price_formatting: inf 降級" "--" "$out"
 }
 
 test_credit_block_quota() {
