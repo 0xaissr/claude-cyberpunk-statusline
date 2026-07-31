@@ -178,9 +178,9 @@ JSONL
 }
 
 # ── tokens block ─────────────────────────────────────────────────────────
-# 顯式指定只含 tokens 的 config，讓斷言不受主 config.json 的區塊順序影響。
+# 顯式指定只含 session 的 config，讓斷言不受主 config.json 的區塊順序影響。
 _tokens_only_config() {
-  printf '{"theme":"terminal-glitch","symbol_set":"ascii","spacing":"normal","style":"classic","separator":"|","blocks":["tokens"],"bar_width":6,"show_icons":true,"account_type":"subscription"}' > "$1"
+  printf '{"theme":"terminal-glitch","symbol_set":"ascii","spacing":"normal","style":"classic","separator":"|","blocks":["session"],"bar_width":6,"show_icons":true,"account_type":"subscription"}' > "$1"
 }
 
 # _render_tokens <rollout_file_content_source> —— 以指定 rollout 內容跑一次 adapter
@@ -200,32 +200,65 @@ _render_tokens() {
   printf '%s' "$out"
 }
 
+# 抽出 codex_session_tokens 的函式定義單獨執行，斷言精確 token 數
+# （經 fmt_tokens 格式化後會失去分辨力）
+_codex_tokens_fn() {
+  bash -c "$(awk '/^codex_session_tokens\(\)/,/^}/' "$RENDERER"); codex_session_tokens \"\$1\"" _ "$1"
+}
+
+check_eq() {
+  local label="$1" expected="$2" actual="$3"
+  if [ "$actual" = "$expected" ]; then
+    echo "✓ $label"; ((PASS++))
+  else
+    echo "✗ $label — expected: $expected, got: $actual"; ((FAIL++))
+  fi
+}
+
 test_session_tokens_from_real_fixture() {
-  # 73866 - 56832 + 0(缺 cache_write，走 // 0) + 1378 = 18412 → 18K
+  # 不再扣除 cached：73866 + 0(缺 cache_write，走 // 0) + 1378 = 75244 → 75K
   local out
   out=$(_render_tokens "$SCRIPT_DIR/fixtures/real-token-count-session.jsonl")
-  check_contains "session tokens subtracts cached input" "18K" "$out"
+  check_contains "session tokens includes cached input" "75K" "$out"
 }
 
 test_session_tokens_counts_cache_write_not_reasoning() {
-  # 2,000,000 - 1,500,000 + 250,000 + 100,000 = 850,000 → 850K
-  # reasoning_output_tokens(40,000) 已含在 output_tokens 內，若重複相加會變 890K
+  # 2,000,000 + 250,000 + 100,000 = 2,350,000（cached 不再相減）
+  # reasoning_output_tokens(40,000) 已含在 output_tokens 內，重複相加會變 2,390,000
+  # 兩者經 fmt_tokens 都會印成 2.3M，故此處直接斷言整數
   local roll
   roll=$(mktemp)
   cat > "$roll" <<'JSON'
 {"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":2000000,"cached_input_tokens":1500000,"cache_write_input_tokens":250000,"output_tokens":100000,"reasoning_output_tokens":40000,"total_tokens":2100000},"last_token_usage":{"total_tokens":51200},"model_context_window":258400}}}
 JSON
   local out
-  out=$(_render_tokens "$roll")
+  out=$(_codex_tokens_fn "$roll")
   rm -f "$roll"
+  check_eq "session tokens = input + cache_write + output, no reasoning" "2350000" "$out"
+}
 
-  check_contains "session tokens adds cache_write" "850K" "$out"
-  if echo "$out" | grep -Fq -- "890K"; then
-    echo "✗ session tokens double-counts reasoning_output_tokens — got: $out"
-    ((FAIL++))
+test_codex_tokens_includes_cached() {
+  local f
+  f=$(mktemp)
+  # input_tokens 已內含 cached_input_tokens；不再相減
+  # 100000 + 5000 + 20000 = 125000（若仍相減會得 45000）
+  printf '{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":100000,"cached_input_tokens":80000,"cache_write_input_tokens":5000,"output_tokens":20000}}}}\n' > "$f"
+  local out
+  out=$(_codex_tokens_fn "$f")
+  rm -f "$f"
+  check_eq "session tokens does not subtract cached_input_tokens" "125000" "$out"
+}
+
+test_codex_config_uses_session_block() {
+  local bad=""
+  grep -q '"session"' "$PROJECT_DIR/adapters/codex/config.json" || bad="config.json 缺 session"
+  grep -q '"tokens"'  "$PROJECT_DIR/adapters/codex/config.json" && bad="$bad; config.json 仍含 tokens"
+  grep -q '"session"' "$PROJECT_DIR/adapters/codex/statusline.sh" || bad="$bad; fallback_config 缺 session"
+  grep -q '"session"' "$PROJECT_DIR/install-codex.sh" || bad="$bad; install-codex.sh 缺 session"
+  if [ -z "$bad" ]; then
+    echo "✓ codex blocks use session instead of tokens"; ((PASS++))
   else
-    echo "✓ session tokens does not double-count reasoning_output_tokens"
-    ((PASS++))
+    echo "✗ codex blocks not migrated — $bad"; ((FAIL++))
   fi
 }
 
@@ -255,6 +288,8 @@ test_latest_session_skips_empty_newer_rollout
 test_recent_render_is_cached
 test_session_tokens_from_real_fixture
 test_session_tokens_counts_cache_write_not_reasoning
+test_codex_tokens_includes_cached
+test_codex_config_uses_session_block
 test_session_tokens_degraded_without_token_count
 test_no_claude_files_referenced
 

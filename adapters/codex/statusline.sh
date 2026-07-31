@@ -185,15 +185,15 @@ codex_estimated_cost() {
   return 0
 }
 
-# Session-cumulative tokens, excluding cache reads — mirrors the Claude side's
-# input + cache_creation + output. Codex's total_token_usage already accumulates
-# over the session, so no summing or dedupe is needed here.
+# Session-cumulative tokens, including cache reads — mirrors the Claude side's
+# input + cache_creation + cache_read + output. Codex's total_token_usage already
+# accumulates over the session, so no summing or dedupe is needed here.
 #
 # Field semantics verified against a real rollout:
 #   total_tokens == input_tokens + output_tokens
-# so input_tokens already CONTAINS cached_input_tokens (subtract to get the
-# non-cached input), and reasoning_output_tokens is already inside output_tokens
-# (adding it separately would double-count).
+# so input_tokens already CONTAINS cached_input_tokens — we no longer subtract it,
+# because the Claude side now counts cache reads too. reasoning_output_tokens is
+# already inside output_tokens (adding it separately would double-count).
 codex_session_tokens() {
   local file="$1"
   [ -n "$file" ] && [ -f "$file" ] || return 0
@@ -203,17 +203,12 @@ codex_session_tokens() {
     | .payload.info.total_token_usage
     | [
         (.input_tokens // 0),
-        (.cached_input_tokens // 0),
         (.cache_write_input_tokens // 0),
         (.output_tokens // 0)
       ]
     | @tsv
   ' "$file" 2>/dev/null | tail -1 | awk '
-    NF == 4 {
-      non_cached = $1 - $2
-      if (non_cached < 0) non_cached = 0
-      printf "%d", non_cached + $3 + $4
-    }
+    NF == 3 { printf "%d", $1 + $2 + $3 }
   '
   return 0
 }
@@ -249,7 +244,7 @@ fallback_config() {
   "separator": "",
   "head": "rounded",
   "tail": "sharp",
-  "blocks": ["model", "context", "tokens", "rate_5h", "rate_7d", "cost", "burn", "git", "time"],
+  "blocks": ["model", "context", "session", "rate_5h", "rate_7d", "cost", "burn", "git", "time"],
   "bar_width": 6,
   "bar_filled": "●",
   "bar_empty": "○",
