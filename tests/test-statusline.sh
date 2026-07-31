@@ -499,6 +499,37 @@ test_cost_and_session_pricing_agree() {
   check "test_cost_and_session_pricing_agree: 兩條路徑算出同一筆金額" "$scan_rounded" "$refresh_out"
 }
 
+# blocks_line2 是手動編輯的設定面，打錯字（例如 "sesion"）機率比其他地方高。
+# rainbow 樣式下，case 沒接住的區塊本來還是會印出頭尾 powerline glyph，
+# 變成中間沒內容的孤兒符號；classic 則是內容留白但分隔符仍在。兩者都必須
+# 整段跳過該區塊，全部打錯字時整列不輸出。
+test_line2_unknown_block_skipped_rainbow() {
+  local cfg=$(mktemp) home=$(mktemp -d)
+  printf '{"theme":"terminal-glitch","symbol_set":"ascii","spacing":"normal","style":"rainbow","separator":"","head":"sharp","tail":"sharp","blocks":["model"],"blocks_line2":["sesion"],"bar_width":6,"show_icons":true,"account_type":"subscription"}' > "$cfg"
+  local line2=$(cat "$SAMPLE" | env HOME="$home" CONFIG_OVERRIDE="$cfg" bash "$STATUSLINE" 2>/dev/null | sed -n '2p')
+  rm -rf "$home"; rm -f "$cfg"
+  check "test_line2_unknown_block_skipped_rainbow: 全部打錯字時第二列整段不輸出" "0" "${#line2}"
+}
+
+test_line2_unknown_block_skipped_alongside_known_rainbow() {
+  # blocks_line2 為 ["sesion","last_chat"]：前者是錯字、後者有效。
+  # 打錯字的那個不佔位（不消耗 idx 0 的頭部 glyph），有效的那個仍要正常
+  # 渲染出內容 —— 用 grep 而非精確比對，因為 rainbow 頭尾本身就是合法的
+  # powerline glyph，不是需要斷言不存在的東西。
+  local t=$(mktemp) cfg=$(mktemp) home=$(mktemp -d)
+  _tokens_entry m1 r1 1000 2000 1000 500 > "$t"
+  printf '{"theme":"terminal-glitch","symbol_set":"ascii","spacing":"normal","style":"rainbow","separator":"","head":"sharp","tail":"sharp","blocks":["model"],"blocks_line2":["sesion","last_chat"],"bar_width":6,"show_icons":true,"account_type":"subscription"}' > "$cfg"
+  local line2=$(printf '{"session_id":"fixture","transcript_path":"%s","model":{"display_name":"Opus 5"}}' "$t" \
+    | env HOME="$home" CONFIG_OVERRIDE="$cfg" bash "$STATUSLINE" 2>/dev/null \
+    | sed -n '2p' | sed 's/\x1b\[[0-9;]*m//g')
+  rm -rf "$home"; rm -f "$cfg" "$t"
+  if printf '%s' "$line2" | grep -q '\[L\] 4K \$0.0915'; then
+    echo "✓ test_line2_unknown_block_skipped_alongside_known_rainbow: 打錯字的區塊被跳過，正常區塊仍渲染"; ((PASS++))
+  else
+    echo "✗ test_line2_unknown_block_skipped_alongside_known_rainbow: last_chat 內容遺失 — got: $line2"; ((FAIL++))
+  fi
+}
+
 test_tokens_number_formatting() {
   local cfg=$(mktemp) home=$(mktemp -d)
   _tokens_cfg > "$cfg"
@@ -707,6 +738,8 @@ main() {
   test_line2_absent_when_missing
   test_legacy_tokens_maps_to_session
   test_line2_rainbow_colors_differ
+  test_line2_unknown_block_skipped_rainbow
+  test_line2_unknown_block_skipped_alongside_known_rainbow
   test_cost_and_session_pricing_agree
   test_tokens_number_formatting
   test_fmt_price_formatting

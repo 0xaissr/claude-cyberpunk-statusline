@@ -153,11 +153,6 @@ block_bg() {
   local ref=$("$JQ" -r ".blocks.$1.bg // \"bg_panel\"" "$THEME_FILE")
   color "$ref"
 }
-# Rainbow: use accent color as bg, dark text as fg
-pl_block_bg() {
-  local ref=$("$JQ" -r ".blocks.$1.pl_bg // .blocks.$1.color // \"accent_1\"" "$THEME_FILE")
-  color "$ref"
-}
 pl_block_fg() {
   local ref=$("$JQ" -r ".blocks.$1.pl_fg // \"bg_primary\"" "$THEME_FILE")
   color "$ref"
@@ -743,16 +738,6 @@ _render_usage() {
 render_block_session()   { _render_usage session   "$S_SESSION"   "$session_tokens" "$session_cost"; }
 render_block_last_chat() { _render_usage last_chat "$S_LAST_CHAT" "$last_tokens"    "$last_cost"; }
 
-# ── Get block's rainbow bg hex ────────────────────────────────────────────
-get_block_bg_hex() {
-  local block="$1"
-  if $PL_MODE; then
-    pl_block_bg "$block"
-  else
-    block_bg "$block"
-  fi
-}
-
 # ── Assemble ───────────────────────────────────────────────────────────────
 
 # 舊 config 的 "tokens" 映射為 "session"，升級後不會壞掉。
@@ -802,11 +787,26 @@ apply_quota_substitution() {
 # rainbow 的色彩循環以區塊在「該列」中的索引計算，因此每列都從 accent_1
 # 重新起算 —— 第二列的 session/last_chat 會自然拿到不同顏色。
 assemble_line() {
-  local block_list=("$@")
+  # 先過濾掉不認得的區塊 id（例如 blocks_line2 手誤打成 "sesion"）。
+  # 一定要在兩個分支「之前」做，不能各自在 case 裡漏接：rainbow 分支就算
+  # case 沒有對應項，還是會把 idx=0/末尾的頭尾 glyph 印出來，變成兩個
+  # 中間沒有文字的孤兒符號；classic 分支則是內容變空但分隔符仍會印。
+  # 過濾後：如果整列都是不認得的 id，block_list 會是空的，下面的 return
+  # 讓這一列完全不輸出，而不是印出一堆空殼區塊。
+  local _raw=("$@") block_list=() _b
+  for _b in "${_raw[@]}"; do
+    case "$_b" in
+      model|context|rate_5h|rate_7d|directory|git|time|cost|spend|credit|burn|session|last_chat)
+        block_list+=("$_b") ;;
+    esac
+  done
   local line=""
   [ ${#block_list[@]} -eq 0 ] && return
 
   if $PL_MODE; then
+    # Rainbow 不讀各主題的 pl_bg —— 背景色固定照 PL_CYCLE 依區塊在本列的
+    # index 輪流套用 accent_1/2/3，跟主題設了什麼 pl_bg 無關。pl_fg 仍然
+    # 有作用（見下面的 pl_block_fg），只有背景色的來源不是主題檔。
     local PL_CYCLE=("$C_ACCENT_1" "$C_ACCENT_2" "$C_ACCENT_3")
     local prev_bg_hex="" idx block cur_bg_hex cur_fg_hex cur_bg cur_fg head_fg arrow_fg text
     for idx in "${!block_list[@]}"; do

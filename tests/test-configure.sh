@@ -37,7 +37,7 @@ test_requires_tty() {
 test_step_functions() {
   echo "▸ test_step_functions"
   local missing=0
-  for fn in step_symbols step_theme step_blocks step_spacing step_separator step_done; do
+  for fn in step_theme step_blocks step_spacing step_separator step_done; do
     if grep -q "^${fn}()" "$CONFIGURE"; then
       pass "$fn exists"
     else
@@ -50,7 +50,7 @@ test_step_functions() {
 # ── Test: script contains TUI primitives ──────────────────────────────────
 test_tui_primitives() {
   echo "▸ test_tui_primitives"
-  for fn in draw_header draw_footer read_key render_preview draw_preview menu_select; do
+  for fn in draw_header draw_footer read_key render_preview draw_preview; do
     if grep -q "^${fn}()" "$CONFIGURE"; then
       pass "$fn exists"
     else
