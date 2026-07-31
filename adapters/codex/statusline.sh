@@ -189,11 +189,10 @@ codex_estimated_cost() {
 # input + cache_creation + cache_read + output. Codex's total_token_usage already
 # accumulates over the session, so no summing or dedupe is needed here.
 #
-# Field semantics verified against a real rollout:
-#   total_tokens == input_tokens + output_tokens
-# so input_tokens already CONTAINS cached_input_tokens — we no longer subtract it,
-# because the Claude side now counts cache reads too. reasoning_output_tokens is
-# already inside output_tokens (adding it separately would double-count).
+# Field semantics verified against a real rollout: input_tokens already
+# CONTAINS cached_input_tokens — we no longer subtract it, because the Claude
+# side now counts cache reads too. reasoning_output_tokens is already inside
+# output_tokens (adding it separately would double-count).
 codex_session_tokens() {
   local file="$1"
   [ -n "$file" ] && [ -f "$file" ] || return 0

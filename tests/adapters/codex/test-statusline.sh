@@ -250,15 +250,17 @@ test_codex_tokens_includes_cached() {
 }
 
 test_codex_config_uses_session_block() {
+  # adapters/codex/config.json 是 gitignored 的使用者執行期設定，全新 clone 上根本不存在，
+  # 因此只驗證兩個真正進版控的預設來源。
   local bad=""
-  grep -q '"session"' "$PROJECT_DIR/adapters/codex/config.json" || bad="config.json 缺 session"
-  grep -q '"tokens"'  "$PROJECT_DIR/adapters/codex/config.json" && bad="$bad; config.json 仍含 tokens"
-  grep -q '"session"' "$PROJECT_DIR/adapters/codex/statusline.sh" || bad="$bad; fallback_config 缺 session"
+  grep -q '"session"' "$PROJECT_DIR/adapters/codex/statusline.sh" || bad="fallback_config 缺 session"
+  grep -q '"tokens"'  "$PROJECT_DIR/adapters/codex/statusline.sh" && bad="$bad; fallback_config 仍含 tokens"
   grep -q '"session"' "$PROJECT_DIR/install-codex.sh" || bad="$bad; install-codex.sh 缺 session"
+  grep -q '"tokens"'  "$PROJECT_DIR/install-codex.sh" && bad="$bad; install-codex.sh 仍含 tokens"
   if [ -z "$bad" ]; then
-    echo "✓ codex blocks use session instead of tokens"; ((PASS++))
+    echo "✓ codex committed defaults use session instead of tokens"; ((PASS++))
   else
-    echo "✗ codex blocks not migrated — $bad"; ((FAIL++))
+    echo "✗ codex defaults not migrated — $bad"; ((FAIL++))
   fi
 }
 
