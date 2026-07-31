@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-07-31
+
+### 重構：第二列改為 session + last_chat 兩個獨立區塊
+
+- **需求**：第一列的 `tokens` 沒有金額；第二列是硬編碼的 `Last Chat cache:161,065 in:622 out:1,212 $0.3442`，四個數字擠在一起、無法開關、無法調色。使用者要兩者都簡化成「總 token + 金額」、分成不同顏色的獨立欄位、並可在 configure 開關
+- **token 定義改變**：改為 `input + cache_creation + cache_read + output`，**含 cache_read**，推翻 2026-07-30 tokens 區塊「排除 cache_read」的設計。理由是 cache_read 佔實際花費約一半（實測某 session：cache_read $0.91 / 總額 $1.89），金額既然必須含它，token 也含才對得起來。代價是數字隨「輪數 × context 大小」近似平方成長，但此欄位語意本就是「累計計費量」而非「當前 context 佔用」（後者由 `context` 區塊負責）
+- **statusline.sh 資料層**：`_count_session_tokens()` 換成 `_scan_transcript()`，單次掃描產出 `session_tokens|session_cost|last_tokens|last_cost` 四個值。定價沿用 `_refresh_cost` 既有的 `price()` 表按 model 家族分價
+  - 快取檔 `session-tokens-<session_id>` 格式由 `<mtime>|<total>` 擴充為五欄位；讀取時最後一欄為空即視為舊格式 cache miss 重算，使用者不需手動清快取
+  - 新增 `SESSION_COST_OVERRIDE`、`LAST_CHAT_TOKENS_OVERRIDE`、`LAST_CHAT_COST_OVERRIDE` 三個環境變數
+- **statusline.sh 渲染層**：新增 `fmt_price()`（`≥1` 兩位小數、`<1` 四位小數，避免 `$0.3442` 塌成 `$0.00`）、`block_text_session` / `block_text_last_chat` / `render_block_session` / `render_block_last_chat`，共用 `_usage_text` 與 `_render_usage` 兩個內部函式
+  - 三段降級：無 token → `--`（dim 色）；有 token 無金額 → 只印 token（Codex 靠這條）；兩者皆有 → 完整輸出
+- **statusline.sh 組裝層**：頂層的組裝邏輯抽成 `assemble_line()`，第一列讀 `blocks`、第二列讀 `blocks_line2`，共用 rainbow / classic 渲染。quota 帳號的 spend/credit 替換抽成 `apply_quota_substitution()`，只作用於第一列
+  - rainbow 的 `PL_CYCLE` 以區塊在**該列**中的索引計算，第二列從 `accent_1` 重新起算，兩欄自然有色差，不需另外配色
+  - `_canon_block()` 把舊 config 的 `"tokens"` 映射為 `"session"`。`blocks_line2` 缺漏時**不補預設值** —— 若補上，第一列映射而來的 session 會與第二列重複
+- **移除外部 hook 依賴**：刪除硬編碼的 `turn_line` 區段。它讀的是 repo 外部 `~/.claude/hooks/show-turn-usage.sh`（Stop hook）寫的快取檔，使用者不裝該 hook 就沒有第二列，且該 hook 把單價硬編成 Opus（切到 Sonnet 會多算約 5 倍）。改由 `last_chat` 從 transcript 直接讀，repo 自此自足
+- **主題**：14 個主題檔（含 `custom-example`）補上 `symbols.{nerd,unicode,ascii}.{session,last_chat}` 與 `blocks.{session,last_chat}`。session 沿用該主題既有的 tokens 符號值，last_chat 新增（nerd `󰭹` / unicode `⌯` / ascii `[L]`）。舊的 `symbols.*.tokens` 與 `blocks.tokens` 保留作 fallback
+- **configure.sh**：區塊選單拆成第一列與第二列兩步，新增 `step_blocks_line2`。`render_preview` 有十餘個呼叫點，第二列因此不加位置參數，改讀全域 `sel_blocks_line2` / `cur_blocks_line2`
+- **adapters/codex**：`codex_session_tokens` 不再扣除 `cached_input_tokens`，與 Claude 側新定義一致。blocks 把 `tokens` 換成 `session`，**留在第一列** —— `render_with_claude_style` 以 `awk 'NF { print; exit }'` 只取第一行（Codex 的 `tui.status_line` 是單行），故 Codex 不使用 `blocks_line2`。不注入 `SESSION_COST_OVERRIDE`（Codex 沒有 session 層級金額來源），session 區塊降級成只顯示 token
+- **設計文件**：`docs/superpowers/specs/2026-07-31-line2-session-lastchat-design.md`
+
 ## 2026-07-30
 
 ### 新增：tokens 區塊（本次 session 累計 token）

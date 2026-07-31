@@ -79,7 +79,8 @@ The setup wizard will guide you through:
 |---|---|
 | model | Model name (e.g., Opus 4.6) |
 | context | Context window usage % |
-| tokens | Tokens used in the current session (e.g. `840K`, `12.4M`) |
+| session | Cumulative tokens and cost for the current session (e.g. `646K $1.89`) |
+| last_chat | Tokens and cost of the most recent API call (e.g. `163K $0.3442`) |
 | rate_5h | 5-hour rate limit % |
 | rate_7d | 7-day rate limit % |
 | spend | Monthly spend for Enterprise/quota accounts (replaces rate blocks) |
@@ -90,16 +91,33 @@ The setup wizard will guide you through:
 | git | Git branch |
 | time | Current time |
 
-The **tokens** block shows how many tokens the *current conversation* has consumed, counted as:
+The **session** and **last_chat** blocks live on the second line by default. Both
+count tokens the same way:
 
 ```
-input_tokens + cache_creation_input_tokens + output_tokens
+input_tokens + cache_creation_input_tokens + cache_read_input_tokens + output_tokens
 ```
 
-`cache_read_input_tokens` is **deliberately excluded**. Every turn re-reads the whole
-context, so including cache reads would push the figure into the tens of millions and
-make it useless for comparison. Note this means the number will **not** match
-`ccusage`'s `totalTokens`, which does include cache reads.
+`cache_read_input_tokens` **is included**. Every turn re-reads the whole context, so
+this number grows roughly with `turns × context size` — it answers "how many billed
+tokens has this session run through", not "how much context am I using right now"
+(that's the `context` block). Cache reads account for roughly half the actual spend,
+so excluding them would leave the token count and the dollar figure unable to
+corroborate each other.
+
+Cost is priced per model family (Opus / Sonnet / Haiku) from the message's own
+`model` field, so switching models mid-session is priced correctly.
+
+Configure which blocks appear on each line with `blocks` and `blocks_line2`:
+
+```json
+"blocks":       ["model", "context", "rate_5h", "rate_7d", "cost"],
+"blocks_line2": ["session", "last_chat"]
+```
+
+An empty or absent `blocks_line2` means no second line. Upgrading from an older
+version: a `"tokens"` entry in `blocks` is treated as `"session"`, but you'll need to
+re-run `configure.sh` to get the second line.
 
 Numbers are formatted `842` / `840K` / `12.4M` and always round down, so a value never
 spills into the next unit. The count comes from the session transcript and is cached

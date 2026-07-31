@@ -74,7 +74,8 @@ cd ~/claude-cyberpunk-statusline && ./configure.sh
 |---|---|
 | model | 模型名稱（例如 Opus 4.6） |
 | context | 上下文視窗用量 % |
-| tokens | 本次 session 已使用的 token 數（例如 `840K`、`12.4M`） |
+| session | 本次 session 的累計 token 與花費（例如 `646K $1.89`） |
+| last_chat | 最後一次 API 呼叫的 token 與花費（例如 `163K $0.3442`） |
 | rate_5h | 5 小時速率限制 % |
 | rate_7d | 7 天速率限制 % |
 | spend | 企業版／配額制帳號的本月 spend 用量（自動取代速率限制區塊） |
@@ -85,13 +86,29 @@ cd ~/claude-cyberpunk-statusline && ./configure.sh
 | git | Git 分支 |
 | time | 目前時間 |
 
-**tokens 區塊**顯示**目前這場對話**已消耗的 token 數，計算方式為：
+**session** 與 **last_chat** 兩個區塊預設放在第二列，token 的計算方式相同：
 
 ```
-input_tokens + cache_creation_input_tokens + output_tokens
+input_tokens + cache_creation_input_tokens + cache_read_input_tokens + output_tokens
 ```
 
-`cache_read_input_tokens` **刻意排除**。每一輪都會重讀整個 context，把 cache read 累加進去會讓數字膨脹到數千萬，失去對比意義。這也代表這個數字**不會**等於 `ccusage` 的 `totalTokens`（後者有計入 cache read）。
+`cache_read_input_tokens` **有計入**。每一輪都會重讀整個 context，所以這個數字大致隨
+「輪數 × context 大小」成長 —— 它回答的是「這個 session 累計跑了多少計費 token」，而不
+是「我現在佔用多少 context」（後者由 `context` 區塊負責）。快取讀取約佔實際花費的一半，
+若把它排除，token 數與金額就無法互相印證。
+
+金額依訊息自身的 `model` 欄位按家族（Opus / Sonnet / Haiku）分價，session 中途換模型也
+能算對。
+
+以 `blocks` 與 `blocks_line2` 設定各列要顯示哪些區塊：
+
+```json
+"blocks":       ["model", "context", "rate_5h", "rate_7d", "cost"],
+"blocks_line2": ["session", "last_chat"]
+```
+
+`blocks_line2` 為空或缺漏就不顯示第二列。從舊版升級：`blocks` 中的 `"tokens"` 會被視為
+`"session"`，但要重跑 `configure.sh` 才會有第二列。
 
 數字格式為 `842` / `840K` / `12.4M`，一律無條件捨去，因此不會出現跨單位溢位的怪值。數值取自 session transcript，並以 transcript 的 mtime 作為快取失效依據，所以閒置時重新 render 完全不耗成本。找不到 transcript 時顯示 `--`。
 
