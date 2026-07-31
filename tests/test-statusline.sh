@@ -353,6 +353,37 @@ test_session_degraded_without_transcript() {
   check "test_session_degraded_without_transcript: 無 transcript 顯示 --" " [#] -- " "$out"
 }
 
+_last_chat_cfg() {
+  printf '{"theme":"terminal-glitch","symbol_set":"ascii","spacing":"normal","style":"classic","separator":"|","blocks":["last_chat"],"bar_width":6,"show_icons":true,"account_type":"subscription"}'
+}
+
+test_last_chat_uses_final_message() {
+  local t=$(mktemp) cfg=$(mktemp) home=$(mktemp -d)
+  # 兩筆訊息，last_chat 只取最後一筆：4000+8000+1000+1500 = 14500 → 14K
+  # opus 成本：4000*15 + 1500*75 + 8000*18.75 + 1000*1.5 = 60000+112500+150000+1500
+  #          = 324000 /1e6 = $0.324
+  { _tokens_entry m1 r1 1000 2000 9999 500
+    _tokens_entry m2 r2 4000 8000 1000 1500; } > "$t"
+  _last_chat_cfg > "$cfg"
+  local out=$(printf '{"session_id":"fixture","transcript_path":"%s"}' "$t" \
+    | env HOME="$home" CONFIG_OVERRIDE="$cfg" bash "$STATUSLINE" 2>/dev/null \
+    | head -1 | sed 's/\x1b\[[0-9;]*m//g')
+  rm -rf "$home"; rm -f "$cfg" "$t"
+  check "test_last_chat_uses_final_message: 只取最後一筆訊息" " [L] 14K \$0.3240 " "$out"
+}
+
+test_session_without_cost_omits_dollar() {
+  # Codex adapter 只餵 token 不餵金額，此時不可印出 $
+  local cfg=$(mktemp) home=$(mktemp -d)
+  _tokens_cfg > "$cfg"
+  local out=$(printf '{"session_id":"x"}' \
+    | env HOME="$home" CONFIG_OVERRIDE="$cfg" SESSION_TOKENS_OVERRIDE="123456" \
+          bash "$STATUSLINE" 2>/dev/null \
+    | head -1 | sed 's/\x1b\[[0-9;]*m//g')
+  rm -rf "$home"; rm -f "$cfg"
+  check "test_session_without_cost_omits_dollar: 無金額時只印 token" " [#] 123K " "$out"
+}
+
 test_tokens_number_formatting() {
   local cfg=$(mktemp) home=$(mktemp -d)
   _tokens_cfg > "$cfg"
@@ -528,6 +559,8 @@ main() {
   test_session_prices_by_model
   test_scan_last_chat_uses_file_order
   test_session_degraded_without_transcript
+  test_last_chat_uses_final_message
+  test_session_without_cost_omits_dollar
   test_tokens_number_formatting
   test_fmt_price_formatting
 

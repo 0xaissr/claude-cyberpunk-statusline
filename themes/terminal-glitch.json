@@ -52,7 +52,8 @@
       "bar_filled": "#",
       "bar_empty": ".",
       "cost": "[$]",
-      "tokens": "[#]"
+      "tokens": "[#]",
+      "last_chat": "[L]"
     }
   },
   "blocks": {

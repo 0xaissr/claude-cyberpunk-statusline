@@ -121,12 +121,15 @@ S_CREDIT=$(sym credit)
 [ "$S_CREDIT" = "?" ] && S_CREDIT="$S_SPEND"
 S_BURN=$(sym burn)
 [ "$S_BURN" = "?" ] && S_BURN="󱐋"
-S_TOKENS=$(sym tokens)
-[ "$S_TOKENS" = "?" ] && S_TOKENS="⇅"
+S_SESSION=$(sym session)
+[ "$S_SESSION" = "?" ] && S_SESSION=$(sym tokens)
+[ "$S_SESSION" = "?" ] && S_SESSION="⇅"
+S_LAST_CHAT=$(sym last_chat)
+[ "$S_LAST_CHAT" = "?" ] && S_LAST_CHAT="⌯"
 
 # Clear icons if show_icons is disabled
 if [ "$cfg_show_icons" = "false" ]; then
-  S_MODEL="" S_CTX="" S_5H="" S_7D="" S_DIR="" S_GIT="" S_TIME="" S_COST="" S_SPEND="" S_CREDIT="" S_BURN="" S_TOKENS=""
+  S_MODEL="" S_CTX="" S_5H="" S_7D="" S_DIR="" S_GIT="" S_TIME="" S_COST="" S_SPEND="" S_CREDIT="" S_BURN="" S_SESSION="" S_LAST_CHAT=""
 fi
 
 # ── Read block color mappings ─────────────────────────────────────────────
@@ -567,13 +570,20 @@ block_text_burn() {
   echo -n " ${S_BURN} $(_burn_fmt "$_ba" "$_bs") "
 }
 
-block_text_tokens() {
-  if [ -n "$session_tokens" ]; then
-    echo -n " ${S_TOKENS} $(fmt_tokens "$session_tokens") "
+# 共用的內文組法：token 為空 → --；金額為空（Codex 無 session 價）→ 只印 token
+_usage_text() {
+  local symbol="$1" toks="$2" cost="$3"
+  if [ -z "$toks" ]; then
+    echo -n " ${symbol} -- "
+  elif [ -z "$cost" ]; then
+    echo -n " ${symbol} $(fmt_tokens "$toks") "
   else
-    echo -n " ${S_TOKENS} -- "
+    echo -n " ${symbol} $(fmt_tokens "$toks") \$$(fmt_price "$cost") "
   fi
 }
+
+block_text_session()   { _usage_text "$S_SESSION"   "$session_tokens" "$session_cost"; }
+block_text_last_chat() { _usage_text "$S_LAST_CHAT" "$last_tokens"    "$last_cost"; }
 
 # ── Classic block renderers ───────────────────────────────────────────────
 render_block_model() {
@@ -712,16 +722,22 @@ render_block_spend() {
   esac
 }
 
-render_block_tokens() {
-  local fg=$(hex_to_fg "$(block_color tokens)")
-  local bg=$(hex_to_bg "$(block_bg tokens)")
-  if [ -n "$session_tokens" ]; then
-    echo -n "${bg}${fg}${BOLD} ${S_TOKENS} $(fmt_tokens "$session_tokens") ${RESET}"
-  else
+_render_usage() {
+  local name="$1" symbol="$2" toks="$3" cost="$4"
+  local fg=$(hex_to_fg "$(block_color "$name")")
+  local bg=$(hex_to_bg "$(block_bg "$name")")
+  if [ -z "$toks" ]; then
     local dim_fg=$(hex_to_fg "$C_DIM")
-    echo -n "${bg}${dim_fg} ${S_TOKENS} -- ${RESET}"
+    echo -n "${bg}${dim_fg} ${symbol} -- ${RESET}"
+  elif [ -z "$cost" ]; then
+    echo -n "${bg}${fg}${BOLD} ${symbol} $(fmt_tokens "$toks") ${RESET}"
+  else
+    echo -n "${bg}${fg}${BOLD} ${symbol} $(fmt_tokens "$toks") \$$(fmt_price "$cost") ${RESET}"
   fi
 }
+
+render_block_session()   { _render_usage session   "$S_SESSION"   "$session_tokens" "$session_cost"; }
+render_block_last_chat() { _render_usage last_chat "$S_LAST_CHAT" "$last_tokens"    "$last_cost"; }
 
 # ── Get block's rainbow bg hex ────────────────────────────────────────────
 get_block_bg_hex() {
@@ -821,7 +837,8 @@ if $PL_MODE; then
       spend)     text=$(block_text_spend) ;;
       credit)    text=$(block_text_credit) ;;
       burn)      text=$(block_text_burn) ;;
-      tokens)    text=$(block_text_tokens) ;;
+      session)   text=$(block_text_session) ;;
+      last_chat) text=$(block_text_last_chat) ;;
     esac
     output+="${cur_bg}${cur_fg}${BOLD}${text}${RESET}"
 
@@ -854,7 +871,8 @@ else
       spend)     output+=$(render_block_spend) ;;
       credit)    output+=$(render_block_credit) ;;
       burn)      output+=$(render_block_burn) ;;
-      tokens)    output+=$(render_block_tokens) ;;
+      session)   output+=$(render_block_session) ;;
+      last_chat) output+=$(render_block_last_chat) ;;
     esac
   done
 fi
