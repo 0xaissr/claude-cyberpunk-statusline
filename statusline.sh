@@ -277,10 +277,13 @@ if [ ! -f "$COST_CACHE" ] || [ $(($(date +%s) - $(stat -f%m "$COST_CACHE" 2>/dev
 fi
 
 # ── Session tokens (cached, invalidated by transcript mtime) ──────────────
-# Counts input + cache_creation + output for THIS conversation. cache_read is
-# deliberately excluded: every turn re-reads the whole context, so including it
-# would push the total into the tens of millions and drown out everything else.
+# 產出 session（本次對話累計）與 last_chat（最後一次 API 呼叫）各自的
+# token 與金額。四類 token 全部計入（含 cache_read）——它佔實際花費約
+# 一半，金額既然含它，token 也該含才對得起來。
 session_tokens=""
+session_cost=""
+last_tokens=""
+last_cost=""
 
 # stdin's transcript_path is preferred; session_id is the documented fallback
 # (it is present in the statusline schema, transcript_path is not guaranteed).
@@ -300,42 +303,64 @@ _resolve_transcript() {
   done
 }
 
-# Dedupe on message.id|requestId — the same key the local cost fallback uses,
-# so a retried request is not counted twice.
-_count_session_tokens() {
-  grep -h '"type":"assistant"' "$1" 2>/dev/null | "$JQ" -s '
+# 單次掃描產出四個值：session 累計 token/金額、最後一次呼叫的 token/金額。
+# 去重鍵 message.id|requestId 沿用 cost fallback 的慣例，重試不重複計算。
+# 定價表與 _refresh_cost 的 price() 一致，用 startswith 讓新 model ID
+# 自動繼承家族單價。四類 token 全部計入（含 cache_read）——金額必須含它，
+# token 也含才對得起來。
+_scan_transcript() {
+  grep -h '"type":"assistant"' "$1" 2>/dev/null | "$JQ" -s -r '
+    def price($m):
+      if   ($m | startswith("claude-opus"))   then {i: 15, o: 75, cw: 18.75, cr: 1.50}
+      elif ($m | startswith("claude-sonnet")) then {i: 3,  o: 15, cw: 3.75,  cr: 0.30}
+      elif ($m | startswith("claude-haiku"))  then {i: 1,  o: 5,  cw: 1.25,  cr: 0.10}
+      else {i: 15, o: 75, cw: 18.75, cr: 1.50} end;
+    def tok($u): ($u.input_tokens // 0) + ($u.cache_creation_input_tokens // 0)
+                 + ($u.cache_read_input_tokens // 0) + ($u.output_tokens // 0);
+    def cost($e): $e.message as $msg | $msg.usage as $u | price($msg.model // "") as $p |
+      (($u.input_tokens // 0) * $p.i
+       + ($u.output_tokens // 0) * $p.o
+       + ($u.cache_creation_input_tokens // 0) * $p.cw
+       + ($u.cache_read_input_tokens // 0) * $p.cr) / 1000000;
     [ .[] | select(.message.id != null) |
       {k: (.message.id + "|" + (.requestId // "")), e: .}
-    ] | group_by(.k) | map(.[0].e) |
-    [ .[] | .message.usage |
-      (.input_tokens // 0)
-      + (.cache_creation_input_tokens // 0)
-      + (.output_tokens // 0)
-    ] | add // 0
+    ] | group_by(.k) | map(.[0].e) as $msgs |
+    ( [ $msgs[] | tok(.message.usage) ] | add // 0 ) as $st |
+    ( [ $msgs[] | cost(.) ]             | add // 0 ) as $sc |
+    ( if ($msgs | length) > 0 then ($msgs | last) else null end ) as $lastmsg |
+    ( if $lastmsg == null then 0 else tok($lastmsg.message.usage) end ) as $lt |
+    ( if $lastmsg == null then 0 else cost($lastmsg) end ) as $lc |
+    "\($st)|\($sc)|\($lt)|\($lc)"
   ' 2>/dev/null
 }
 
 _transcript=""
-# Override short-circuits transcript resolution entirely — used by configure.sh's
-# live preview (its sample data has no real session) and by tests.
-if [ -n "${SESSION_TOKENS_OVERRIDE:-}" ]; then
-  session_tokens="$SESSION_TOKENS_OVERRIDE"
+# Override 短路整段 transcript 解析 —— 供 configure.sh 的即時預覽（樣本資料
+# 沒有真實 session）、Codex adapter 與測試使用。
+if [ -n "${SESSION_TOKENS_OVERRIDE:-}${SESSION_COST_OVERRIDE:-}${LAST_CHAT_TOKENS_OVERRIDE:-}${LAST_CHAT_COST_OVERRIDE:-}" ]; then
+  session_tokens="${SESSION_TOKENS_OVERRIDE:-}"
+  session_cost="${SESSION_COST_OVERRIDE:-}"
+  last_tokens="${LAST_CHAT_TOKENS_OVERRIDE:-}"
+  last_cost="${LAST_CHAT_COST_OVERRIDE:-}"
 else
   _transcript=$(_resolve_transcript)
 fi
 if [ -n "$_transcript" ]; then
   _tokens_cache="$COST_CACHE_DIR/session-tokens-$(basename "$_transcript" .jsonl)"
   _t_mtime=$(stat -f%m "$_transcript" 2>/dev/null || echo 0)
-  _c_mtime="" _c_total=""
-  [ -f "$_tokens_cache" ] && IFS='|' read -r _c_mtime _c_total < "$_tokens_cache"
+  _c_mtime="" _c_st="" _c_sc="" _c_lt="" _c_lc=""
+  # 舊版快取只有兩個欄位，讀進來 _c_lc 會是空的 → 視為 miss 重算。
+  [ -f "$_tokens_cache" ] && IFS='|' read -r _c_mtime _c_st _c_sc _c_lt _c_lc < "$_tokens_cache"
 
-  if [ -n "$_c_total" ] && [ "$_c_mtime" = "$_t_mtime" ]; then
-    session_tokens="$_c_total"
+  if [ -n "$_c_lc" ] && [ "$_c_mtime" = "$_t_mtime" ]; then
+    session_tokens="$_c_st"; session_cost="$_c_sc"
+    last_tokens="$_c_lt";    last_cost="$_c_lc"
   else
-    session_tokens=$(_count_session_tokens "$_transcript")
-    if [ -n "$session_tokens" ]; then
+    _scanned=$(_scan_transcript "$_transcript")
+    if [ -n "$_scanned" ]; then
+      IFS='|' read -r session_tokens session_cost last_tokens last_cost <<< "$_scanned"
       mkdir -p "$COST_CACHE_DIR"
-      printf '%s|%s\n' "$_t_mtime" "$session_tokens" > "$_tokens_cache" 2>/dev/null
+      printf '%s|%s\n' "$_t_mtime" "$_scanned" > "$_tokens_cache" 2>/dev/null
     fi
   fi
 fi

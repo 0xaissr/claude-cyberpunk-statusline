@@ -242,7 +242,7 @@ SH
 # ── tokens block ─────────────────────────────────────────────────────────
 # 只放 tokens 一個區塊、ascii symbol、關掉 icon 以外的雜訊，讓斷言鎖在數字本身。
 _tokens_cfg() {
-  printf '{"theme":"terminal-glitch","symbol_set":"ascii","spacing":"normal","style":"classic","separator":"|","blocks":["tokens"],"bar_width":6,"show_icons":true,"account_type":"subscription"}'
+  printf '{"theme":"terminal-glitch","symbol_set":"ascii","spacing":"normal","style":"classic","separator":"|","blocks":["session"],"bar_width":6,"show_icons":true,"account_type":"subscription"}'
 }
 
 # _tokens_render <transcript_file> [extra_env_assignments...]
@@ -268,31 +268,27 @@ _tokens_entry() {
 
 test_tokens_sums_session_transcript() {
   local t=$(mktemp)
-  # 1000+2000+500=3500, 4000+8000+1500=13500 → 17000 → "17K"
+  # (1000+2000+9999+500) + (4000+8000+9999+1500) = 36998 → "36K"
+  # 成本：opus。in 5000*15 + cw 10000*18.75 + cr 19998*1.5 + out 2000*75
+  #      = 75000 + 187500 + 29997 + 150000 = 442497 (per 1e6) = $0.442497 → $0.4425
   { _tokens_entry m1 r1 1000 2000 9999 500
     _tokens_entry m2 r2 4000 8000 9999 1500; } > "$t"
   local out=$(_tokens_render "$t")
   rm -f "$t"
-  check "test_tokens_sums_session_transcript: 加總 input+cache_creation+output" " [#] 17K " "$out"
-}
-
-test_tokens_excludes_cache_read() {
-  local t=$(mktemp)
-  # cache_read 高達 5,000,000；若被計入會顯示 M 量級而非 3K
-  { _tokens_entry m1 r1 1000 2000 5000000 500; } > "$t"
-  local out=$(_tokens_render "$t")
-  rm -f "$t"
-  check "test_tokens_excludes_cache_read: cache_read 不計入" " [#] 3K " "$out"
+  check "test_tokens_sums_session_transcript: 四類 token 全加總" " [#] 36K \$0.4425 " "$out"
 }
 
 test_tokens_dedupes_retried_request() {
   local t=$(mktemp)
   # 同一組 message.id|requestId 出現兩次，只能算一次
+  # 10000+20000+9999+5000 = 44999 → "44K"
+  # opus 成本：10000*15 + 20000*18.75 + 9999*1.5 + 5000*75
+  #          = 150000 + 375000 + 14998.5 + 375000 = 914998.5 /1e6 = $0.9149985 → $0.9150
   { _tokens_entry m1 r1 10000 20000 9999 5000
     _tokens_entry m1 r1 10000 20000 9999 5000; } > "$t"
   local out=$(_tokens_render "$t")
   rm -f "$t"
-  check "test_tokens_dedupes_retried_request: 重複列只計一次" " [#] 35K " "$out"
+  check "test_tokens_dedupes_retried_request: 重複列只計一次" " [#] 44K \$0.9150 " "$out"
 }
 
 test_tokens_resolves_by_session_id() {
@@ -306,18 +302,42 @@ test_tokens_resolves_by_session_id() {
     | env HOME="$home" CONFIG_OVERRIDE="$cfg" bash "$STATUSLINE" 2>/dev/null \
     | head -1 | sed 's/\x1b\[[0-9;]*m//g')
   rm -rf "$home"; rm -f "$cfg"
-  # 1,734,567 → 無條件捨去到一位小數 → 1.7M
-  check "test_tokens_resolves_by_session_id: 用 session_id 找到 transcript" " [#] 1.7M " "$out"
+  # 1,744,566 → 無條件捨去到一位小數 → 1.7M
+  # opus 成本：1000000*15 + 500000*18.75 + 9999*1.5 + 234567*75
+  #          = 15000000 + 9375000 + 14998.5 + 17592525 = 41982523.5 /1e6 → $41.98
+  check "test_tokens_resolves_by_session_id: 用 session_id 找到 transcript" " [#] 1.7M \$41.98 " "$out"
 }
 
-test_tokens_degraded_without_transcript() {
+test_session_includes_cache_read() {
+  local t=$(mktemp)
+  # cache_read 高達 5,000,000；必須被計入
+  { _tokens_entry m1 r1 1000 2000 5000000 500; } > "$t"
+  local out=$(_tokens_render "$t")
+  rm -f "$t"
+  # 1000+2000+5000000+500 = 5003500 → 5.0M
+  # opus 成本：1000*15 + 2000*18.75 + 5000000*1.5 + 500*75
+  #          = 15000 + 37500 + 7500000 + 37500 = 7590000 /1e6 → $7.59
+  check "test_session_includes_cache_read: cache_read 計入 token" " [#] 5.0M \$7.59 " "$out"
+}
+
+test_session_prices_by_model() {
+  local t=$(mktemp)
+  # sonnet 單價：in 3 / cw 3.75 / cr 0.30 / out 15
+  # 1000*3 + 2000*3.75 + 4000*0.30 + 500*15 = 3000+7500+1200+7500 = 19200 /1e6
+  printf '{"type":"assistant","requestId":"r1","message":{"id":"m1","model":"claude-sonnet-5","usage":{"input_tokens":1000,"cache_creation_input_tokens":2000,"cache_read_input_tokens":4000,"output_tokens":500}}}\n' > "$t"
+  local out=$(_tokens_render "$t")
+  rm -f "$t"
+  check "test_session_prices_by_model: sonnet 用 sonnet 單價" " [#] 7K \$0.0192 " "$out"
+}
+
+test_session_degraded_without_transcript() {
   local home=$(mktemp -d) cfg=$(mktemp)
   _tokens_cfg > "$cfg"
   local out=$(printf '{"session_id":"no-such-session"}' \
     | env HOME="$home" CONFIG_OVERRIDE="$cfg" bash "$STATUSLINE" 2>/dev/null \
     | head -1 | sed 's/\x1b\[[0-9;]*m//g')
   rm -rf "$home"; rm -f "$cfg"
-  check "test_tokens_degraded_without_transcript: 無 transcript 顯示 --" " [#] -- " "$out"
+  check "test_session_degraded_without_transcript: 無 transcript 顯示 --" " [#] -- " "$out"
 }
 
 test_tokens_number_formatting() {
@@ -327,9 +347,11 @@ test_tokens_number_formatting() {
   local n expected out
   while IFS='|' read -r n expected; do
     out=$(printf '{"session_id":"x"}' \
-      | env HOME="$home" CONFIG_OVERRIDE="$cfg" SESSION_TOKENS_OVERRIDE="$n" bash "$STATUSLINE" 2>/dev/null \
+      | env HOME="$home" CONFIG_OVERRIDE="$cfg" \
+            SESSION_TOKENS_OVERRIDE="$n" SESSION_COST_OVERRIDE="1.5" \
+            bash "$STATUSLINE" 2>/dev/null \
       | head -1 | sed 's/\x1b\[[0-9;]*m//g')
-    check "test_tokens_number_formatting: $n" " [#] $expected " "$out"
+    check "test_tokens_number_formatting: $n" " [#] $expected \$1.50 " "$out"
   done <<'EOF'
 0|0
 999|999
@@ -487,10 +509,11 @@ main() {
   test_burn_history_subscription
   test_burn_block_renders_rate
   test_tokens_sums_session_transcript
-  test_tokens_excludes_cache_read
   test_tokens_dedupes_retried_request
   test_tokens_resolves_by_session_id
-  test_tokens_degraded_without_transcript
+  test_session_includes_cache_read
+  test_session_prices_by_model
+  test_session_degraded_without_transcript
   test_tokens_number_formatting
   test_fmt_price_formatting
 
