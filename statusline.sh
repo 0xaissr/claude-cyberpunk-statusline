@@ -349,6 +349,15 @@ fmt_tokens() {
   }'
 }
 
+# $1.89 / $0.3442 —— 小額用四位小數，否則兩位小數會全部塌成 $0.00
+fmt_price() {
+  awk -v v="${1:-}" 'BEGIN{
+    if (v == "" || v + 0 != v) { printf "--"; exit }
+    if (v >= 1) printf "%.2f", v
+    else        printf "%.4f", v
+  }'
+}
+
 # ── Usage / spend (cached, background refresh) ────────────────────────────
 USAGE_CACHE="${USAGE_CACHE_OVERRIDE:-$COST_CACHE_DIR/usage.json}"
 USAGE_CACHE_MAX_AGE=60

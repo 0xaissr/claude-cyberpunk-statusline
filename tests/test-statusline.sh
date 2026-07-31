@@ -341,6 +341,32 @@ EOF
   rm -rf "$home"; rm -f "$cfg"
 }
 
+# ── fmt_price ────────────────────────────────────────────────────────────
+# 直接 source statusline.sh 會執行整支腳本，因此改用 bash -c 抽出函式定義後求值。
+_call_fmt_price() {
+  local body
+  body=$(awk '/^fmt_price\(\)/,/^}/' "$STATUSLINE")
+  bash -c "$body; fmt_price \"\$1\"" _ "$1"
+}
+
+test_fmt_price_formatting() {
+  local n expected out
+  while IFS='|' read -r n expected; do
+    out=$(_call_fmt_price "$n")
+    check "test_fmt_price_formatting: $n" "$expected" "$out"
+  done <<'EOF'
+0|0.0000
+0.3442|0.3442
+0.9999|0.9999
+1|1.00
+1.894|1.89
+89.2|89.20
+1234.5|1234.50
+EOF
+  out=$(_call_fmt_price "")
+  check "test_fmt_price_formatting: 空字串降級" "--" "$out"
+}
+
 test_credit_block_quota() {
   local cfg=$(mktemp) cache=$(mktemp)
   printf '{"theme":"terminal-glitch","symbol_set":"nerd","spacing":"normal","style":"classic","separator":"|","blocks":["model","rate_5h","rate_7d","time"],"bar_width":6,"show_icons":false,"account_type":"auto"}' > "$cfg"
@@ -459,6 +485,7 @@ main() {
   test_tokens_resolves_by_session_id
   test_tokens_degraded_without_transcript
   test_tokens_number_formatting
+  test_fmt_price_formatting
 
   echo "======================================"
   echo "Results: $PASS passed, $FAIL failed"
