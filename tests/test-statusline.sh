@@ -337,7 +337,7 @@ test_scan_last_chat_uses_file_order() {
   { _tokens_entry m9 r9 1 0 0 1
     _tokens_entry m1 r1 1000 0 0 1000; } > "$t"
   local out
-  out=$(bash -c "$(awk '/^_scan_transcript\(\)/,/^}/' "$STATUSLINE"); JQ=\$(command -v jq); _scan_transcript \"$t\"")
+  out=$(bash -c "$(awk "/^JQ_PRICE_FN=/,/end;'\$/" "$STATUSLINE"); $(awk '/^_scan_transcript\(\)/,/^}/' "$STATUSLINE"); JQ=\$(command -v jq); _scan_transcript \"$t\"")
   rm -f "$t"
   check "test_scan_last_chat_uses_file_order: session 加總兩筆" "2002" "$(echo "$out" | cut -d'|' -f1)"
   check "test_scan_last_chat_uses_file_order: last_chat 取檔案順序最後一筆" "2000" "$(echo "$out" | cut -d'|' -f3)"
@@ -453,6 +453,50 @@ test_line2_rainbow_colors_differ() {
   else
     echo "✗ test_line2_rainbow_colors_differ: 應有至少 2 種背景色，實際 $n"; ((FAIL++))
   fi
+}
+
+# cost 區塊（_refresh_cost 本地 fallback）與 session/last_chat 區塊
+# （_scan_transcript）曾各自維護一份 12 個數字的定價表，兩份一旦分岔，
+# 同一條 status line 上的金額就會互相矛盾。兩者現在共用同一個
+# $JQ_PRICE_FN（見 statusline.sh 開頭），這裡把同一筆合成 transcript
+# 分別餵給兩條路徑，斷言算出的美元金額一致 —— 之後只要有人各改各的，
+# 這個測試就會先炸。
+test_cost_and_session_pricing_agree() {
+  local home cache_dir today ts price_fn refresh_out scan_out scan_cost scan_rounded
+  home=$(mktemp -d)
+  mkdir -p "$home/.claude/projects/proj"
+  today=$(date +%Y-%m-%d)
+  ts="${today}T12:00:00.000Z"
+  printf '{"type":"assistant","timestamp":"%s","requestId":"r1","message":{"id":"m1","model":"claude-opus-5","usage":{"input_tokens":1000,"cache_creation_input_tokens":2000,"cache_read_input_tokens":9999,"output_tokens":500}}}\n' "$ts" \
+    > "$home/.claude/projects/proj/fixture.jsonl"
+
+  cache_dir=$(mktemp -d)
+  price_fn=$(awk "/^JQ_PRICE_FN=/,/end;'\$/" "$STATUSLINE")
+
+  # 路徑一：_refresh_cost 的本地 JSONL fallback（PATH 刻意不含 ccusage/npx，
+  # 逼它走 fallback 分支）
+  refresh_out=$(bash -c "
+    $price_fn
+    COST_CACHE_DIR=\"$cache_dir\"
+    COST_CACHE=\"$cache_dir/daily-cost\"
+    JQ=\$(command -v jq)
+    $(awk '/^_refresh_cost\(\)/,/^}/' "$STATUSLINE")
+    HOME=\"$home\" PATH=/usr/bin:/bin _refresh_cost
+    cat \"$cache_dir/daily-cost\" 2>/dev/null
+  ")
+
+  # 路徑二：_scan_transcript（session/last_chat 用的那條）
+  scan_out=$(bash -c "
+    $price_fn
+    JQ=\$(command -v jq)
+    $(awk '/^_scan_transcript\(\)/,/^}/' "$STATUSLINE")
+    _scan_transcript \"$home/.claude/projects/proj/fixture.jsonl\"
+  ")
+  rm -rf "$home" "$cache_dir"
+
+  scan_cost=$(printf '%s' "$scan_out" | cut -d'|' -f2)
+  scan_rounded=$(awk -v v="$scan_cost" 'BEGIN{printf "%.2f", v+0}')
+  check "test_cost_and_session_pricing_agree: 兩條路徑算出同一筆金額" "$scan_rounded" "$refresh_out"
 }
 
 test_tokens_number_formatting() {
@@ -663,6 +707,7 @@ main() {
   test_line2_absent_when_missing
   test_legacy_tokens_maps_to_session
   test_line2_rainbow_colors_differ
+  test_cost_and_session_pricing_agree
   test_tokens_number_formatting
   test_fmt_price_formatting
 

@@ -18,6 +18,17 @@ RESET='\033[0m'
 BOLD='\033[1m'
 DIM='\033[2m'
 
+# ── Shared pricing table ───────────────────────────────────────────────────
+# 單一定價來源：cost 區塊（_refresh_cost 的本地 JSONL fallback）與
+# session/last_chat 區塊（_scan_transcript）都要用同一份單價，否則同一條
+# status line 上兩邊金額可能對不上。兩處都用字串接續的方式把這段 jq 片段
+# 接進各自的 jq 程式（見下方兩處用法），數字本身沒有變動，純粹去重複。
+JQ_PRICE_FN='def price($m):
+  if   ($m | startswith("claude-opus"))   then {i: 15, o: 75, cw: 18.75, cr: 1.50}
+  elif ($m | startswith("claude-sonnet")) then {i: 3,  o: 15, cw: 3.75,  cr: 0.30}
+  elif ($m | startswith("claude-haiku"))  then {i: 1,  o: 5,  cw: 1.25,  cr: 0.10}
+  else {i: 15, o: 75, cw: 18.75, cr: 1.50} end;'
+
 # ── Helpers ────────────────────────────────────────────────────────────────
 hex_to_fg() {
   local hex="${1#\#}"
@@ -251,11 +262,7 @@ _refresh_cost() {
     val=$(find "$HOME/.claude/projects" -name "*.jsonl" -maxdepth 2 2>/dev/null \
       | xargs grep -h '"type":"assistant"' 2>/dev/null \
       | "$JQ" -s --arg today "$today" '
-        def price($m):
-          if ($m | startswith("claude-opus")) then {i: 15, o: 75, cw: 18.75, cr: 1.50}
-          elif ($m | startswith("claude-sonnet")) then {i: 3, o: 15, cw: 3.75, cr: 0.30}
-          elif ($m | startswith("claude-haiku")) then {i: 1, o: 5, cw: 1.25, cr: 0.10}
-          else {i: 15, o: 75, cw: 18.75, cr: 1.50} end;
+        '"$JQ_PRICE_FN"'
         [ .[] | select(.timestamp | startswith($today)) |
           select(.message.id != null) |
           {k: (.message.id + "|" + (.requestId // "")), e: .}
@@ -309,16 +316,12 @@ _resolve_transcript() {
 
 # 單次掃描產出四個值：session 累計 token/金額、最後一次呼叫的 token/金額。
 # 去重鍵 message.id|requestId 沿用 cost fallback 的慣例，重試不重複計算。
-# 定價表與 _refresh_cost 的 price() 一致，用 startswith 讓新 model ID
-# 自動繼承家族單價。四類 token 全部計入（含 cache_read）——金額必須含它，
-# token 也含才對得起來。
+# 定價表與 _refresh_cost 共用同一份 $JQ_PRICE_FN（見檔案開頭），避免兩處
+# 各自維護導致金額對不上；用 startswith 讓新 model ID 自動繼承家族單價。
+# 四類 token 全部計入（含 cache_read）——金額必須含它，token 也含才對得起來。
 _scan_transcript() {
   grep -h '"type":"assistant"' "$1" 2>/dev/null | "$JQ" -s -r '
-    def price($m):
-      if   ($m | startswith("claude-opus"))   then {i: 15, o: 75, cw: 18.75, cr: 1.50}
-      elif ($m | startswith("claude-sonnet")) then {i: 3,  o: 15, cw: 3.75,  cr: 0.30}
-      elif ($m | startswith("claude-haiku"))  then {i: 1,  o: 5,  cw: 1.25,  cr: 0.10}
-      else {i: 15, o: 75, cw: 18.75, cr: 1.50} end;
+    '"$JQ_PRICE_FN"'
     def tok($u): ($u.input_tokens // 0) + ($u.cache_creation_input_tokens // 0)
                  + ($u.cache_read_input_tokens // 0) + ($u.output_tokens // 0);
     def cost($e): $e.message as $msg | $msg.usage as $u | price($msg.model // "") as $p |
