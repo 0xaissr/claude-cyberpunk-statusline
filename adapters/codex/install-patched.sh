@@ -39,6 +39,25 @@ SOURCE_REF="${CODEX_SOURCE_REF:-rust-v0.142.5}"
 PATCH_FILE="$PROJECT_DIR/adapters/codex/patches/status-line-command.patch"
 CONFIG_TOML="${CODEX_CONFIG_TOML:-$HOME/.codex/config.toml}"
 
+# The patched path clones the Codex source and compiles it. Both tools are only
+# reached deep into the run, so check up front rather than dying mid-build.
+MISSING_TOOLS=""
+for tool in git cargo; do
+  command -v "$tool" >/dev/null 2>&1 || MISSING_TOOLS="$MISSING_TOOLS $tool"
+done
+MISSING_TOOLS="${MISSING_TOOLS# }"
+
+report_missing_tools() {
+  echo "missing required tools: $MISSING_TOOLS" >&2
+  echo "the patched build clones the Codex source and compiles it locally." >&2
+  case " $MISSING_TOOLS " in
+    *" git "*) echo "  git   — install via your package manager (e.g. brew install git)" >&2 ;;
+  esac
+  case " $MISSING_TOOLS " in
+    *" cargo "*) echo "  cargo — install a Rust toolchain from https://rustup.rs" >&2 ;;
+  esac
+}
+
 if [ "$DRY_RUN" = true ]; then
   echo "codex patched footer installer (dry-run)"
 else
@@ -53,6 +72,7 @@ echo "source cache: $SOURCE_CACHE"
 echo "patch file: $PATCH_FILE"
 echo "output binary: $OUTPUT_BIN"
 echo "config file: $CONFIG_TOML"
+echo "requires: git, cargo (Rust toolchain)"
 echo "actions:"
 echo "  - clone or update OpenAI Codex source"
 echo "  - apply cyberpunk status_line_command patch"
@@ -61,8 +81,14 @@ echo "  - install as codex-cyberpunk"
 echo "safety: unsupported Codex source revisions must stop before patch/build"
 
 if [ "$DRY_RUN" = true ]; then
+  [ -z "$MISSING_TOOLS" ] || report_missing_tools
   echo "dry-run: no files were changed"
   exit 0
+fi
+
+if [ -n "$MISSING_TOOLS" ]; then
+  report_missing_tools
+  exit 1
 fi
 
 if [ ! -f "$PATCH_FILE" ]; then

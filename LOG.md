@@ -2,6 +2,21 @@
 
 ## 2026-08-01
 
+### 修正：patched Codex 安裝器缺少 git／cargo 前置檢查，會編到一半才死
+
+- **問題**：承上一則文件修正——`adapters/codex/install-patched.sh` 直接呼叫 `git clone` 與 `cargo build`，卻只檢查 `codex` binary 是否存在。缺 `cargo` 的機器會先 clone 完整份 Codex 原始碼、套完 patch，才在 `cargo build` 那行以 `command not found` 死掉，留下一個沒用的 source cache
+- **改動**：在印出 plan 之前收集 `MISSING_TOOLS`（`git`、`cargo`），並在 dry-run 分支之後、`clone` 之前硬性擋下。錯誤訊息會指名缺哪個工具並附上對應提示（cargo → https://rustup.rs、git → 套件管理器）。plan 區塊也多印一行 `requires: git, cargo (Rust toolchain)`
+- **dry-run 刻意不失敗**：dry-run 的用途是「告訴我會發生什麼」，所以缺工具時印出同一份警告後仍 exit 0。這樣使用者可以先跑 `--dry-run` 確認環境，而不是被擋在門外
+- **新增 5 個測試**（`tests/adapters/codex/test-install-patched.sh` 從 13 → 23 個斷言）：
+  - `test_missing_cargo_aborts_before_touching_anything`：驗 exit 1、訊息指名 cargo 與 rustup、且**沒有**跑過 git、沒有 source cache、沒有產出 binary
+  - `test_dry_run_warns_about_missing_cargo_without_failing`：驗 exit 0 且仍印警告
+  - `test_plan_lists_required_tools`：驗 plan 有列出需求
+  - **測試手法**：「cargo 不存在」必須是 fixture 的性質而非開發機的性質，否則有裝 Rust 的機器根本測不到。作法是造一個只含 `dirname` 符號連結與假 `git` 的 `PATH`，完全排除系統路徑。連帶要把 `bash` 先用 `command -v` 解析成絕對路徑再呼叫，否則連 `bash` 都找不到（第一版就踩到，6 個測試以 status 127 失敗）
+  - **突變測試**：把 preflight 區塊整段移除後重跑，3 個斷言如期轉紅（且失敗狀態碼是 127 —— 正是這次要消滅的「跑到一半才死」）
+- **測試**：全套 276 passed / 0 failed
+- **兩份 README 同步更新**：把「沒有前置檢查、會在執行到一半失敗」改寫為現在的行為，並補上「想先驗環境就跑 `./adapters/codex/install-patched.sh --dry-run`」
+- **順帶發現、未修**：`install-codex.sh --patched --dry-run` 只印出 `would run: … --dry-run` 與 `delegates: …`，**並不會真的執行**子安裝器的 dry-run，所以它跑不到新的前置檢查。措辭有誤導（寫著 delegates 卻沒 delegate），但屬既有行為、不在這次範圍內，因此 README 改為指向真正會跑檢查的 `adapters/codex/install-patched.sh --dry-run`
+
 ### 文件：補齊 Codex 安裝／解除安裝的三個致命缺口
 
 - **起因**：使用者要在另一台電腦安裝，問「`../cyberpunk-statusline-marketplace` 是給 Claude 用的嗎、Codex 怎麼辦」。順帶釐清那個本地目錄已是廢棄的舊 clone——GitHub 上該 repo 早已改名為 `claude-cyberpunk-statusline`（舊網址只是 redirect，兩邊 `git ls-remote` 的 HEAD 都是 `98a0530`），而主 repo 在 `7a3a088` 就清掉了 marketplace/plugin 結構。兩份 README 都沒有 marketplace 殘留，但 Codex 那段有真缺口

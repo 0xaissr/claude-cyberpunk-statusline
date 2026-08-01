@@ -64,8 +64,10 @@ cd ~/claude-cyberpunk-statusline && ./install-codex.sh --patched
 
 This is an experimental, Codex-only path. Know what it does before you run it:
 
-- **Requires `git` and a Rust toolchain (`cargo`).** There is no preflight check, so
-  a missing `cargo` fails partway through with `command not found`.
+- **Requires `git` and a Rust toolchain (`cargo`).** Both are checked up front — if
+  either is missing the installer names it and aborts before cloning or building
+  anything. To check your machine without installing, run
+  `./adapters/codex/install-patched.sh --dry-run`.
 - Clones the Codex source at `rust-v0.142.5`, applies
   `adapters/codex/patches/status-line-command.patch`, then runs a full
   `cargo build --release`. Expect a long first build and several GB of disk.

@@ -4,6 +4,9 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 INSTALLER="$PROJECT_DIR/adapters/codex/install-patched.sh"
+# Resolved up front: the preflight tests run with a PATH that deliberately has
+# almost nothing on it, so `bash` has to be reached by absolute path.
+BASH_BIN="$(command -v bash)"
 
 PASS=0
 FAIL=0
@@ -141,8 +144,104 @@ SH
   rm -rf "$home_tmp"
 }
 
+# A PATH holding only what the script needs before its preflight check runs, so
+# "cargo is absent" is a property of the fixture rather than of the dev machine.
+make_cargoless_path() {
+  local fake_bin="$1"
+  mkdir -p "$fake_bin"
+  ln -sf "$(command -v dirname)" "$fake_bin/dirname"
+  cat > "$fake_bin/git" <<'SH'
+#!/bin/sh
+echo "git $*" >> "$FAKE_LOG"
+exit 0
+SH
+  chmod +x "$fake_bin/git"
+}
+
+test_missing_cargo_aborts_before_touching_anything() {
+  local home_tmp fake_bin log source_cache output out status
+  home_tmp=$(mktemp -d)
+  fake_bin="$home_tmp/fake-bin"
+  log="$home_tmp/commands.log"
+  source_cache="$home_tmp/source"
+  output="$home_tmp/.local/bin/codex-cyberpunk"
+  make_cargoless_path "$fake_bin"
+
+  out=$(HOME="$home_tmp" \
+    PATH="$fake_bin" \
+    FAKE_LOG="$log" \
+    CODEX_BIN_OVERRIDE=/bin/echo \
+    CODEX_PATCH_CACHE="$source_cache" \
+    CODEX_OUTPUT_BIN_OVERRIDE="$output" \
+    "$BASH_BIN" "$INSTALLER" 2>&1)
+  status=$?
+
+  if [ "$status" -eq 1 ]; then
+    pass "missing cargo exits 1"
+  else
+    fail "missing cargo exits 1" "got status $status — $out"
+  fi
+
+  assert_contains "missing cargo is named" "missing required tools: cargo" "$out"
+  assert_contains "missing cargo points at rustup" "https://rustup.rs" "$out"
+
+  if [ -e "$log" ]; then
+    fail "missing cargo aborts before cloning" "git ran: $(cat "$log")"
+  else
+    pass "missing cargo aborts before cloning"
+  fi
+
+  if [ -e "$source_cache" ]; then
+    fail "missing cargo leaves no source cache" "$source_cache exists"
+  else
+    pass "missing cargo leaves no source cache"
+  fi
+
+  if [ -e "$output" ]; then
+    fail "missing cargo installs no binary" "$output exists"
+  else
+    pass "missing cargo installs no binary"
+  fi
+
+  rm -rf "$home_tmp"
+}
+
+test_dry_run_warns_about_missing_cargo_without_failing() {
+  local home_tmp fake_bin out status
+  home_tmp=$(mktemp -d)
+  fake_bin="$home_tmp/fake-bin"
+  make_cargoless_path "$fake_bin"
+
+  out=$(HOME="$home_tmp" \
+    PATH="$fake_bin" \
+    FAKE_LOG="$home_tmp/commands.log" \
+    CODEX_BIN_OVERRIDE=/bin/echo \
+    "$BASH_BIN" "$INSTALLER" --dry-run 2>&1)
+  status=$?
+
+  if [ "$status" -eq 0 ]; then
+    pass "dry run with missing cargo still exits 0"
+  else
+    fail "dry run with missing cargo still exits 0" "got status $status — $out"
+  fi
+
+  assert_contains "dry run warns about missing cargo" "missing required tools: cargo" "$out"
+  assert_contains "dry run still reports no writes" "dry-run: no files were changed" "$out"
+
+  rm -rf "$home_tmp"
+}
+
+test_plan_lists_required_tools() {
+  local out
+  out=$(HOME="$(mktemp -d)" CODEX_BIN_OVERRIDE=/bin/echo bash "$INSTALLER" --dry-run 2>&1 || true)
+  assert_contains "plan lists required tools" "requires: git, cargo" "$out"
+}
+
 test_dry_run_reports_plan_without_writes
 test_dry_run_does_not_reference_claude
+test_plan_lists_required_tools
+test_missing_cargo_aborts_before_touching_anything
+test_dry_run_warns_about_missing_cargo_without_failing
 test_real_flow_with_fake_tools_installs_binary_and_config
 
 echo "PASS=$PASS FAIL=$FAIL"

@@ -59,7 +59,7 @@ cd ~/claude-cyberpunk-statusline && ./install-codex.sh --patched
 
 這是實驗性質、僅限 Codex 的路線。執行前先了解它會做什麼：
 
-- **需要 `git` 與 Rust toolchain（`cargo`）。** 腳本沒有前置檢查，缺少 `cargo` 會在執行到一半時以 `command not found` 失敗。
+- **需要 `git` 與 Rust toolchain（`cargo`）。** 兩者都會在一開始就檢查——缺哪個就直接指名，並在 clone 或編譯任何東西之前中止。想先確認機器環境而不安裝，可以跑 `./adapters/codex/install-patched.sh --dry-run`。
 - 會 clone `rust-v0.142.5` 的 Codex 原始碼、套用
   `adapters/codex/patches/status-line-command.patch`，然後跑一次完整的
   `cargo build --release`。首次編譯很久，並會佔用數 GB 磁碟空間。
