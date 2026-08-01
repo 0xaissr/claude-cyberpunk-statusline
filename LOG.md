@@ -2,6 +2,31 @@
 
 ## 2026-08-01
 
+### 功能：定價每日自動更新，內建表降級為 fallback 並加上對帳測試
+
+- **動機**：承下一則的定價修正——問題不是「價格漂移」而是「一開始就填錯且一個月沒人發現」。使用者要求用極低成本的方式定期自動校正
+- **來源調查**（三個候選，兩個死路）：
+  - Anthropic Models API `/v1/models/claude-opus-5` → 實測回傳 `capabilities`、`max_input_tokens` 等，**沒有任何價格欄位**
+  - 官方 `platform.claude.com/docs/en/pricing.md` → **HTTP 404**
+  - **LiteLLM 的 `model_prices_and_context_window.json`** → 可用，且回傳的 Opus 5 數字（in 5 / out 25 / cr 0.5 / cw 6.25 / cw-1h 10）與手動修正後的表**逐項吻合**，等於獨立驗證。專案的 daily cost 主路徑 `ccusage` 抓的本來就是這份，改用它反而讓兩條成本路徑對齊
+- **新增 `core/fetch-pricing.sh`**：抓上游 → 篩出 Anthropic 的 `claude-*` → 換算成每 1M token 的 `{i, o, cw5, cw1h, cr}`。上游 1.67MB，抽完只剩 **1603 bytes / 23 個模型**
+  - **sanity bound**：input 必須 > 0 且 ≤ $1000/1M；cache write 不得超過 input 的 2.5 倍。實測擋下 `claude-3-haiku-20240307`——上游把它的 1h cache write 標成 $6（input 只有 $0.25，24 倍），明顯是壞資料。悄悄採用錯價比用已知過期的內建值更糟，所以寧可濾掉
+  - 任何失敗都 exit≠0 且不輸出，讓呼叫端的 `>tmp && mv` 保住舊快取
+  - **踩到的坑**：初版把 1.67MB payload 讀進 shell 變數再做 `${raw//[[:space:]]/}` 檢查空白——bash 對這種大小的字串做全域替換會退化成病態慢，實測**掛住超過兩分鐘**。改成全程走暫存檔、由 jq 直接讀檔，總耗時降到 939ms。（`core/fetch-usage.sh` 用同樣寫法沒事，因為它的回應只有幾百 bytes）
+- **statusline.sh 接線**：
+  - `PRICING_CACHE`（24h TTL）+ `PRICING_ATTEMPT`（1h 重試下限，避免持續失敗時每個 prompt 都 spawn 一次 curl）
+  - 背景 refresh 沿用既有 `USAGE_CACHE` 的 `&` + `disown` 模式，渲染路徑只讀那份 1.6KB 快取
+  - `price()` 改成先查 `$PRICES`，查不到才落回改名為 `builtin()` 的內建表；新增 `norm()` 在上游缺 cache write／cache read 欄位時用官方倍率補（5m ×1.25、1h ×2、cr ×0.1）
+  - `PRICING_CACHE_OVERRIDE` 供測試注入，且設了就不觸發背景抓取
+- **實測驗證**（四條路徑）：注入 10 倍價格表 → `$15.15`（恰為 `$1.51` 的 10 倍，證明 `$PRICES` 真的生效）；缺 cw/cr → `norm()` 補值後與內建表同值；壞掉的快取 → 退回內建表；空表 `{}` → 退回內建表。冷啟動（無快取）不阻塞，背景 3 秒內寫入快取
+- **新增 `test_builtin_pricing_matches_upstream`**：拿 `builtin()` 跟上游對帳。門檻設「差距達 2 倍才失敗」而非要求相等——上游會反映促銷價（Sonnet 5 到 2026-08-31 是 $2/$10，相對標準價 $3/$15 為 1.5 倍），內建表刻意保守放長期標準價；要抓的是「整個世代過時」這種量級錯誤
+  - **這個測試第一版是假綠的**：寫成 `jq -cn "$JQ_PRICE_FN" 'builtin(...)'`，jq 把第二個參數當**檔名**而非 filter，於是每次都失敗回空字串，比對變成空對空而恆真。是突變測試（把內建表改回 $15/$75，測試卻照樣通過）才抓出來。改成 `eval` 出變數後 `jq -cn "$JQ_PRICE_FN builtin(\"$m\")"`，並補上「抽不到值就算失敗」的防呆。重跑突變測試確認會紅，且報出的正是那次 bug 的內容
+  - 測試框架新增 `skip()` 與 `SKIP` 計數；離線時（實測用無效 URL）乾淨跳過而非失敗，且在結果行顯示 `1 skipped`，避免永久跳過被藏起來
+- **修好自己造成的測試副作用**：17 個測試用 `home=$(mktemp -d)`，那會讓 `COST_CACHE_DIR` 指向空目錄，於是**每一個都以為快取過期、各自 spawn 一次 1.67MB 背景下載**，整套從秒級變成 >120s 還狂敲上游。在測試檔頂端 `export PRICING_CACHE_OVERRIDE=/dev/null`：非空字串停掉背景抓取，而 `-s /dev/null` 為假讓 `PRICING_JSON` 維持 `{}`，剛好強制所有斷言走內建表——正是它們要驗的東西。整套降回 56s
+- **未做（刻意）**：使用者原本提議「每個模型記最後更新時間、切換模型時判斷是否超過 24h」。一次下載就拿到全部 23 個模型，per-model 時間戳沒有好處；而且「切換模型」當觸發點不可靠——可能一週不切（永不更新）也可能一小時切二十次。單一檔案 mtime + 24h TTL 更簡單可靠
+- **已知限制**：`session-tokens-*` 快取以 transcript mtime 為鍵，若價格更新但 transcript 沒動，會短暫沿用舊金額。實際使用中 transcript 每輪都變，影響可忽略
+- **測試**：全綠——test-statusline 71/0、test-configure 21/0、codex adapter 五支 82/0、core 三支 44/0、tab-state 48 pass
+
 ### 修正：定價表用的是 Opus 4.x 舊費率，金額高估約 2.6 倍
 
 - **現象**：使用者質疑「一個 session 花了 $4.63」不合理。查 transcript 後確認 **token 數是對的**（29 次 API 呼叫、cache_read 佔 96%，見 2026-07-31 的設計說明），但**金額算錯**

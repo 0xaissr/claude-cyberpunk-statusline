@@ -28,7 +28,16 @@ DIM='\033[2m'
 # 所以照分項各自計價，欄位缺席（舊 transcript）才退回用 1h 單價估全部。
 # Opus 4.6 以後（含 Opus 5）是 $5/$25，不是 Opus 4.1 時代的 $15/$75；1M context
 # 沒有長文脈溢價，所以不需要按 context 大小分級。
-JQ_PRICE_FN='def price($m):
+# price() 先查 $PRICES（core/fetch-pricing.sh 抓來的每日快取，見下方 PRICING_*），
+# 查不到才落回下面這張內建表。內建表是 fallback 不是主要來源，但必須保持正確——
+# tests/test-statusline.sh 的 test_builtin_pricing_matches_upstream 會對帳。
+# 上游可能缺 cache write / cache read 欄位，norm() 用官方倍率補：5m = input×1.25、
+# 1h = input×2、cache read = input×0.1。
+JQ_PRICE_FN='def norm($p): $p + {
+    cw5:  (if (($p.cw5  // 0) > 0) then $p.cw5  else ($p.i * 1.25) end),
+    cw1h: (if (($p.cw1h // 0) > 0) then $p.cw1h else ($p.i * 2)    end),
+    cr:   (if (($p.cr   // 0) > 0) then $p.cr   else ($p.i * 0.1)  end) };
+def builtin($m):
   if   (($m | startswith("claude-fable")) or ($m | startswith("claude-mythos")))
                                           then {i: 10, o: 50, cw5: 12.50, cw1h: 20,    cr: 1.00}
   elif ($m | test("^claude-opus-(5|4-8|4-7|4-6)"))
@@ -37,6 +46,11 @@ JQ_PRICE_FN='def price($m):
   elif ($m | startswith("claude-sonnet")) then {i: 3,  o: 15, cw5: 3.75,  cw1h: 6,     cr: 0.30}
   elif ($m | startswith("claude-haiku"))  then {i: 1,  o: 5,  cw5: 1.25,  cw1h: 2,     cr: 0.10}
   else {i: 5, o: 25, cw5: 6.25, cw1h: 10, cr: 0.50} end;
+def price($m):
+  ($m // "") as $k |
+  (($PRICES // {})[$k]) as $f |
+  if (($f | type) == "object") and ((($f.i // 0) > 0) and (($f.o // 0) > 0))
+  then norm($f) else builtin($k) end;
 def usd($u; $p):
   ($u.cache_creation) as $cc |
   ( if $cc == null
@@ -250,6 +264,38 @@ COST_CACHE="$COST_CACHE_DIR/daily-cost"
 COST_CACHE_MAX_AGE=30  # 30 seconds — short enough to refresh after each chat
 daily_cost=""
 
+# ── Model pricing (cached 24h, background refresh) ────────────────────────
+# Prices change a few times a year, so a daily refresh is plenty. The render
+# path only ever reads the small cached file; the download runs detached so a
+# slow or dead network can never stall the prompt. Any failure leaves the
+# previous cache in place, and an absent/corrupt cache falls through to the
+# built-in table in $JQ_PRICE_FN — the status line always renders.
+PRICING_CACHE="${PRICING_CACHE_OVERRIDE:-$COST_CACHE_DIR/pricing.json}"
+PRICING_ATTEMPT="$COST_CACHE_DIR/pricing.attempt"
+PRICING_MAX_AGE=86400   # 24h — how long a fetched table stays fresh
+PRICING_RETRY_AGE=3600  # 1h floor between attempts, so a persistent failure
+                        # doesn't spawn a curl on every single prompt
+
+_file_age() { echo $(( $(date +%s) - $(stat -f%m "$1" 2>/dev/null || echo 0) )); }
+
+# A test-supplied override is used verbatim: never refresh over a fixture.
+if [ -z "${PRICING_CACHE_OVERRIDE:-}" ] \
+   && [ "$(_file_age "$PRICING_CACHE")" -gt "$PRICING_MAX_AGE" ] \
+   && [ "$(_file_age "$PRICING_ATTEMPT")" -gt "$PRICING_RETRY_AGE" ]; then
+  mkdir -p "$COST_CACHE_DIR"
+  : > "$PRICING_ATTEMPT"
+  ( "$SCRIPT_DIR/core/fetch-pricing.sh" > "$PRICING_CACHE.tmp" 2>/dev/null \
+      && mv -f "$PRICING_CACHE.tmp" "$PRICING_CACHE" \
+      || rm -f "$PRICING_CACHE.tmp" ) &
+  disown 2>/dev/null || true
+fi
+
+PRICING_JSON='{}'
+if [ -s "$PRICING_CACHE" ] \
+   && "$JQ" -e 'type == "object"' "$PRICING_CACHE" >/dev/null 2>&1; then
+  PRICING_JSON=$(cat "$PRICING_CACHE" 2>/dev/null)
+fi
+
 # Read cached value
 if [ -f "$COST_CACHE" ]; then
   daily_cost=$(cat "$COST_CACHE" 2>/dev/null)
@@ -275,7 +321,7 @@ _refresh_cost() {
     local today=$(date +%Y-%m-%d)
     val=$(find "$HOME/.claude/projects" -name "*.jsonl" -maxdepth 2 2>/dev/null \
       | xargs grep -h '"type":"assistant"' 2>/dev/null \
-      | "$JQ" -s --arg today "$today" '
+      | "$JQ" -s --arg today "$today" --argjson PRICES "$PRICING_JSON" '
         '"$JQ_PRICE_FN"'
         [ .[] | select(.timestamp | startswith($today)) |
           select(.message.id != null) |
@@ -329,7 +375,7 @@ _resolve_transcript() {
 # 各自維護導致金額對不上；用 startswith 讓新 model ID 自動繼承家族單價。
 # 四類 token 全部計入（含 cache_read）——金額必須含它，token 也含才對得起來。
 _scan_transcript() {
-  grep -h '"type":"assistant"' "$1" 2>/dev/null | "$JQ" -s -r '
+  grep -h '"type":"assistant"' "$1" 2>/dev/null | "$JQ" -s -r --argjson PRICES "$PRICING_JSON" '
     '"$JQ_PRICE_FN"'
     def tok($u): ($u.input_tokens // 0) + ($u.cache_creation_input_tokens // 0)
                  + ($u.cache_read_input_tokens // 0) + ($u.output_tokens // 0);

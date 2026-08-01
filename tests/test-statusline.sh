@@ -6,8 +6,18 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 STATUSLINE="$PROJECT_DIR/statusline.sh"
 SAMPLE="$SCRIPT_DIR/sample-input.json"
 
+# 多數測試用 home=$(mktemp -d)，那會讓 statusline 的 COST_CACHE_DIR 指向空目錄，
+# 於是每一個這種測試都以為定價快取過期、各自 spawn 一次 1.67MB 的背景下載
+# （實測讓整套從秒級變成 >120s，還會狂敲上游）。指向 /dev/null：非空字串會
+# 停掉背景抓取，而 -s /dev/null 為假會讓 PRICING_JSON 維持 {}，剛好強制所有
+# 斷言走內建定價表——這正是它們要驗的東西，也讓結果不受網路狀態影響。
+# 唯一真的要連網的是 test_builtin_pricing_matches_upstream，它直接呼叫
+# core/fetch-pricing.sh，不受這個 override 影響。
+export PRICING_CACHE_OVERRIDE=/dev/null
+
 PASS=0
 FAIL=0
+SKIP=0
 
 # check <label> <expected> <actual>
 check() {
@@ -17,6 +27,13 @@ check() {
   else
     echo "✗ $label — expected: $expected, got: $actual"; ((FAIL++))
   fi
+}
+
+# skip <label> <reason> — for checks that need something the environment may
+# not have (e.g. network). Not counted as a failure; surfaced in the summary
+# so a permanently-skipped test can't hide.
+skip() {
+  echo "⊘ $1 — skipped: $2"; ((SKIP++))
 }
 
 test_exists() {
@@ -330,6 +347,61 @@ test_session_prices_by_model() {
   check "test_session_prices_by_model: sonnet 用 sonnet 單價" " [#] 7K \$0.02 " "$out"
 }
 
+# 內建定價表是 fallback（$PRICES 查不到時才用），但仍必須大致正確——2026-08-01
+# 那次 bug 就是它從第一天起就填成 Opus 4.1 的 $15/$75，整整高估 3 倍且一個月沒人
+# 發現。這個測試拿它跟上游對帳。
+#
+# 門檻刻意設成「差距達 2 倍才算失敗」而不是要求完全相等：上游會反映促銷價（例如
+# Sonnet 5 到 2026-08-31 的 $2/$10 相對標準價 $3/$15 就是 1.5 倍），內建表則刻意
+# 保守地放長期標準價。要抓的是「整個世代的價格都過時了」這種量級錯誤，不是追蹤
+# 每一檔促銷。
+test_builtin_pricing_matches_upstream() {
+  local label="test_builtin_pricing_matches_upstream"
+  local upstream
+  upstream=$(bash "$PROJECT_DIR/core/fetch-pricing.sh" 2>/dev/null) || {
+    skip "$label" "抓不到上游定價（離線？）"; return; }
+
+  # eval 出 JQ_PRICE_FN 後直接用，不要再套一層 bash -c —— 之前那版寫成
+  # `jq -cn "$JQ_PRICE_FN" 'builtin(...)'`，jq 會把第二個參數當成**檔名**而非
+  # filter，於是每次都失敗回空字串，比對變成空對空、測試恆綠。突變測試（把內建
+  # 表改回 $15/$75）才抓出這個假綠。
+  local JQ_PRICE_FN=""
+  eval "$(awk "/^JQ_PRICE_FN=/,/;'\$/" "$STATUSLINE")"
+  if [ -z "$JQ_PRICE_FN" ]; then
+    check "$label: 抽得到內建定價表" "non-empty" ""; return
+  fi
+
+  local m bad=""
+  for m in claude-opus-5 claude-opus-4-8 claude-sonnet-5 claude-haiku-4-5; do
+    local up
+    up=$(printf '%s' "$upstream" | jq -c --arg m "$m" '.[$m] // empty')
+    [ -z "$up" ] && continue
+    # builtin() 不吃 $PRICES，可以獨立呼叫
+    local bi
+    bi=$(jq -cn "$JQ_PRICE_FN builtin(\"$m\")" 2>/dev/null)
+    # 抽不到值代表測試本身壞了，必須紅——不能靜悄悄跳過而讓整條恆綠。
+    if [ -z "$bi" ]; then
+      bad="$bad\n    $m → 無法對內建表求值（測試壞了，不是定價問題）"
+      continue
+    fi
+    local verdict
+    verdict=$(jq -rn --argjson a "$bi" --argjson b "$up" '
+      [ "i","o","cr" ]
+      | map(. as $f
+            | ($a[$f] // 0) as $x | ($b[$f] // 0) as $y
+            | select($y > 0 and (($x / $y) >= 2 or ($x / $y) <= 0.5))
+            | "\($f): 內建 \($x) vs 上游 \($y)")
+      | join("; ")')
+    [ -n "$verdict" ] && bad="$bad\n    $m → $verdict"
+  done
+
+  if [ -z "$bad" ]; then
+    check "$label: 內建表與上游同一量級" "" ""
+  else
+    check "$label: 內建表與上游同一量級" "" "$(printf '%b' "$bad")"
+  fi
+}
+
 # cache write 的兩種 TTL 單價不同（5m 是 input 的 1.25 倍、1h 是 2 倍）。
 # usage.cache_creation 有分項時必須各自計價，不能一律套同一個單價。
 test_cache_write_ttl_priced_separately() {
@@ -354,7 +426,7 @@ test_scan_last_chat_uses_file_order() {
   { _tokens_entry m9 r9 1 0 0 1
     _tokens_entry m1 r1 1000 0 0 1000; } > "$t"
   local out
-  out=$(bash -c "$(awk "/^JQ_PRICE_FN=/,/;'\$/" "$STATUSLINE"); $(awk '/^_scan_transcript\(\)/,/^}/' "$STATUSLINE"); JQ=\$(command -v jq); _scan_transcript \"$t\"")
+  out=$(bash -c "$(awk "/^JQ_PRICE_FN=/,/;'\$/" "$STATUSLINE"); $(awk '/^_scan_transcript\(\)/,/^}/' "$STATUSLINE"); JQ=\$(command -v jq); PRICING_JSON='{}'; _scan_transcript \"$t\"")
   rm -f "$t"
   check "test_scan_last_chat_uses_file_order: session 加總兩筆" "2002" "$(echo "$out" | cut -d'|' -f1)"
   check "test_scan_last_chat_uses_file_order: last_chat 取檔案順序最後一筆" "2000" "$(echo "$out" | cut -d'|' -f3)"
@@ -497,6 +569,7 @@ test_cost_and_session_pricing_agree() {
     COST_CACHE_DIR=\"$cache_dir\"
     COST_CACHE=\"$cache_dir/daily-cost\"
     JQ=\$(command -v jq)
+    PRICING_JSON='{}'   # 這條測的是內建表，不要讓網路快取影響結果
     $(awk '/^_refresh_cost\(\)/,/^}/' "$STATUSLINE")
     HOME=\"$home\" PATH=/usr/bin:/bin _refresh_cost
     cat \"$cache_dir/daily-cost\" 2>/dev/null
@@ -506,6 +579,7 @@ test_cost_and_session_pricing_agree() {
   scan_out=$(bash -c "
     $price_fn
     JQ=\$(command -v jq)
+    PRICING_JSON='{}'
     $(awk '/^_scan_transcript\(\)/,/^}/' "$STATUSLINE")
     _scan_transcript \"$home/.claude/projects/proj/fixture.jsonl\"
   ")
@@ -746,6 +820,7 @@ main() {
   test_tokens_resolves_by_session_id
   test_session_includes_cache_read
   test_session_prices_by_model
+  test_builtin_pricing_matches_upstream
   test_cache_write_ttl_priced_separately
   test_scan_last_chat_uses_file_order
   test_session_degraded_without_transcript
@@ -763,7 +838,11 @@ main() {
   test_fmt_price_formatting
 
   echo "======================================"
-  echo "Results: $PASS passed, $FAIL failed"
+  if [ "$SKIP" -gt 0 ]; then
+    echo "Results: $PASS passed, $FAIL failed, $SKIP skipped"
+  else
+    echo "Results: $PASS passed, $FAIL failed"
+  fi
 
   if [[ $FAIL -eq 0 ]]; then
     exit 0
