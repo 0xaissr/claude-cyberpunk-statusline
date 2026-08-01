@@ -97,8 +97,12 @@ input_tokens + cache_creation_input_tokens + cache_read_input_tokens + output_to
 是「我現在佔用多少 context」（後者由 `context` 區塊負責）。快取讀取約佔實際花費的一半，
 若把它排除，token 數與金額就無法互相印證。
 
-金額依訊息自身的 `model` 欄位按家族（Opus / Sonnet / Haiku）分價，session 中途換模型也
-能算對。
+金額依訊息自身的 `model` 欄位按家族（Fable / Opus / Sonnet / Haiku）分價，session 中途
+換模型也能算對。cache write 依 `usage.cache_creation` 的 TTL 分項計價——5 分鐘是 input
+單價的 1.25 倍、1 小時是 2 倍。
+
+這個金額是**等值 API 成本**。Pro／Max 訂閱制並非按 token 計費，所以它是用量的量尺，
+不是帳單。
 
 以 `blocks` 與 `blocks_line2` 設定各列要顯示哪些區塊：
 

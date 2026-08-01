@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-08-01
+
+### 修正：定價表用的是 Opus 4.x 舊費率，金額高估約 2.6 倍
+
+- **現象**：使用者質疑「一個 session 花了 $4.63」不合理。查 transcript 後確認 **token 數是對的**（29 次 API 呼叫、cache_read 佔 96%，見 2026-07-31 的設計說明），但**金額算錯**
+- **根因一：Opus 單價過時**。`JQ_PRICE_FN` 沿用 Opus 4.1 時代的 `{i:15, o:75, cw:18.75, cr:1.50}`。Opus 4.6 之後（含本機在用的 `claude-opus-5` 與 `claude-opus-4-8`）已降為 `{i:5, o:25, cr:0.50}`，整整 3 倍價差。1M context 沒有長文脈溢價，所以不需要按 context 大小分級
+- **根因二：cache write 沒分 TTL**。cache write 單價是 input 的 1.25 倍（5 分鐘 TTL）或 **2 倍**（1 小時 TTL），舊表只有單一 `cw` 值。實測 Claude Code 現在**一律用 1h TTL**（transcript 的 `usage.cache_creation.ephemeral_1h_input_tokens` 全額、`ephemeral_5m_input_tokens` 為 0），所以舊表在 Opus 上同時犯了「用錯家族單價」和「用錯 TTL 倍率」兩個錯
+- **改動**：
+  - `JQ_PRICE_FN` 的每個家族改成 `{i, o, cw5, cw1h, cr}` 五個欄位；新增 Fable/Mythos（$10/$50）；用 `test("^claude-opus-(5|4-8|4-7|4-6)")` 區分現代 Opus（$5/$25）與舊 Opus（維持 $15/$75）；unknown model 的 fallback 從舊 Opus 改為現代 Opus 費率
+  - 新增共用的 `usd($u; $p)` jq 函式，依 `usage.cache_creation` 的 5m/1h 分項各自計價；分項欄位缺席（舊 transcript）才退回用 1h 單價估全部。`_refresh_cost` 與 `_scan_transcript` 兩處各自 4 行的算式收斂成一次呼叫
+- **實測驗證**：拿本 session 的 transcript 快照（29 次呼叫、1,567,092 tokens）對帳——舊費率 $3.99、新費率 $1.51，statusline 輸出與手算逐項一致
+- **連動修好的測試基礎設施問題**：`tests/test-statusline.sh` 兩處用 `awk "/^JQ_PRICE_FN=/,/end;'$/"` 抽取定價函式，終止條件寫死「以 `end;'` 結尾的那行」。新增的 `usd()` 定義在 `end;` 之後，被攔腰截斷成未閉合的字串，兩個測試因此輸出 `run /cyberpunk-statusline configure` 這種毫不相干的訊息。改成 `/;'$/`（收尾單引號那行），之後再改 jq 內容都不會再壞
+- **新增迴歸測試** `test_cache_write_ttl_priced_separately`：同樣 100K cache write，全 5m 應為 $0.62、全 1h 應為 $1.00、缺分項退回 1h。跑突變測試（把 `cw5` 改成等於 `cw1h`）確認第一條斷言會紅，偵測有效
+- **文件**：雙語 README 補上 cache write 依 TTL 分價的說明，並言明「這個金額是**等值 API 成本**，Pro／Max 訂閱制不按 token 計費，它是用量的量尺不是帳單」——使用者這次的疑問正是由此而來
+- **測試**：全綠——test-statusline 70/0、test-configure 21/0、codex adapter 五支 82/0、core 三支 44/0、tab-state 48 pass
+
 ## 2026-07-31
 
 ### 調整：金額一律顯示到小數點後兩位

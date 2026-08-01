@@ -269,26 +269,26 @@ _tokens_entry() {
 test_tokens_sums_session_transcript() {
   local t=$(mktemp)
   # (1000+2000+9999+500) + (4000+8000+9999+1500) = 36998 → "36K"
-  # 成本：opus。in 5000*15 + cw 10000*18.75 + cr 19998*1.5 + out 2000*75
-  #      = 75000 + 187500 + 29997 + 150000 = 442497 (per 1e6) = $0.442497 → $0.44
+  # 成本：opus 5。in 5000*5 + cw 10000*10 + cr 19998*0.5 + out 2000*25
+  #      = 25000 + 100000 + 9999 + 50000 = 184999 (per 1e6) = $0.184999 → $0.18
   { _tokens_entry m1 r1 1000 2000 9999 500
     _tokens_entry m2 r2 4000 8000 9999 1500; } > "$t"
   local out=$(_tokens_render "$t")
   rm -f "$t"
-  check "test_tokens_sums_session_transcript: 四類 token 全加總" " [#] 36K \$0.44 " "$out"
+  check "test_tokens_sums_session_transcript: 四類 token 全加總" " [#] 36K \$0.18 " "$out"
 }
 
 test_tokens_dedupes_retried_request() {
   local t=$(mktemp)
   # 同一組 message.id|requestId 出現兩次，只能算一次
   # 10000+20000+9999+5000 = 44999 → "44K"
-  # opus 成本：10000*15 + 20000*18.75 + 9999*1.5 + 5000*75
-  #          = 150000 + 375000 + 14998.5 + 375000 = 914998.5 /1e6 = $0.9149985 → $0.91
+  # opus 5 成本：10000*5 + 20000*10 + 9999*0.5 + 5000*25
+  #          = 50000 + 200000 + 4999.5 + 125000 = 379999.5 /1e6 = $0.3799995 → $0.38
   { _tokens_entry m1 r1 10000 20000 9999 5000
     _tokens_entry m1 r1 10000 20000 9999 5000; } > "$t"
   local out=$(_tokens_render "$t")
   rm -f "$t"
-  check "test_tokens_dedupes_retried_request: 重複列只計一次" " [#] 44K \$0.91 " "$out"
+  check "test_tokens_dedupes_retried_request: 重複列只計一次" " [#] 44K \$0.38 " "$out"
 }
 
 test_tokens_resolves_by_session_id() {
@@ -303,9 +303,9 @@ test_tokens_resolves_by_session_id() {
     | head -1 | sed 's/\x1b\[[0-9;]*m//g')
   rm -rf "$home"; rm -f "$cfg"
   # 1,744,566 → 無條件捨去到一位小數 → 1.7M
-  # opus 成本：1000000*15 + 500000*18.75 + 9999*1.5 + 234567*75
-  #          = 15000000 + 9375000 + 14998.5 + 17592525 = 41982523.5 /1e6 → $41.98
-  check "test_tokens_resolves_by_session_id: 用 session_id 找到 transcript" " [#] 1.7M \$41.98 " "$out"
+  # opus 5 成本：1000000*5 + 500000*10 + 9999*0.5 + 234567*25
+  #          = 5000000 + 5000000 + 4999.5 + 5864175 = 15869174.5 /1e6 → $15.87
+  check "test_tokens_resolves_by_session_id: 用 session_id 找到 transcript" " [#] 1.7M \$15.87 " "$out"
 }
 
 test_session_includes_cache_read() {
@@ -315,19 +315,36 @@ test_session_includes_cache_read() {
   local out=$(_tokens_render "$t")
   rm -f "$t"
   # 1000+2000+5000000+500 = 5003500 → 5.0M
-  # opus 成本：1000*15 + 2000*18.75 + 5000000*1.5 + 500*75
-  #          = 15000 + 37500 + 7500000 + 37500 = 7590000 /1e6 → $7.59
-  check "test_session_includes_cache_read: cache_read 計入 token" " [#] 5.0M \$7.59 " "$out"
+  # opus 5 成本：1000*5 + 2000*10 + 5000000*0.5 + 500*25
+  #          = 5000 + 20000 + 2500000 + 12500 = 2537500 /1e6 → $2.54
+  check "test_session_includes_cache_read: cache_read 計入 token" " [#] 5.0M \$2.54 " "$out"
 }
 
 test_session_prices_by_model() {
   local t=$(mktemp)
-  # sonnet 單價：in 3 / cw 3.75 / cr 0.30 / out 15
-  # 1000*3 + 2000*3.75 + 4000*0.30 + 500*15 = 3000+7500+1200+7500 = 19200 /1e6
+  # sonnet 單價：in 3 / cw(1h) 6 / cr 0.30 / out 15
+  # 1000*3 + 2000*6 + 4000*0.30 + 500*15 = 3000+12000+1200+7500 = 23700 /1e6
   printf '{"type":"assistant","requestId":"r1","message":{"id":"m1","model":"claude-sonnet-5","usage":{"input_tokens":1000,"cache_creation_input_tokens":2000,"cache_read_input_tokens":4000,"output_tokens":500}}}\n' > "$t"
   local out=$(_tokens_render "$t")
   rm -f "$t"
   check "test_session_prices_by_model: sonnet 用 sonnet 單價" " [#] 7K \$0.02 " "$out"
+}
+
+# cache write 的兩種 TTL 單價不同（5m 是 input 的 1.25 倍、1h 是 2 倍）。
+# usage.cache_creation 有分項時必須各自計價，不能一律套同一個單價。
+test_cache_write_ttl_priced_separately() {
+  local t=$(mktemp)
+  # opus 5：cw5=6.25 / cw1h=10。100000 全走 5m vs 全走 1h 要差 375000/1e6=$0.375
+  # 全 5m：100000*6.25 = 625000 /1e6 → $0.62（fmt_price 截到兩位）
+  printf '{"type":"assistant","requestId":"r1","message":{"id":"m1","model":"claude-opus-5","usage":{"cache_creation_input_tokens":100000,"cache_creation":{"ephemeral_5m_input_tokens":100000,"ephemeral_1h_input_tokens":0}}}}\n' > "$t"
+  check "test_cache_write_ttl_priced_separately: 全 5m 用 1.25x 單價" " [#] 100K \$0.62 " "$(_tokens_render "$t")"
+  # 全 1h：100000*10 = 1000000 /1e6 → $1.00
+  printf '{"type":"assistant","requestId":"r1","message":{"id":"m1","model":"claude-opus-5","usage":{"cache_creation_input_tokens":100000,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":100000}}}}\n' > "$t"
+  check "test_cache_write_ttl_priced_separately: 全 1h 用 2x 單價" " [#] 100K \$1.00 " "$(_tokens_render "$t")"
+  # 無 cache_creation 分項（舊 transcript）→ 退回 1h 單價，與上一筆同價
+  printf '{"type":"assistant","requestId":"r1","message":{"id":"m1","model":"claude-opus-5","usage":{"cache_creation_input_tokens":100000}}}\n' > "$t"
+  check "test_cache_write_ttl_priced_separately: 缺分項退回 1h 單價" " [#] 100K \$1.00 " "$(_tokens_render "$t")"
+  rm -f "$t"
 }
 
 # group_by 會依 message.id 排序，若直接取 last 會拿到字典序最大的 m9 而非檔案順序的
@@ -337,7 +354,7 @@ test_scan_last_chat_uses_file_order() {
   { _tokens_entry m9 r9 1 0 0 1
     _tokens_entry m1 r1 1000 0 0 1000; } > "$t"
   local out
-  out=$(bash -c "$(awk "/^JQ_PRICE_FN=/,/end;'\$/" "$STATUSLINE"); $(awk '/^_scan_transcript\(\)/,/^}/' "$STATUSLINE"); JQ=\$(command -v jq); _scan_transcript \"$t\"")
+  out=$(bash -c "$(awk "/^JQ_PRICE_FN=/,/;'\$/" "$STATUSLINE"); $(awk '/^_scan_transcript\(\)/,/^}/' "$STATUSLINE"); JQ=\$(command -v jq); _scan_transcript \"$t\"")
   rm -f "$t"
   check "test_scan_last_chat_uses_file_order: session 加總兩筆" "2002" "$(echo "$out" | cut -d'|' -f1)"
   check "test_scan_last_chat_uses_file_order: last_chat 取檔案順序最後一筆" "2000" "$(echo "$out" | cut -d'|' -f3)"
@@ -360,8 +377,8 @@ _last_chat_cfg() {
 test_last_chat_uses_final_message() {
   local t=$(mktemp) cfg=$(mktemp) home=$(mktemp -d)
   # 兩筆訊息，last_chat 只取最後一筆：4000+8000+1000+1500 = 14500 → 14K
-  # opus 成本：4000*15 + 1500*75 + 8000*18.75 + 1000*1.5 = 60000+112500+150000+1500
-  #          = 324000 /1e6 = $0.324
+  # opus 5 成本：4000*5 + 1500*25 + 8000*10 + 1000*0.5 = 20000+37500+80000+500
+  #          = 138000 /1e6 = $0.138
   { _tokens_entry m1 r1 1000 2000 9999 500
     _tokens_entry m2 r2 4000 8000 1000 1500; } > "$t"
   _last_chat_cfg > "$cfg"
@@ -369,7 +386,7 @@ test_last_chat_uses_final_message() {
     | env HOME="$home" CONFIG_OVERRIDE="$cfg" bash "$STATUSLINE" 2>/dev/null \
     | head -1 | sed 's/\x1b\[[0-9;]*m//g')
   rm -rf "$home"; rm -f "$cfg" "$t"
-  check "test_last_chat_uses_final_message: 只取最後一筆訊息" " [L] 14K \$0.32 " "$out"
+  check "test_last_chat_uses_final_message: 只取最後一筆訊息" " [L] 14K \$0.14 " "$out"
 }
 
 test_session_without_cost_omits_dollar() {
@@ -393,11 +410,11 @@ test_line2_renders_second_row() {
     | sed 's/\x1b\[[0-9;]*m//g')
   rm -rf "$home"; rm -f "$cfg" "$t"
   local line2=$(printf '%s' "$out" | sed -n '2p')
-  # 4500 tokens → "4K"；成本 1000*15 + 2000*18.75 + 1000*1.5 + 500*75
-  #             = 15000 + 37500 + 1500 + 37500 = 91500 /1e6 → $0.0915
+  # 4500 tokens → "4K"；成本 1000*5 + 2000*10 + 1000*0.5 + 500*25
+  #             = 5000 + 20000 + 500 + 12500 = 38000 /1e6 → $0.038
   # 只有一筆訊息，故 last_chat 與 session 數值相同
   # SEP 實測為 " | "，與區塊自帶的前後空白相加後是兩個空格（實測驗證過）
-  check "test_line2_renders_second_row: 第二列有 session 與 last_chat" " [#] 4K \$0.09  |  [L] 4K \$0.09 " "$line2"
+  check "test_line2_renders_second_row: 第二列有 session 與 last_chat" " [#] 4K \$0.04  |  [L] 4K \$0.04 " "$line2"
 }
 
 test_line2_absent_when_empty() {
@@ -434,7 +451,7 @@ test_legacy_tokens_maps_to_session() {
     | env HOME="$home" CONFIG_OVERRIDE="$cfg" bash "$STATUSLINE" 2>/dev/null \
     | head -1 | sed 's/\x1b\[[0-9;]*m//g')
   rm -rf "$home"; rm -f "$cfg" "$t"
-  check "test_legacy_tokens_maps_to_session: 舊 tokens 名稱仍可用" " [#] 4K \$0.09 " "$out"
+  check "test_legacy_tokens_maps_to_session: 舊 tokens 名稱仍可用" " [#] 4K \$0.04 " "$out"
 }
 
 test_line2_rainbow_colors_differ() {
@@ -471,7 +488,7 @@ test_cost_and_session_pricing_agree() {
     > "$home/.claude/projects/proj/fixture.jsonl"
 
   cache_dir=$(mktemp -d)
-  price_fn=$(awk "/^JQ_PRICE_FN=/,/end;'\$/" "$STATUSLINE")
+  price_fn=$(awk "/^JQ_PRICE_FN=/,/;'\$/" "$STATUSLINE")
 
   # 路徑一：_refresh_cost 的本地 JSONL fallback（PATH 刻意不含 ccusage/npx，
   # 逼它走 fallback 分支）
@@ -523,7 +540,7 @@ test_line2_unknown_block_skipped_alongside_known_rainbow() {
     | env HOME="$home" CONFIG_OVERRIDE="$cfg" bash "$STATUSLINE" 2>/dev/null \
     | sed -n '2p' | sed 's/\x1b\[[0-9;]*m//g')
   rm -rf "$home"; rm -f "$cfg" "$t"
-  if printf '%s' "$line2" | grep -q '\[L\] 4K \$0.09'; then
+  if printf '%s' "$line2" | grep -q '\[L\] 4K \$0.04'; then
     echo "✓ test_line2_unknown_block_skipped_alongside_known_rainbow: 打錯字的區塊被跳過，正常區塊仍渲染"; ((PASS++))
   else
     echo "✗ test_line2_unknown_block_skipped_alongside_known_rainbow: last_chat 內容遺失 — got: $line2"; ((FAIL++))
@@ -729,6 +746,7 @@ main() {
   test_tokens_resolves_by_session_id
   test_session_includes_cache_read
   test_session_prices_by_model
+  test_cache_write_ttl_priced_separately
   test_scan_last_chat_uses_file_order
   test_session_degraded_without_transcript
   test_last_chat_uses_final_message

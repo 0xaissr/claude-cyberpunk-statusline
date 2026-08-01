@@ -105,8 +105,13 @@ tokens has this session run through", not "how much context am I using right now
 so excluding them would leave the token count and the dollar figure unable to
 corroborate each other.
 
-Cost is priced per model family (Opus / Sonnet / Haiku) from the message's own
-`model` field, so switching models mid-session is priced correctly.
+Cost is priced per model family (Fable / Opus / Sonnet / Haiku) from the message's
+own `model` field, so switching models mid-session is priced correctly. Cache
+writes are priced by TTL from `usage.cache_creation` — 5-minute writes at 1.25×
+the input rate, 1-hour writes at 2×.
+
+The dollar figure is the **equivalent API cost**. On a Pro/Max subscription you
+are not billed per token, so treat it as a usage gauge rather than a bill.
 
 Configure which blocks appear on each line with `blocks` and `blocks_line2`:
 

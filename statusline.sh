@@ -23,11 +23,30 @@ DIM='\033[2m'
 # session/last_chat 區塊（_scan_transcript）都要用同一份單價，否則同一條
 # status line 上兩邊金額可能對不上。兩處都用字串接續的方式把這段 jq 片段
 # 接進各自的 jq 程式（見下方兩處用法），數字本身沒有變動，純粹去重複。
+# cw5 / cw1h 是 cache write 的兩種 TTL：5 分鐘為 input 的 1.25 倍、1 小時為 2 倍。
+# Claude Code 現在一律用 1h TTL，但 transcript 的 usage.cache_creation 有分項，
+# 所以照分項各自計價，欄位缺席（舊 transcript）才退回用 1h 單價估全部。
+# Opus 4.6 以後（含 Opus 5）是 $5/$25，不是 Opus 4.1 時代的 $15/$75；1M context
+# 沒有長文脈溢價，所以不需要按 context 大小分級。
 JQ_PRICE_FN='def price($m):
-  if   ($m | startswith("claude-opus"))   then {i: 15, o: 75, cw: 18.75, cr: 1.50}
-  elif ($m | startswith("claude-sonnet")) then {i: 3,  o: 15, cw: 3.75,  cr: 0.30}
-  elif ($m | startswith("claude-haiku"))  then {i: 1,  o: 5,  cw: 1.25,  cr: 0.10}
-  else {i: 15, o: 75, cw: 18.75, cr: 1.50} end;'
+  if   (($m | startswith("claude-fable")) or ($m | startswith("claude-mythos")))
+                                          then {i: 10, o: 50, cw5: 12.50, cw1h: 20,    cr: 1.00}
+  elif ($m | test("^claude-opus-(5|4-8|4-7|4-6)"))
+                                          then {i: 5,  o: 25, cw5: 6.25,  cw1h: 10,    cr: 0.50}
+  elif ($m | startswith("claude-opus"))   then {i: 15, o: 75, cw5: 18.75, cw1h: 30,    cr: 1.50}
+  elif ($m | startswith("claude-sonnet")) then {i: 3,  o: 15, cw5: 3.75,  cw1h: 6,     cr: 0.30}
+  elif ($m | startswith("claude-haiku"))  then {i: 1,  o: 5,  cw5: 1.25,  cw1h: 2,     cr: 0.10}
+  else {i: 5, o: 25, cw5: 6.25, cw1h: 10, cr: 0.50} end;
+def usd($u; $p):
+  ($u.cache_creation) as $cc |
+  ( if $cc == null
+    then (($u.cache_creation_input_tokens // 0) * $p.cw1h)
+    else (($cc.ephemeral_5m_input_tokens // 0) * $p.cw5
+          + ($cc.ephemeral_1h_input_tokens // 0) * $p.cw1h) end ) as $cwc |
+  (($u.input_tokens // 0) * $p.i
+   + ($u.output_tokens // 0) * $p.o
+   + ($u.cache_read_input_tokens // 0) * $p.cr
+   + $cwc) / 1000000;'
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 hex_to_fg() {
@@ -262,12 +281,7 @@ _refresh_cost() {
           select(.message.id != null) |
           {k: (.message.id + "|" + (.requestId // "")), e: .}
         ] | group_by(.k) | map(.[0].e) |
-        [ .[] | .message as $msg | $msg.usage as $u | price($msg.model) as $p |
-          (($u.input_tokens // 0) * $p.i
-           + ($u.output_tokens // 0) * $p.o
-           + ($u.cache_creation_input_tokens // 0) * $p.cw
-           + ($u.cache_read_input_tokens // 0) * $p.cr) / 1000000
-        ] | add // 0
+        [ .[] | .message as $msg | usd($msg.usage; price($msg.model // "")) ] | add // 0
       ' 2>/dev/null)
   fi
 
@@ -319,11 +333,7 @@ _scan_transcript() {
     '"$JQ_PRICE_FN"'
     def tok($u): ($u.input_tokens // 0) + ($u.cache_creation_input_tokens // 0)
                  + ($u.cache_read_input_tokens // 0) + ($u.output_tokens // 0);
-    def cost($e): $e.message as $msg | $msg.usage as $u | price($msg.model // "") as $p |
-      (($u.input_tokens // 0) * $p.i
-       + ($u.output_tokens // 0) * $p.o
-       + ($u.cache_creation_input_tokens // 0) * $p.cw
-       + ($u.cache_read_input_tokens // 0) * $p.cr) / 1000000;
+    def cost($e): $e.message as $msg | usd($msg.usage; price($msg.model // ""));
     [ .[] | select(.message.id != null) ] | to_entries
     | map({k: (.value.message.id + "|" + (.value.requestId // "")), i: .key, e: .value})
     | group_by(.k) | map(.[0]) | sort_by(.i) | map(.e) as $msgs |
