@@ -10,10 +10,15 @@ Displays model, context usage, rate limits, daily cost, directory, git branch, a
 
 ## Prerequisites
 
-- **Claude Code** CLI or Desktop
+- **Claude Code** CLI or Desktop — for the Claude installer
+- **Codex** CLI (optional) — for the Codex installer
 - **jq** — `brew install jq` (macOS) / `apt install jq` (Linux)
 - **Nerd Font** (optional, recommended) — for icons. [Download here](https://www.nerdfonts.com/)
 - **ccusage** (optional) — for accurate daily cost tracking. `npm i -g ccusage`
+
+The patched-Codex path (`./install-codex.sh --patched`) additionally needs **git** and a
+**Rust toolchain** (`cargo`), because it builds Codex from source — see
+[Install for Codex](#3-install-for-codex-optional).
 
 ## Installation
 
@@ -23,7 +28,7 @@ Displays model, context usage, rate limits, daily cost, directory, git branch, a
 git clone https://github.com/0xaissr/claude-cyberpunk-statusline.git ~/claude-cyberpunk-statusline
 ```
 
-### 2. Install Claude
+### 2. Install for Claude Code
 
 ```bash
 cd ~/claude-cyberpunk-statusline && ./install-claude.sh
@@ -34,7 +39,7 @@ This will:
 - Configure Claude Code's statusLine setting
 - Launch the setup wizard (if first time)
 
-### Install Codex
+### 3. Install for Codex (optional)
 
 Codex uses a separate installer so it can keep its own theme config:
 
@@ -45,17 +50,35 @@ cd ~/claude-cyberpunk-statusline && ./install-codex.sh
 This will guide theme selection and configure Codex's official built-in
 `tui.status_line` items. It does not build a patched Codex binary by default.
 Official Codex does not currently support command-rendered cyberpunk status
-lines.
+lines, so this mode gives you Codex's own status items — not the cyberpunk
+footer.
 
-For the full cyberpunk footer, opt into the patched-binary path explicitly:
+Options: `--theme THEME`, `--official` / `--patched`, `--alias` / `--no-alias`,
+`--dry-run`.
+
+#### Patched binary (full cyberpunk footer)
 
 ```bash
 cd ~/claude-cyberpunk-statusline && ./install-codex.sh --patched
 ```
 
-### 3. Restart
+This is an experimental, Codex-only path. Know what it does before you run it:
 
-Restart your Claude Code session to see the status line.
+- **Requires `git` and a Rust toolchain (`cargo`).** There is no preflight check, so
+  a missing `cargo` fails partway through with `command not found`.
+- Clones the Codex source at `rust-v0.142.5`, applies
+  `adapters/codex/patches/status-line-command.patch`, then runs a full
+  `cargo build --release`. Expect a long first build and several GB of disk.
+- Installs the result as **`~/.local/bin/codex-cyberpunk`**. Your existing `codex`
+  binary is left untouched.
+- Offers to append `alias codex="$HOME/.local/bin/codex-cyberpunk"` to `~/.zshrc`
+  (zsh only). Force it with `--alias`, skip it with `--no-alias`.
+
+See [docs/codex-patched-footer.md](docs/codex-patched-footer.md) for the details.
+
+### 4. Restart
+
+Restart your Claude Code session — or your Codex session — to see the status line.
 
 ### Reconfigure
 
@@ -77,7 +100,7 @@ The setup wizard will guide you through:
 
 | Block | Description |
 |---|---|
-| model | Model name (e.g., Opus 4.6) |
+| model | Model name (e.g., Opus 5) |
 | context | Context window usage % |
 | session | Cumulative tokens and cost for the current session (e.g. `646K $1.89`) |
 | last_chat | Tokens and cost of the most recent API call (e.g. `163K $0.34`) |
@@ -223,9 +246,30 @@ You can also create custom themes — see `themes/custom-example/` for reference
 
 ## Uninstall
 
+### Claude Code
+
 ```bash
 cd ~/claude-cyberpunk-statusline && ./uninstall.sh
 ```
+
+This clears Claude Code's `statusLine` setting. It does **not** touch anything Codex.
+
+### Codex
+
+```bash
+cd ~/claude-cyberpunk-statusline && ./adapters/codex/uninstall-patched.sh
+```
+
+This removes `~/.local/bin/codex-cyberpunk` and the `status_line_command` entry in
+`~/.codex/config.toml` — but only when that entry points at this project. Add
+`--dry-run` to see what it would touch first.
+
+Two things it does not undo. Remove them by hand if you used them:
+
+- the official-mode `tui.status_line` items written into `~/.codex/config.toml`
+- the `alias codex="$HOME/.local/bin/codex-cyberpunk"` line in `~/.zshrc`
+
+Once both installers are undone you can safely delete the cloned directory.
 
 ## License
 

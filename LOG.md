@@ -2,6 +2,17 @@
 
 ## 2026-08-01
 
+### 文件：補齊 Codex 安裝／解除安裝的三個致命缺口
+
+- **起因**：使用者要在另一台電腦安裝，問「`../cyberpunk-statusline-marketplace` 是給 Claude 用的嗎、Codex 怎麼辦」。順帶釐清那個本地目錄已是廢棄的舊 clone——GitHub 上該 repo 早已改名為 `claude-cyberpunk-statusline`（舊網址只是 redirect，兩邊 `git ls-remote` 的 HEAD 都是 `98a0530`），而主 repo 在 `7a3a088` 就清掉了 marketplace/plugin 結構。兩份 README 都沒有 marketplace 殘留，但 Codex 那段有真缺口
+- **缺口一：`--patched` 完全沒寫前置需求**（最嚴重）。`adapters/codex/install-patched.sh` 實際會 clone Codex 原始碼（釘在 `rust-v0.142.5`）、套 patch、跑 `cargo build --release`，也就是需要 **git + Rust toolchain**，而腳本裡**沒有 `command -v cargo` 前置檢查**，缺 cargo 會在執行到一半才以 `command not found` 死掉。README 原文只寫「請明確指定 patched binary 路徑」，一個字都沒提。連帶補上：產物是 `~/.local/bin/codex-cyberpunk` 而**不覆蓋**原本的 `codex`、會詢問是否往 `~/.zshrc` 加 alias（僅 zsh）、以及 `--theme` / `--official` / `--patched` / `--alias` / `--no-alias` / `--dry-run` 這些從未被記錄的選項
+- **缺口二：解除安裝章節漏掉 Codex**。`uninstall.sh` 只清 Claude Code 的 `statusLine`，完全不碰 `~/.codex/config.toml` 也不刪 `codex-cyberpunk`，但 README 只給那一行指令，讀起來像「跑一個就乾淨」。改成 Claude／Codex 兩小節，並明確標出 `adapters/codex/uninstall-patched.sh` **也還原不了**的兩樣東西：official 模式寫進 config.toml 的 `tui.status_line` items、以及 `.zshrc` 的 alias（讀 uninstall-patched.sh 原始碼確認它只移除指向本專案的 `status_line_command` 與那支 binary）
+- **缺口三：環境需求只列 Claude Code**，但文件有一半在講 Codex。補上 Codex CLI（選用），並在清單下方獨立說明 patched 模式的 git + cargo 需求
+- **結構修正**：原本「Install Codex」沒有編號、夾在 `2.` 與 `3.` 之間，看起來像 Claude 安裝的子步驟——改為 `3. Install for Codex (optional)`，重新啟動順延為 `4.` 並補上 Codex；patched 內容降為 `####` 子節並連到 `docs/codex-patched-footer.md`（該文件先前沒有任何地方連結得到）
+- **繁中版另外修兩處**：補上缺漏的語言切換連結（英文版第 3 行有，繁中版沒有，兩邊不對稱）；修正 `--patched` 那句的誤譯——原文 "opt into the patched-binary **path** explicitly" 的 path 指的是「路線／做法」，被譯成「請明確指定 patched binary 路徑」，會讓人以為要傳一個檔案路徑參數
+- **小修**：`model` 區塊範例從 `Opus 4.6` 更新為 `Opus 5`（兩份）
+- **驗證**：兩份 README 標題數皆為 22 且逐節對齊；錨點連結依 GitHub slug 規則檢查過（繁中版 `#3-安裝-codex選用`，全形括號會被 slugger 去除）；全套測試維持全綠
+
 ### 功能：定價每日自動更新，內建表降級為 fallback 並加上對帳測試
 
 - **動機**：承下一則的定價修正——問題不是「價格漂移」而是「一開始就填錯且一個月沒人發現」。使用者要求用極低成本的方式定期自動校正

@@ -1,5 +1,7 @@
 # cyberpunk-statusline
 
+[English](../README.md) | [繁體中文](README.zh-TW.md)
+
 可自訂主題的賽博龐克風格狀態列，支援 Claude Code 與 Codex，附帶 p10k 風格的設定流程。
 
 顯示模型名稱、上下文用量、速率限制、每日花費、目錄路徑、Git 分支與時間 — 全部以真彩色主題呈現在終端機中。
@@ -8,10 +10,15 @@
 
 ## 環境需求
 
-- **Claude Code** CLI 或桌面版
+- **Claude Code** CLI 或桌面版 — Claude 安裝器需要
+- **Codex** CLI（選用）— Codex 安裝器需要
 - **jq** — `brew install jq`（macOS）/ `apt install jq`（Linux）
 - **Nerd Font**（選用，建議安裝）— 用於圖示顯示。[下載連結](https://www.nerdfonts.com/)
 - **ccusage**（選用）— 更精確的每日花費統計。`npm i -g ccusage`
+
+patched Codex 模式（`./install-codex.sh --patched`）還額外需要 **git** 與 **Rust
+toolchain**（`cargo`），因為它會從原始碼編譯 Codex — 詳見
+[安裝 Codex](#3-安裝-codex選用)。
 
 ## 安裝
 
@@ -21,7 +28,7 @@
 git clone https://github.com/0xaissr/claude-cyberpunk-statusline.git ~/claude-cyberpunk-statusline
 ```
 
-### 2. 安裝 Claude
+### 2. 安裝 Claude Code
 
 ```bash
 cd ~/claude-cyberpunk-statusline && ./install-claude.sh
@@ -32,7 +39,7 @@ cd ~/claude-cyberpunk-statusline && ./install-claude.sh
 - 設定 Claude Code 的 statusLine 設定
 - 啟動設定精靈（首次安裝時）
 
-### 安裝 Codex
+### 3. 安裝 Codex（選用）
 
 Codex 使用獨立安裝器，因此可以和 Claude 使用不同主題：
 
@@ -40,17 +47,31 @@ Codex 使用獨立安裝器，因此可以和 Claude 使用不同主題：
 cd ~/claude-cyberpunk-statusline && ./install-codex.sh
 ```
 
-它會引導選擇 Codex 主題，並設定 Codex 官方支援的內建 `tui.status_line` items。預設不會編譯 patched Codex binary。官方 Codex 目前不支援 command-rendered cyberpunk status line。
+它會引導選擇 Codex 主題，並設定 Codex 官方支援的內建 `tui.status_line` items。預設不會編譯 patched Codex binary。官方 Codex 目前不支援 command-rendered cyberpunk status line，所以這個模式給你的是 Codex 自己的狀態項目，不是 cyberpunk footer。
 
-如果要使用完整 cyberpunk footer，請明確指定 patched binary 路徑：
+可用選項：`--theme THEME`、`--official` / `--patched`、`--alias` / `--no-alias`、`--dry-run`。
+
+#### Patched binary（完整 cyberpunk footer）
 
 ```bash
 cd ~/claude-cyberpunk-statusline && ./install-codex.sh --patched
 ```
 
-### 3. 重新啟動
+這是實驗性質、僅限 Codex 的路線。執行前先了解它會做什麼：
 
-重新啟動 Claude Code 即可看到狀態列。
+- **需要 `git` 與 Rust toolchain（`cargo`）。** 腳本沒有前置檢查，缺少 `cargo` 會在執行到一半時以 `command not found` 失敗。
+- 會 clone `rust-v0.142.5` 的 Codex 原始碼、套用
+  `adapters/codex/patches/status-line-command.patch`，然後跑一次完整的
+  `cargo build --release`。首次編譯很久，並會佔用數 GB 磁碟空間。
+- 產物安裝為 **`~/.local/bin/codex-cyberpunk`**，原本的 `codex` binary 不會被覆蓋。
+- 會詢問是否把 `alias codex="$HOME/.local/bin/codex-cyberpunk"` 加進 `~/.zshrc`
+  （僅限 zsh）。用 `--alias` 強制加入，用 `--no-alias` 跳過。
+
+細節請見 [docs/codex-patched-footer.md](codex-patched-footer.md)。
+
+### 4. 重新啟動
+
+重新啟動 Claude Code（或 Codex）即可看到狀態列。
 
 ### 重新設定
 
@@ -72,7 +93,7 @@ cd ~/claude-cyberpunk-statusline && ./configure.sh
 
 | 區塊 | 說明 |
 |---|---|
-| model | 模型名稱（例如 Opus 4.6） |
+| model | 模型名稱（例如 Opus 5） |
 | context | 上下文視窗用量 % |
 | session | 本次 session 的累計 token 與花費（例如 `646K $1.89`） |
 | last_chat | 最後一次 API 呼叫的 token 與花費（例如 `163K $0.34`） |
@@ -205,9 +226,29 @@ cd ~/claude-cyberpunk-statusline && git pull
 
 ## 解除安裝
 
+### Claude Code
+
 ```bash
 cd ~/claude-cyberpunk-statusline && ./uninstall.sh
 ```
+
+這只會清掉 Claude Code 的 `statusLine` 設定，**不會**動到任何 Codex 的東西。
+
+### Codex
+
+```bash
+cd ~/claude-cyberpunk-statusline && ./adapters/codex/uninstall-patched.sh
+```
+
+這會刪除 `~/.local/bin/codex-cyberpunk`，並移除 `~/.codex/config.toml` 裡的
+`status_line_command` — 但僅限於該設定指向本專案時。加上 `--dry-run` 可以先看它會動到什麼。
+
+有兩樣東西它不會還原，如果你有用到請自行手動移除：
+
+- official 模式寫進 `~/.codex/config.toml` 的 `tui.status_line` items
+- `~/.zshrc` 裡的 `alias codex="$HOME/.local/bin/codex-cyberpunk"`
+
+兩邊都解除後，就可以安全刪除 clone 下來的目錄。
 
 ## 授權條款
 
